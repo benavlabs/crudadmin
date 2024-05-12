@@ -1,0 +1,37 @@
+[tool.poetry]
+name = "crudadmin"
+version = "0.1.0"
+description = "Easily extendable FastAPI admin dashboard"
+authors = ["Igor Magalhaes <igor.magalhaes.r@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+packages = [{include = "crudadmin"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+python-dotenv = "^1.0.0"
+pydantic = {extras = ["email"], version = "^2.4.1"}
+fastapi = "^0.103.1"
+httptools = "^0.6.0"
+uuid = "^1.30"
+alembic = "^1.12.0"
+asyncpg = "^0.28.0"
+SQLAlchemy-Utils = "^0.41.1"
+python-jose = "^3.3.0"
+SQLAlchemy = "^2.0.21"
+pytest = "^7.4.2"
+python-multipart = "^0.0.6"
+greenlet = "^2.0.2"
+httpx = "^0.25.0"
+pydantic-settings = "^2.0.3"
+redis = "^5.0.1"
+arq = "^0.25.0"
+gunicorn = "^21.2.0"
+bcrypt = "^4.1.1"
+jinja2 = "^3.1.2"
+fastcrud = "^0.6.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
