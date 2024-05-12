@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en-US">
+    <head>
+        <meta charset="UTF-8">
+        <title>{% block title %}FastAPI Admin{% endblock %}</title>
+        <link href="https://fonts.googleapis.com/css?family=Roboto:400,700&display=swap" rel="stylesheet">
+        <style>
+            /* relevant variable definition */
+            :root {
+                --bg-color-dark: #1e2129;
+                --bg-color-light: #f7f7f7;
+                --text-color-dark: #ffffff;
+                --text-color-light: #333333;
+                --primary-color: #009688;
+            }
+
+            /* body definitions across all files */
+            body {
+                font-family: 'Roboto', sans-serif;
+                margin: 0;
+                padding: 0;
+                display: flex;
+                flex-direction: column;
+                min-height: 100vh;
+                background: var(--bg-color-light);
+                color: var(--text-color-light);
+            }
+            body.dark-theme {
+                background: var(--bg-color-dark);
+                color: var(--text-color-dark);
+            }
+            body.light-theme {
+                background: var(--bg-color-light);
+                color: var(--text-color-light);
+            }
+        </style>
+    </head>
+    <body class="{{ theme|default('dark-theme', true) }}">
+        <main class="admin-main">
+            {% block content %}
+
+            {% endblock %}
+        </main>
+    </body>
+</html>
