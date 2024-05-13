@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+
+{% include "utils/header.html" %}
+
+{% block content %}
+    <div id="dynamic-content" hx-get="/admin/table_content" hx-trigger="load" hx-swap="outerHTML">
+        Loading dashboard content...
+    </div>
+{% endblock %}

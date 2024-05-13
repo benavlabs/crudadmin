@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% include "utils/header.html" %}
+
+{% block title %}Model Administration{% endblock %}
+
+{% block content %}
+<style>
+    .centered-heading {
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    
+    .search-and-actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 10px;
+        position: relative;
+    }
+
+    .search-form {
+        flex-grow: 1;
+        justify-content: center;
+        position: absolute;
+        left: 0;
+        right: 0;
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        position: absolute;
+    }
+
+    #search-input {
+        width: 96%;
+        padding: 8px 16px;
+        font-size: 14px;
+        border: 2px solid var(--primary-color);
+        border-radius: 4px;
+        transition: all 0.3s ease-out;
+        background-color: var(--bg-color-light);
+        color: var(--text-color-dark);
+    }
+
+    #search-input:focus {
+        border-color: darken(var(--primary-color), 10%);
+        box-shadow: 0 0 6px darken(var(--primary-color), 10%);
+    }
+
+    .add-model-button {
+        background-color: var(--primary-color);
+        color: white;
+        padding: 8px 16px;
+        text-decoration: none;
+        border-radius: 4px;
+        white-space: nowrap;
+        margin-left: auto;
+    }
+</style>
+<div class="admin-content">
+    <h1 class="centered-heading">{{ model_name }} Administration</h1>
+
+    <form method="get" hx-get="/admin/{{ model_name }}/get_model_list" hx-target="#model-list" hx-trigger="keyup from:#search-input delay:500ms">
+        <div class="search-and-actions">
+            <div class="column-select">
+                <select name="column-to-search-select" id="column-select">
+                    {% for header in table_columns %}
+                    <option value="{{ header }}" {% if selected_column == header %}selected{% endif %}>
+                        {{ header }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="search-form">
+                <input type="text" id="search-input" name="search" placeholder="Search...">
+            </div>
+
+            <a href="/admin/{{ model_name }}/create" class="add-model-button" hx-get="/admin/{{ model_name }}/create_page" hx-target="body">Add {{ model_name }}</a>
+        </div>
+    </form>
+
+    <div id="model-list">
+        {% include 'model/model_table_content.html' %}
+    </div>
+</div>
+{% endblock %}

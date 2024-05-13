@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}FastAPI Admin Login{% endblock %}
+
+{% block content %}
+<style>
+    .center-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+    }
+    .login-container {
+        margin: auto;
+        padding: 20px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        width: 300px;
+        border-radius: 4px;
+        background-color: var(--input-bg-color-light);
+    }
+    .dark-theme .login-container {
+        background-color: var(--input-bg-color-dark);
+    }
+    .login-header {
+        background-color: var(--primary-color);
+        color: white;
+        padding: 10px;
+        text-align: center;
+        border-radius: 4px 4px 0 0;
+    }
+    .login-form {
+        display: flex;
+        flex-direction: column;
+    }
+    .login-form label {
+        margin-top: 10px;
+    }
+    .login-form input {
+        padding: 10px;
+        margin-top: 5px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        background: white;
+        color: black;
+    }
+    .login-form button {
+        background-color: var(--primary-color);
+        color: white;
+        padding: 10px;
+        margin-top: 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    .login-form button:hover {
+        background-color: #00796B;
+    }
+</style>
+
+<div class="center-container">
+    <div class="login-container">
+        <div class="login-header">FastAPI Administration</div>
+        <form class="login-form" action="/admin/login" method="post">
+            <label for="username">Username:</label>
+            <input type="text" id="username" name="username" required>
+        
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required>
+        
+            <button type="submit">Log in</button>
+        </form>
+        {% if error %}
+            <div class="error-message">{{ error }}</div>
+        {% endif %}
+    </div>
+</div>
+<script>
+    function handleLogin(event) {
+        event.preventDefault();
+        const formData = new FormData(event.target);
+        fetch('/admin/login', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.redirect) {
+                // Store the access token in local storage or memory
+                localStorage.setItem('access_token', data.access_token);
+                // Redirect to the admin page
+                window.location.href = data.redirect;
+            } else {
+                // Handle login error (e.g., display error message)
+            }
+        });
+    }
+
+    document.getElementById('login-form').addEventListener('submit', handleLogin);
+</script>
+{% endblock %}

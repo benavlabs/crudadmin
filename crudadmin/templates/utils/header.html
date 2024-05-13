@@ -1,0 +1,50 @@
+<style>
+    .admin-container {
+        width: 100%;
+        display: flex;
+    }
+    .admin-main {
+        flex-grow: 1;
+        padding: 20px;
+    }
+    .admin-header {
+        background-color: var(--primary-color);
+        color: white;
+        padding: 10px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .admin-header .logout-link {
+        color: white;
+        text-decoration: none;
+        padding: 4px 8px;
+        background-color: #dc3545;
+        border-radius: 2px;
+        font-weight: bold;
+    }
+    .admin-header .logout-link:hover {
+        background-color: #c82333;
+    }
+    .header-left-container {
+        display: flex;
+        align-items: center;
+    }
+    .header-right-container {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .fastapi-admin-a {
+        text-decoration: none;
+        color: white;
+    }
+</style>
+<div class="admin-header">
+    <div class="header-left-container">
+        <a href="/admin/" class="fastapi-admin-a">FastAPI Admin</a>
+    </div>
+    <div class="header-right-container">
+        <a href="/logout/" class="logout-link">Log Out</a>
+    </div>
+</div>

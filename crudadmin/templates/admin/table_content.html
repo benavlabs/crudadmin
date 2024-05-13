@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .dashboard-main {
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center; /* Center vertically */
+        min-height: 80vh; /* Minimum height to enable vertical centering */
+    }
+    .section {
+        width: 100%;
+        max-width: 600px;
+        margin-top: 30px;
+    }
+    .section-header {
+        padding: 10px;
+        background-color: var(--section-header-bg-color); /* Green background for headers */
+        color: var(--text-color-dark); /* White text for headers */
+        font-weight: bold;
+        border-radius: 4px;
+        text-align: center;
+    }
+    .module {
+        background-color: var(--bg-color-light); /* Light background for modules */
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        margin-top: 10px;
+        padding: 20px;
+        color: var(--text-color-light); /* Dark text for modules */
+    }
+    .module a {
+        color: var(--module-link-color); /* Green color for action links */
+        text-decoration: none;
+        margin-right: 10px;
+    }
+    .dark-theme .module {
+        background-color: var(--bg-color-dark); /* Dark background for modules */
+        color: var(--text-color-dark); /* Light text for modules */
+    }
+    .dark-theme .module a {
+        color: var(--module-link-color); /* Green color for action links in dark mode */
+    }
+    .dark-theme .section-header {
+        background-color: var(--section-header-bg-color); /* Green background for headers in dark mode */
+        color: var(--text-color-dark); /* White text for headers in dark mode */
+    }
+</style>
+
+<div class="dashboard-main">
+    <div class="section">
+        <div class="section-header">AUTHENTICATION</div>
+        {% for table_name in auth_table_names %}
+            <div class="module">
+                <a href="/admin/{{ table_name }}"><strong>{{ table_name }}</strong></a>
+                <div>
+                    <a href="/admin/{{ table_name }}/create" hx-get="/admin/{{ table_name }}/create_page" hx-target="body">Create</a>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    <div class="section">
+        <div class="section-header">MODELS</div>
+        {% for table_name in table_names %}
+            <div class="module">
+                <a href="/admin/{{ table_name }}"><strong>{{ table_name }}</strong></a>
+                <div>
+                    <a href="/admin/{{ table_name }}/create" hx-get="/admin/{{ table_name }}/create_page" hx-target="body">Create</a>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

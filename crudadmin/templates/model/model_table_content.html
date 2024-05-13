@@ -1,0 +1,77 @@
+<style>
+    .table-container {
+        max-width: 100%;
+        overflow-x: auto;
+        margin-bottom: 30px;
+    }
+    .table {
+        width: 100%;
+        max-width: 100%;
+        border-collapse: collapse;
+    }
+    .table td, .table th {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 150px;
+        padding: 8px;
+    }
+    @media screen and (max-width: 600px) {
+        .table th:nth-child(3), .table td:nth-child(3) {
+            display: none;
+        }
+    }
+
+    /* Dark Theme Table */
+    body.dark-theme table {
+        border: 1px solid #333;
+    }
+    body.dark-theme th {
+        background-color: #333;
+        color: #fff;
+    }
+    body.dark-theme td {
+        border: 1px solid #333;
+        background-color: #1e2129;
+        color: #fff;
+    }
+
+    /* Light Theme Table */
+    body.light-theme table {
+        border: 1px solid #ddd;
+    }
+    body.light-theme th {
+        background-color: #f2f2f2;
+        color: #333;
+    }
+    body.light-theme td {
+        border: 1px solid #ddd;
+        background-color: #f7f7f7;
+        color: #333;
+    }    
+</style>
+<div id="model-list">
+    <div class="table-container">
+        <table id="data-table" class="table">
+            <thead>
+                <tr>
+                    <th></th>
+                    {% for header in table_columns %}
+                        <th>{{ header }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody id="table-body">
+                {% for row in model_items %}
+                    <tr>
+                        <td class="checkbox-cell"><input type="checkbox" name="rowSelect"></td>
+                        {% for attribute in row.values() %}
+                            <td>{{ attribute }}</td>
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% include 'utils/pagination_controls.html' %}
+</div>
