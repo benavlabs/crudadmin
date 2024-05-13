@@ -165,3 +165,7 @@ cython_debug/
 .DS_Store
 
 .ruff_cache
+
+/tests/local
+
+/crudadmin/_templates
