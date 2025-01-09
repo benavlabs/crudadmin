@@ -169,3 +169,6 @@ cython_debug/
 /tests/local
 
 /crudadmin/_templates
+
+uv.lock
+.python-version
