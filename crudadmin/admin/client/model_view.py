@@ -33,6 +33,7 @@ class ModelView:
         delete_schema: Type[DeleteSchemaType] | None = None,
         select_schema: Type[SelectSchemaType] | None = None,
         admin_model: bool = False,
+        admin_site = None,
     ) -> None:
         self.db_config = database_config
         self.session = database_config.session
@@ -45,6 +46,7 @@ class ModelView:
         self.update_internal_schema = update_internal_schema
         self.delete_schema = delete_schema
         self.admin_model = admin_model
+        self.admin_site = admin_site
 
         CRUDModel = FastCRUD[
             model, create_schema, update_schema, update_internal_schema, delete_schema, select_schema
@@ -140,7 +142,8 @@ class ModelView:
 
     def get_model_admin_page(self, template: str = "admin/model/list.html"):
         async def get_model_admin_page_inner(
-            request: Request, db: AsyncSession = Depends(self.session)
+            request: Request, 
+            db: AsyncSession = Depends(self.session)
         ):
             page = int(request.query_params.get("page", 1))
             limit = int(request.query_params.get("rows-per-page-select", 10))
@@ -149,18 +152,20 @@ class ModelView:
             items = await self.crud.get_multi(db=db, offset=offset, limit=limit)
             table_columns = [column.key for column in self.model.__table__.columns]
 
-            return self.templates.TemplateResponse(
-                template,
-                {
-                    "request": request,
-                    "model_items": items["data"],
-                    "model_name": self.model_key,
-                    "table_columns": table_columns,
-                    "total_items": items["total_count"],
-                    "current_page": page,
-                    "rows_per_page": limit,
-                },
-            )
+            context = await self.admin_site.get_base_context(db)
+            
+            context.update({
+                "request": request,
+                "model_items": items["data"],
+                "model_name": self.model_key,
+                "table_columns": table_columns,
+                "total_items": items["total_count"],
+                "current_page": page,
+                "rows_per_page": limit,
+                "include_sidebar_and_header": True
+            })
+
+            return self.templates.TemplateResponse(template, context)
 
         return get_model_admin_page_inner
     

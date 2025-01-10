@@ -4,6 +4,7 @@ from typing import Type, Dict, Any
 from fastapi import APIRouter
 from fastapi.templating import Jinja2Templates
 from fastapi.security import OAuth2PasswordBearer
+from fastcrud import FastCRUD
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 
@@ -112,7 +113,9 @@ class CRUDAdmin:
                 "update_schema": update_schema,
                 "update_internal_schema": update_internal_schema,
                 "delete_schema": delete_schema,
+                "crud": FastCRUD(model)
             }
+
         admin_view = ModelView(
             database_config=self.db_config,
             templates=self.templates,
@@ -121,6 +124,7 @@ class CRUDAdmin:
             update_schema=update_schema,
             update_internal_schema=update_internal_schema,
             delete_schema=delete_schema,
+            admin_site=self.admin_site,
         )
         self.router.include_router(
             admin_view.router, prefix=f"/admin/{model_key}", include_in_schema=False

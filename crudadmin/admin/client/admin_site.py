@@ -43,12 +43,12 @@ class AdminSite:
         )
         self.router.add_api_route(
             "/dashboard-content",
-            self.dashboard_content,
+            self.dashboard_content(),
             methods=["GET"],
             include_in_schema=False,
         )
         self.router.add_api_route(
-            "/", self.dashboard_page, methods=["GET"], include_in_schema=False
+            "/", self.dashboard_page(), methods=["GET"], include_in_schema=False
         )
 
         for model_key, auth_model_key in self.admin_authentication.auth_models.items():
@@ -117,20 +117,55 @@ class AdminSite:
     async def admin_login_page(self, request: Request):
         return self.templates.TemplateResponse("auth/login.html", {"request": request})
 
-    async def dashboard_content(self, request: Request):
-        return self.templates.TemplateResponse(
-            "admin/dashboard/dashboard_content.html",
-            {
+    def dashboard_content(self):
+        async def dashboard_content_inner(request: Request, db: AsyncSession = Depends(self.db_config.session)):
+            context = await self.get_base_context(db)
+            context.update({
                 "request": request,
-                "table_names": self.models.keys(),
-                "auth_table_names": self.admin_authentication.auth_models.keys(),
-            },
-        )
+            })
+            return self.templates.TemplateResponse(
+                "admin/dashboard/dashboard_content.html",
+                context
+            )
+        
+        return dashboard_content_inner
+    
+    async def get_base_context(self, db: AsyncSession) -> dict:
+        """Get common context data needed for base template"""
+        auth_model_counts = {}
+        for model_name in self.admin_authentication.auth_models.keys():
+            count = await self.db_config.crud_users.count(db)
+            auth_model_counts[model_name] = count
 
-    async def dashboard_page(self, request: Request):
-        return self.templates.TemplateResponse(
-            "admin/dashboard/dashboard.html", {"request": request}
-        )
+        model_counts = {}
+        for model_name in self.models.keys():
+            crud = self.models[model_name]["crud"]
+            count = await crud.count(db)
+            model_counts[model_name] = count
+
+        return {
+            "auth_table_names": self.admin_authentication.auth_models.keys(),
+            "table_names": self.models.keys(),
+            "auth_model_counts": auth_model_counts,
+            "model_counts": model_counts
+        }
+
+    def dashboard_page(self):
+        async def dashboard_page_inner(
+            request: Request,
+            db: AsyncSession = Depends(self.db_config.session)
+        ):
+            context = await self.get_base_context(db)
+            context.update({
+                "request": request,
+                "include_sidebar_and_header": True
+            })
+            
+            return self.templates.TemplateResponse(
+                "admin/dashboard/dashboard.html",
+                context
+            )
+        return dashboard_page_inner
 
     def admin_auth_model_page(self, model_key: str):
         async def admin_auth_model_page_inner(
@@ -148,18 +183,22 @@ class AdminSite:
             total_items = items["total_count"]
             total_pages = (total_items + limit - 1) // limit
 
+            context = await self.get_base_context(db)
+            context.update({
+                "request": request,
+                "model_items": items["data"],
+                "model_name": model_key,
+                "table_columns": table_columns,
+                "current_page": page,
+                "rows_per_page": limit,
+                "total_items": total_items,
+                "total_pages": total_pages,
+                "include_sidebar_and_header": True
+            })
+
             return self.templates.TemplateResponse(
                 "admin/model/list.html",
-                {
-                    "request": request,
-                    "model_items": items["data"],
-                    "model_name": model_key,
-                    "table_columns": table_columns,
-                    "current_page": page,
-                    "rows_per_page": limit,
-                    "total_items": total_items,
-                    "total_pages": total_pages,
-                },
+                context
             )
         
         return admin_auth_model_page_inner

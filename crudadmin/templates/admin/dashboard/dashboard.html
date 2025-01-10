@@ -6,6 +6,30 @@
 
 {% block content %}
     <div id="dynamic-content" hx-get="/admin/dashboard-content" hx-trigger="load" hx-swap="outerHTML">
-        Loading dashboard content...
+        <div class="loading-state">
+            <div class="card">
+                <div class="loading-message">Loading dashboard content...</div>
+            </div>
+        </div>
     </div>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+    .loading-state {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 200px;
+    }
+    
+    .loading-message {
+        color: var(--text-secondary-light);
+        font-size: 1.1rem;
+    }
+    
+    .dark-theme .loading-message {
+        color: var(--text-secondary-dark);
+    }
+</style>
 {% endblock %}

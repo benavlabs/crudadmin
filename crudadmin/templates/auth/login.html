@@ -5,101 +5,135 @@
 {% set include_sidebar_and_header = False %}
 
 {% block content %}
-<style>
-    .admin-sidebar, .admin-header {
-        display: none; /* Hide sidebar and header */
-    }
-    .center-container {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
-    }
-    .login-container {
-        margin: auto;
-        padding: 20px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-        width: 300px;
-        border-radius: 4px;
-        background-color: var(--input-bg-color-light);
-    }
-    .dark-theme .login-container {
-        background-color: var(--input-bg-color-dark);
-    }
-    .login-header {
-        background-color: var(--primary-color);
-        color: white;
-        padding: 10px;
-        text-align: center;
-        border-radius: 4px 4px 0 0;
-    }
-    .login-form {
-        display: flex;
-        flex-direction: column;
-    }
-    .login-form label {
-        margin-top: 10px;
-    }
-    .login-form input {
-        padding: 10px;
-        margin-top: 5px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        background: white;
-        color: black;
-    }
-    .login-form button {
-        background-color: var(--primary-color);
-        color: white;
-        padding: 10px;
-        margin-top: 20px;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-    }
-    .login-form button:hover {
-        background-color: #00796B;
-    }
-</style>
+<div class="login-page">
+    <style>
+        .login-page {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
 
-<div class="center-container">
+        .login-container {
+            width: 100%;
+            max-width: 400px;
+            background: var(--bg-primary-light);
+            border-radius: var(--border-radius-lg);
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+        }
+
+        .dark-theme .login-container {
+            background: var(--bg-primary-dark);
+        }
+
+        .login-header {
+            background: var(--primary-color);
+            color: white;
+            padding: 1.5rem;
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .login-form {
+            padding: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--text-secondary-light);
+        }
+
+        .dark-theme .form-label {
+            color: var(--text-secondary-dark);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border-light);
+            border-radius: var(--border-radius-md);
+            background: var(--bg-primary-light);
+            color: var(--text-primary-light);
+            transition: all 0.2s;
+        }
+
+        .dark-theme .form-control {
+            background: var(--bg-primary-dark);
+            border-color: var(--border-dark);
+            color: var(--text-primary-dark);
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius-md);
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .login-btn:hover {
+            background: var(--primary-hover);
+        }
+
+        .error-message {
+            background: #fef2f2;
+            border: 1px solid #fee2e2;
+            color: var(--danger-color);
+            padding: 1rem;
+            border-radius: var(--border-radius-md);
+            margin-bottom: 1rem;
+            font-size: 0.875rem;
+        }
+
+        .dark-theme .error-message {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.2);
+        }
+    </style>
+
     <div class="login-container">
-        <div class="login-header">FastAPI Administration</div>
+        <div class="login-header">
+            FastAPI Administration
+        </div>
+        
         <form class="login-form" action="/admin/login" method="post">
-            <label for="username">Username:</label>
-            <input type="text" id="username" name="username" required>
-        
-            <label for="password">Password:</label>
-            <input type="password" id="password" name="password" required>
-        
-            <button type="submit">Log in</button>
+            {% if error %}
+            <div class="error-message">
+                {{ error }}
+            </div>
+            {% endif %}
+            
+            <div class="form-group">
+                <label class="form-label" for="username">Username</label>
+                <input type="text" id="username" name="username" class="form-control" required>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label" for="password">Password</label>
+                <input type="password" id="password" name="password" class="form-control" required>
+            </div>
+            
+            <button type="submit" class="login-btn">Log in</button>
         </form>
-        {% if error %}
-            <div class="error-message">{{ error }}</div>
-        {% endif %}
     </div>
 </div>
-<script>
-    function handleLogin(event) {
-        event.preventDefault();
-        const formData = new FormData(event.target);
-        fetch('/admin/login', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.redirect) {
-                // Store the access token in local storage or memory
-                localStorage.setItem('access_token', data.access_token);
-                // Redirect to the admin page
-                window.location.href = data.redirect;
-            } else {
-                // Handle login error (e.g., display error message)
-            }
-        });
-    }
-
-    document.getElementById('login-form').addEventListener('submit', handleLogin);
-</script>
 {% endblock %}

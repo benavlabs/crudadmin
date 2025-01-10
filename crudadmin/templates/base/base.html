@@ -2,342 +2,361 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}FastAPI Admin{% endblock %}</title>
-    <link href="https://fonts.googleapis.com/css?family=Roboto:400,700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/htmx.org"></script>
     <style>
-        /* General Styles */
-        :root {
-            --bg-color-dark: #1e2129;
-            --bg-color-light: #f7f7f7;
-            --text-color-dark: #ffffff;
-            --text-color-light: #333333;
-            --primary-color: #009688;
-            --sidebar-width: 200px;
-        }
-        body {
-            font-family: 'Roboto', sans-serif;
+        /* Modern CSS Reset */
+        *, *::before, *::after {
+            box-sizing: border-box;
             margin: 0;
             padding: 0;
-            display: flex;
-            flex-direction: column;
+        }
+
+        /* Theme Variables */
+        :root {
+            /* Colors */
+            --primary-color: #009688;
+            --primary-dark: #00796B;
+            --primary-light: #B2DFDB;
+            --accent-color: #607D8B;
+            
+            /* Light Theme */
+            --bg-primary-light: #ffffff;
+            --bg-secondary-light: #f7f7f7;
+            --text-primary-light: #333333;
+            --text-secondary-light: #666666;
+            --border-light: #e0e0e0;
+            
+            /* Dark Theme */
+            --bg-primary-dark: #1e2129;
+            --bg-secondary-dark: #282c34;
+            --text-primary-dark: #ffffff;
+            --text-secondary-dark: #b0b0b0;
+            --border-dark: #3a3f4c;
+            
+            /* Status Colors */
+            --success-color: #4CAF50;
+            --danger-color: #f44336;
+            --warning-color: #ff9800;
+            
+            /* Layout */
+            --header-height: 64px;
+            --sidebar-width: 260px;
+            --content-max-width: 1200px;
+            
+            /* Components */
+            --border-radius-sm: 4px;
+            --border-radius-md: 8px;
+            --border-radius-lg: 12px;
+            --shadow-sm: 0 2px 4px rgba(0,0,0,0.1);
+            --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
+            --shadow-lg: 0 10px 15px rgba(0,0,0,0.1);
+        }
+
+        /* Base Styles */
+        body {
+            font-family: 'Inter', sans-serif;
+            line-height: 1.5;
+            color: var(--text-primary-light);
+            background: var(--bg-secondary-light);
             min-height: 100vh;
-            background: var(--bg-color-light);
-            color: var(--text-color-light);
         }
 
-        /* Theme Styles */
         body.dark-theme {
-            background: var(--bg-color-dark);
-            color: var(--text-color-dark);
-        }
-        body.light-theme {
-            background: var(--bg-color-light);
-            color: var(--text-color-light);
+            color: var(--text-primary-dark);
+            background: var(--bg-secondary-dark);
         }
 
-        /* Admin Container Styles */
+        /* Layout */
         .admin-container {
-            width: 100%;
-            display: flex;
-        }
-        .admin-sidebar {
-            width: var(--sidebar-width);
-            background-color: #f1f1f1;
-            padding: 20px;
-            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
-        }
-        .admin-main {
-            flex-grow: 1;
-            padding: 20px;
+            display: grid;
+            grid-template-columns: var(--sidebar-width) 1fr;
+            grid-template-rows: var(--header-height) 1fr;
+            min-height: 100vh;
         }
 
-        /* Header Styles */
+        /* Header */
         .admin-header {
-            background-color: var(--primary-color);
-            color: white;
-            padding: 10px 20px;
+            grid-column: 1 / -1;
+            background: var(--primary-color);
+            padding: 0 2rem;
             display: flex;
-            justify-content: space-between;
             align-items: center;
+            justify-content: space-between;
+            box-shadow: var(--shadow-sm);
+            z-index: 10;
+            color: white;
         }
 
-        /* Theme Toggle Button */
-        .theme-toggle {
-            position: relative;
-            width: 40px;
-            height: 22px;
-            background-color: #ccc; 
-            border-radius: 22px;
-            cursor: pointer;
-        }
-        .theme-toggle:before {
-            content: "";
-            position: absolute;
-            width: 18px;
-            height: 18px;
-            left: 2px;
-            bottom: 2px;
-            background-color: white;
-            border-radius: 50%;
-        }
-        body.dark-theme .theme-toggle {
-            background-color: var(--bg-color-dark);
-        }
-        body.dark-theme .theme-toggle:before {
-            transform: translateX(18px);
-        }
-
-        /* Logout Link Styles */
-        .admin-header .logout-link {
+        .brand {
+            font-size: 1.25rem;
+            font-weight: 600;
             color: white;
             text-decoration: none;
-            padding: 4px 8px;
-            background-color: #dc3545;
-            border-radius: 2px;
-            font-weight: bold;
-        }
-        .admin-header .logout-link:hover {
-            background-color: #c82333;
-        }
-
-        /* Header Containers */
-        .left-container {
             display: flex;
             align-items: center;
-        }
-        .right-container {
-            display: flex;
-            align-items: center;
-            gap: 10px;
+            gap: 0.5rem;
         }
 
-        /* Table Styles */
-        .table-container {
-            max-width: 100%;
-            overflow-x: auto;
-            margin-bottom: 30px;
+        .brand:hover {
+            color: var(--primary-light);
         }
-        .table {
-            width: 100%;
-            max-width: 100%;
-            border-collapse: collapse;
+
+        /* Sidebar */
+        .admin-sidebar {
+            background: var(--bg-primary-light);
+            border-right: 1px solid var(--border-light);
+            padding: 1.5rem 0;
+            overflow-y: auto;
+            grid-row: 2;
         }
-        .table td, .table th {
-            white-space: nowrap;
+
+        .dark-theme .admin-sidebar {
+            background: var(--bg-primary-dark);
+            border-color: var(--border-dark);
+        }
+
+        .sidebar-section {
+            margin-bottom: 0.5rem;
+        }
+
+        .sidebar-section-header {
+            padding: 0.75rem 1.5rem;
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            color: var(--text-secondary-light);
+            transition: all 0.2s;
+        }
+
+        .dark-theme .sidebar-section-header {
+            color: var(--text-secondary-dark);
+        }
+
+        .sidebar-section-header:hover {
+            background: var(--bg-secondary-light);
+        }
+
+        .dark-theme .sidebar-section-header:hover {
+            background: var(--bg-secondary-dark);
+        }
+
+        .sidebar-section-title {
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+        }
+
+        .sidebar-section-toggle {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s;
+        }
+
+        .sidebar-section-toggle::before {
+            content: '';
+            width: 0;
+            height: 0;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 5px solid currentColor;
+            transition: transform 0.2s;
+        }
+
+        .sidebar-section.collapsed .sidebar-section-toggle::before {
+            transform: rotate(-90deg);
+        }
+
+        .sidebar-nav {
+            list-style: none;
+            max-height: 500px;
             overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: 150px;
-            padding: 8px;
-        }
-        @media screen and (max-width: 600px) {
-            .table th:nth-child(3), .table td:nth-child(3) {
-                display: none;
-            }
+            transition: max-height 0.3s ease-in-out;
         }
 
-        /* Dark Theme Table */
-        body.dark-theme table {
-            border: 1px solid #333;
-        }
-        body.dark-theme th {
-            background-color: #333;
-            color: #fff;
-        }
-        body.dark-theme td {
-            border: 1px solid #333;
-            background-color: #1e2129;
-            color: #fff;
+        .sidebar-section.collapsed .sidebar-nav {
+            max-height: 0;
         }
 
-        /* Light Theme Table */
-        body.light-theme table {
-            border: 1px solid #ddd;
-        }
-        body.light-theme th {
-            background-color: #f2f2f2;
-            color: #333;
-        }
-        body.light-theme td {
-            border: 1px solid #ddd;
-            background-color: #f7f7f7;
-            color: #333;
-        }
-
-        .search-and-actions {
+        .sidebar-link {
             display: flex;
             align-items: center;
-            justify-content: space-between; /* Ensures items are spread across the container */
-            padding: 10px 10px; /* Padding for aesthetic spacing */
-            position: relative;
-        }
-
-        .search-form {
-            flex-grow: 1; /* Allows the search form to take up available space */
-            justify-content: center; /* Center the search form */
-            position: absolute; /* Position it absolutely to ignore the button's space */
-            left: 0;
-            right: 0;
-            position: absolute;
-            left: 50%;
-            transform: translateX(-50%); /* Centers the search form perfectly */
-            position: absolute;
-        }
-
-        #search-input {
-            width: 96%; /* slightly different width to make it distinct */
-            padding: 8px 16px; /* smaller padding for a less tall input field */
-            font-size: 14px; /* slightly smaller font size for better proportions */
-            border: 2px solid var(--primary-color); /* using theme's primary color for the border */
-            border-radius: 4px; /* slightly less rounded corners */
-            transition: all 0.3s ease-out; /* smooth transition on focus */
-            background-color: var(--bg-color-light); /* using theme's light background color */
-            color: var(--text-color-dark); /* using theme's dark text color */
-        }
-
-        #search-input:focus {
-            border-color: darken(var(--primary-color), 10%); /* slightly darker primary color on focus */
-            box-shadow: 0 0 6px darken(var(--primary-color), 10%); /* subtle shadow for emphasis, darker on focus */
-        }
-
-        /* Add Model Button */
-        .add-model-button {
-            background-color: var(--primary-color);
-            color: white;
-            padding: 8px 16px;
+            padding: 0.75rem 1.5rem 0.75rem 2rem;
+            color: var(--text-primary-light);
             text-decoration: none;
-            border-radius: 4px;
-            white-space: nowrap; /* Prevents the text from wrapping */
-            margin-left: auto; /* Pushes the button to the right */
+            font-weight: 500;
+            transition: all 0.2s;
+            font-size: 0.875rem;
         }
 
-        /* Centered Heading */
-        .centered-heading {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        .error-message {
-            color: red;
-            margin-bottom: 10px;
-            text-align: center;
-            font-weight: bold;
+        .dark-theme .sidebar-link {
+            color: var(--text-primary-dark);
         }
 
-        /* FastAPI Admin Link */
-        .fastapi-admin-a {
-            text-decoration: none;
+        .sidebar-link:hover {
+            background: var(--primary-light);
+            color: var(--primary-dark);
+        }
+
+        .dark-theme .sidebar-link:hover {
+            background: var(--primary-dark);
+            color: var(--primary-light);
+        }
+
+        .sidebar-link.active {
+            background: var(--primary-color);
             color: white;
         }
 
-        /* Pagination Controls */
-        .pagination-controls {
-            padding: 8px 16px;
+        /* Badge */
+        .badge {
+            display: inline-flex;
             align-items: center;
+            justify-content: center;
+            padding: 0.25rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: auto;
         }
 
-            .form-group {
-            margin-bottom: 2rem; /* More space between each form group */
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 1rem; /* Space between the label and the input box */
-            font-weight: bold;
-        }
-
-        .form-group input,
-        .form-group textarea,
-        .form-group select {
-            display: block;
-            width: 100%; /* Make input boxes longer */
-            padding: 0.5rem;
-            margin-bottom: 0.5rem; /* Add some space below each input for alignment */
-            border: 1px solid #ccc;
-            border-radius: 4px;
-        }
-
-        .form-group .required {
-            color: #d9534f; /* Ensure the asterisk for required fields is red */
-        }
-
-        .submit-btn {
-            background-color: var(--primary-color);
+        .badge-primary {
+            background: var(--primary-color);
             color: white;
-            padding: 10px 15px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-            text-align: center;
-            display: inline-block; /* Align submit button correctly */
-            margin-top: 20px;
         }
 
-        .submit-btn:hover {
-            background-color: darken(var(--primary-color), 10%);
+        /* Count indicator */
+        .model-count {
+            font-size: 0.75rem;
+            color: var(--text-secondary-light);
+            margin-left: auto;
+            padding: 0.125rem 0.5rem;
+            border-radius: var(--border-radius-sm);
+            background: var(--bg-secondary-light);
         }
 
-        /* Ensure alignment of labels and inputs for a clean layout */
-        .aligned-form-group {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        .dark-theme .model-count {
+            color: var(--text-secondary-dark);
+            background: var(--bg-secondary-dark);
         }
 
-        .aligned-form-group label {
-            flex-basis: 20%;
-            text-align: right;
-            margin-right: 2rem; /* Space between label and input */
-        }
-
-        .aligned-form-group input,
-        .aligned-form-group textarea,
-        .aligned-form-group select {
-            flex-grow: 1;
-        }
-
-        .pagination-controls {
-            display: flex;
-            align-items: center;
-            justify-content: space-between; /* Ensures items are spread out from start to end */
-            width: 100%; /* Ensures it spans the full width of its parent */
-        }
-
-        .rows-per-page-form {
-            flex: 1; /* Allows this element to grow and take up necessary space */
-        }
-
-        .pagination-buttons {
-            flex: 2; /* Allows this element to take more space than the rows-per-page form */
-            display: flex;
-            justify-content: center; /* Centers pagination buttons */
-        }
-
-        .row-display {
-            flex: 1; /* Allows this element to grow and take up necessary space */
-            text-align: center; /* Center the text within this div */
-        }
-        
     </style>
-    
-    {% set include_sidebar_and_header = include_sidebar_and_header | default(false) %}
-
-    {% if include_sidebar_and_header %}
-        <div class="admin-header">
-            <div class="left-container">
-                <a href="/admin/" class="fastapi-admin-a">FastAPI Admin</a>
-            </div>
-            <div class="right-container">
-                <a href="/admin/logout" class="logout-link">Log Out</a>
-            </div>
-        </div>
-    {% endif %}
+    {% block extra_head %}{% endblock %}
 </head>
 <body class="{{ theme|default('dark-theme', true) }}">
-    <main class="admin-main">
-        {% block content %}
-        <!-- Content will be inserted here -->
-        {% endblock %}
-    </main>
+    {% set include_sidebar_and_header = include_sidebar_and_header | default(false) %}
+    
+    <div class="{% if include_sidebar_and_header %}admin-container{% endif %}">
+        {% if include_sidebar_and_header %}
+            <header class="admin-header">
+                <a href="/admin/" class="brand">
+                    FastAPI Admin
+                </a>
+                <div class="flex items-center gap-4">
+                    <a href="/admin/logout" class="btn btn-danger">Log Out</a>
+                </div>
+            </header>
+            
+            <aside class="admin-sidebar">
+                <nav>
+                    <!-- Dashboard Section -->
+                    <div class="sidebar-section">
+                        <div class="sidebar-section-header" onclick="this.parentElement.classList.toggle('collapsed')">
+                            <h3 class="sidebar-section-title">Navigation</h3>
+                            <span class="sidebar-section-toggle"></span>
+                        </div>
+                        <ul class="sidebar-nav">
+                            <li>
+                                <a href="/admin/" class="sidebar-link active">
+                                    Dashboard
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- Authentication Section -->
+                    <div class="sidebar-section">
+                        <div class="sidebar-section-header" onclick="this.parentElement.classList.toggle('collapsed')">
+                            <h3 class="sidebar-section-title">Authentication</h3>
+                            <span class="sidebar-section-toggle"></span>
+                        </div>
+                        <ul class="sidebar-nav">
+                            {% for auth_table_name in auth_table_names %}
+                            <li>
+                                <a href="/admin/{{ auth_table_name }}" class="sidebar-link">
+                                    {{ auth_table_name }}
+                                    <span class="model-count">{{ auth_model_counts[auth_table_name]|default(0) }}</span>
+                                </a>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+
+                    <!-- Models Section -->
+                    {% if table_names %}
+                    <div class="sidebar-section">
+                        <div class="sidebar-section-header" onclick="this.parentElement.classList.toggle('collapsed')">
+                            <h3 class="sidebar-section-title">Models</h3>
+                            <span class="sidebar-section-toggle"></span>
+                        </div>
+                        <ul class="sidebar-nav">
+                            {% for table_name in table_names %}
+                            <li>
+                                <a href="/admin/{{ table_name }}" class="sidebar-link">
+                                    {{ table_name }}
+                                    <span class="model-count">{{ model_counts[table_name]|default(0) }}</span>
+                                </a>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                </nav>
+            </aside>
+        {% endif %}
+        
+        <main class="admin-main">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <script>
+        // Get current path to highlight active link
+        const currentPath = window.location.pathname;
+        const sidebarLinks = document.querySelectorAll('.sidebar-link');
+        
+        sidebarLinks.forEach(link => {
+            if (link.getAttribute('href') === currentPath) {
+                link.classList.add('active');
+            } else {
+                link.classList.remove('active');
+            }
+        });
+
+        // Store sidebar section states in localStorage
+        document.querySelectorAll('.sidebar-section-header').forEach(header => {
+            const section = header.parentElement;
+            const sectionId = header.querySelector('.sidebar-section-title').textContent;
+            
+            // Restore state from localStorage
+            if (localStorage.getItem(`sidebar-${sectionId}`) === 'collapsed') {
+                section.classList.add('collapsed');
+            }
+            
+            // Update localStorage on toggle
+            header.addEventListener('click', () => {
+                const isCollapsed = section.classList.contains('collapsed');
+                localStorage.setItem(`sidebar-${sectionId}`, isCollapsed ? '' : 'collapsed');
+            });
+        });
+    </script>
 </body>
 </html>

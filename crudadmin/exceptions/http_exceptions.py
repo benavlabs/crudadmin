@@ -1,4 +1,4 @@
-from fastcrud import (
+from fastcrud.exceptions.http_exceptions import (
     BadRequestException,
     NotFoundException,
     ForbiddenException,
