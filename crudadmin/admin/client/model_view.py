@@ -18,6 +18,7 @@ CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
 UpdateSchemaType = TypeVar("UpdateSchemaType", bound=BaseModel)
 UpdateSchemaInternalType = TypeVar("UpdateSchemaInternalType", bound=BaseModel)
 DeleteSchemaType = TypeVar("DeleteSchemaType", bound=BaseModel)
+SelectSchemaType = TypeVar("SelectSchemaType", bound=BaseModel)
 
 
 class ModelView:
@@ -30,6 +31,7 @@ class ModelView:
         update_schema: Type[UpdateSchemaType],
         update_internal_schema: Type[UpdateSchemaInternalType] | None = None,
         delete_schema: Type[DeleteSchemaType] | None = None,
+        select_schema: Type[SelectSchemaType] | None = None,
         admin_model: bool = False,
     ) -> None:
         self.db_config = database_config
@@ -45,7 +47,7 @@ class ModelView:
         self.admin_model = admin_model
 
         CRUDModel = FastCRUD[
-            model, create_schema, update_schema, update_internal_schema, delete_schema
+            model, create_schema, update_schema, update_internal_schema, delete_schema, select_schema
         ]
         self.crud = CRUDModel(model)
 
@@ -58,11 +60,11 @@ class ModelView:
             delete_schema=delete_schema,
         )
         self.endpoints_template.add_routes_to_router()
-        self.router.include_router(self.endpoints_template.router)
+        self.router.include_router(self.endpoints_template.router, prefix="/crud")
 
         self.router.add_api_route(
             "/form_create", 
-            self.form_create_endpoint(template="admin_model_create_page.html"),
+            self.form_create_endpoint(template="admin/model/create.html"),
             methods=["POST"], 
             include_in_schema=False
         )
@@ -71,7 +73,7 @@ class ModelView:
         )
         self.router.add_api_route(
             "/create_page", 
-            self.get_model_create_page(template="admin_model_create_page.html"), 
+            self.get_model_create_page(template="admin/model/create.html"), 
             methods=["GET"], 
             include_in_schema=False
         )
@@ -83,7 +85,7 @@ class ModelView:
         )
         self.router.add_api_route(
             "/get_model_list",
-            self.get_model_admin_page(template="model_list_content.html"),
+            self.get_model_admin_page(template="admin/model/components/list_content.html"),
             methods=["GET"],
             include_in_schema=False,
         )
@@ -111,23 +113,15 @@ class ModelView:
 
                 item_data = self.create_schema(**form_data)
                 
-                async with AsyncClient(app=request.app, base_url="http://testserver") as client:
-                    response = await client.post(
-                        url=f"/admin/{self.model.__name__}/create",
-                        json=item_data.model_dump()
-                    )
+                result = await self.crud.create(db=db, object=item_data)
 
-                if response.status_code == 200:
+                if result:
                     return RedirectResponse(url=f"/admin/{self.model.__name__}", status_code=303)
-                
                 else:
-                    error_message = response.json().get('detail', 'An unknown error occurred.')
+                    error_message = "Failed to create item"
             
             except SQLAlchemyError as e:
                 error_message = f"A database error occurred: {e}"
-
-            except RequestError as e:
-                error_message = f"Failed to make an internal request: {e}"
 
             except Exception as e:
                 error_message = f"An unexpected error occurred: {e}"
@@ -144,7 +138,7 @@ class ModelView:
 
         return form_create_endpoint_inner
 
-    def get_model_admin_page(self, template: str = "admin_model_page.html"):
+    def get_model_admin_page(self, template: str = "admin/model/list.html"):
         async def get_model_admin_page_inner(
             request: Request, db: AsyncSession = Depends(self.session)
         ):
@@ -170,7 +164,7 @@ class ModelView:
 
         return get_model_admin_page_inner
     
-    def get_model_create_page(self, template: str = "admin_model_create_page.html"):
+    def get_model_create_page(self, template: str = "admin/model/create.html"):
         async def model_create_page(request: Request):
             form_fields = _get_form_fields_from_schema(self.create_schema)
             return self.templates.TemplateResponse(
@@ -204,7 +198,7 @@ class ModelView:
             total_pages = (total_items + limit - 1) // limit
 
             return self.templates.TemplateResponse(
-                "table_body_content.html",
+                "model/components/table_content.html",
                 {
                     "request": request,
                     "model_items": items["data"],

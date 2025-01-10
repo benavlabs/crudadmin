@@ -71,7 +71,7 @@ class AdminSite:
             )
             if not user:
                 return self.templates.TemplateResponse(
-                    "login_page.html",
+                    "auth/login.html",
                     {
                         "request": request,
                         "error": "Invalid credentials. Please try again.",
@@ -115,11 +115,11 @@ class AdminSite:
         return RedirectResponse(url="/admin/login")
 
     async def admin_login_page(self, request: Request):
-        return self.templates.TemplateResponse("login_page.html", {"request": request})
+        return self.templates.TemplateResponse("auth/login.html", {"request": request})
 
     async def dashboard_content(self, request: Request):
         return self.templates.TemplateResponse(
-            "dashboard_content.html",
+            "admin/dashboard/dashboard_content.html",
             {
                 "request": request,
                 "table_names": self.models.keys(),
@@ -129,7 +129,7 @@ class AdminSite:
 
     async def dashboard_page(self, request: Request):
         return self.templates.TemplateResponse(
-            "dashboard_page.html", {"request": request}
+            "admin/dashboard/dashboard.html", {"request": request}
         )
 
     def admin_auth_model_page(self, model_key: str):
@@ -149,7 +149,7 @@ class AdminSite:
             total_pages = (total_items + limit - 1) // limit
 
             return self.templates.TemplateResponse(
-                "admin_model_page.html",
+                "admin/model/list.html",
                 {
                     "request": request,
                     "model_items": items["data"],

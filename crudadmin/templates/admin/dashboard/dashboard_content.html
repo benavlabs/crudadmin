@@ -1,7 +1,18 @@
-{% extends "base.html" %}
+{% extends "base/base.html" %}
+
+{% set include_sidebar_and_header = False %}
 
 {% block content %}
 <style>
+    :root {
+        --section-header-bg-color: #009688; /* Adjust this green color as needed */
+        --module-link-color: #009688; /* Green color for the module links */
+        --text-color-light: #5D5D5D; /* Dark color for text on light backgrounds */
+        --text-color-dark: #E7E7E7; /* Light color for text on dark backgrounds */
+        --bg-color-light: #FFFFFF; /* Light background */
+        --bg-color-dark: #1e2129; /* Dark background */
+    }
+
     .dashboard-main {
         padding: 20px;
         display: flex;

@@ -1,9 +1,14 @@
-{% extends "base.html" %}
+{% extends "base/base.html" %}
 
 {% block title %}FastAPI Admin Login{% endblock %}
 
+{% set include_sidebar_and_header = False %}
+
 {% block content %}
 <style>
+    .admin-sidebar, .admin-header {
+        display: none; /* Hide sidebar and header */
+    }
     .center-container {
         display: flex;
         justify-content: center;

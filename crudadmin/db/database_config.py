@@ -9,6 +9,7 @@ from ..schemas.admin_user import (
     AdminUserCreate,
     AdminUserUpdate,
     AdminUserUpdateInternal,
+    AdminUser
 )
 from ..schemas.admin_token import AdminTokenBlacklistCreate, AdminTokenBlacklistUpdate
 from ..models.admin_user import create_admin_user
@@ -50,6 +51,7 @@ class DatabaseConfig:
                 AdminUserUpdate,
                 AdminUserUpdateInternal,
                 None,
+                AdminUser
             ]
             crud_admin_user = CRUDUser(admin_user)
 
@@ -62,6 +64,7 @@ class DatabaseConfig:
                 AdminTokenBlacklistUpdate,
                 AdminTokenBlacklistUpdate,
                 None,
+                AdminUser
             ]
             crud_admin_token_blacklist = CRUDAdminTokenBlacklist(admin_token_blacklist)
 

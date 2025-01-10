@@ -28,7 +28,7 @@ class CRUDAdmin:
         setup_on_initialization: bool = True,
     ) -> None:
         self.templates_directory = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "..", "_templates"
+            os.path.dirname(os.path.abspath(__file__)), "..", "templates"
         )
 
         self.SECRET_KEY = SECRET_KEY

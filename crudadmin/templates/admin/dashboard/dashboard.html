@@ -1,0 +1,11 @@
+{% extends "base/base.html" %}
+
+{% block title %}FastAPI Admin Dashboard{% endblock %}
+
+{% set include_sidebar_and_header = True %}
+
+{% block content %}
+    <div id="dynamic-content" hx-get="/admin/dashboard-content" hx-trigger="load" hx-swap="outerHTML">
+        Loading dashboard content...
+    </div>
+{% endblock %}

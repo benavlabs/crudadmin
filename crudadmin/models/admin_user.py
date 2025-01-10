@@ -14,8 +14,7 @@ def create_admin_user(base):
             autoincrement=True,
             nullable=False,
             unique=True,
-            primary_key=True,
-            init=False,
+            primary_key=True
         )
         name: Mapped[str] = mapped_column(String(30))
         username: Mapped[str] = mapped_column(

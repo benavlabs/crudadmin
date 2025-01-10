@@ -1,79 +1,10 @@
-{% extends "base.html" %}
+{% extends "base/base.html" %}
 
 {% block title %}Create {{ model_name }}{% endblock %}
 
+{% set include_sidebar_and_header = True %}
+
 {% block content %}
-<style>
-    .centered-heading {
-        text-align: center;
-        margin-bottom: 20px;
-    }
-    .form-group {
-        margin-bottom: 2rem;
-    }
-
-    .form-group label {
-        display: block;
-        margin-bottom: 1rem;
-        font-weight: bold;
-    }
-
-    .form-group input,
-    .form-group textarea,
-    .form-group select {
-        display: block;
-        width: 100%;
-        padding: 0.5rem;
-        margin-bottom: 0.5rem;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-    }
-
-    .form-group .required {
-        color: #d9534f;
-    }
-
-    .submit-btn {
-        background-color: var(--primary-color);
-        color: white;
-        padding: 10px 15px;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 16px;
-        text-align: center;
-        display: inline-block;
-        margin-top: 20px;
-    }
-
-    .submit-btn:hover {
-        background-color: darken(var(--primary-color), 10%);
-    }
-
-    .aligned-form-group {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .aligned-form-group label {
-        flex-basis: 20%;
-        text-align: right;
-        margin-right: 2rem;
-    }
-
-    .aligned-form-group input,
-    .aligned-form-group textarea,
-    .aligned-form-group select {
-        flex-grow: 1;
-    }
-    .error-message {
-        color: red;
-        margin-bottom: 10px;
-        text-align: center;
-        font-weight: bold;
-    }
-</style>
 <div class="create-user-form">
     <h1 class="centered-heading">Create {{ model_name }}</h1>
     <form method="post" action="/admin/{{ model_name }}/form_create" enctype="multipart/form-data">
