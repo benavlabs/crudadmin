@@ -1,9 +1,10 @@
 import os
 from typing import Type, Dict, Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, FastAPI
 from fastapi.templating import Jinja2Templates
 from fastapi.security import OAuth2PasswordBearer
+from fastapi.staticfiles import StaticFiles
 from fastcrud import FastCRUD
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from sqlalchemy.orm import DeclarativeBase
@@ -22,14 +23,29 @@ class CRUDAdmin:
         engine: AsyncEngine,
         session: AsyncSession,
         SECRET_KEY: str,
-        ALGORITHM: str = "HS256",
+        mount_path: str | None = "/admin",
+        theme: str | None = "dark-theme",
+        ALGORITHM: str | None = "HS256",
         ACCESS_TOKEN_EXPIRE_MINUTES: int = 30,
         REFRESH_TOKEN_EXPIRE_DAYS: int = 1,
         db_config: DatabaseConfig | None = None,
         setup_on_initialization: bool = True,
     ) -> None:
+        self.mount_path = mount_path.strip('/')
+        self.theme = theme
         self.templates_directory = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "..", "templates"
+        )
+
+        self.static_directory = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "..", "static"
+        )
+
+        self.app = FastAPI()
+        self.app.mount(
+            "/static", 
+            StaticFiles(directory=self.static_directory), 
+            name="admin_static"
         )
 
         self.SECRET_KEY = SECRET_KEY
@@ -39,7 +55,7 @@ class CRUDAdmin:
 
         self.models: Dict[str, Dict[str, Any]] = {}
         self.router = APIRouter(tags=["admin"])
-        self.oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/admin/login")
+        self.oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"/{mount_path}/login")
         self.db_config = db_config or DatabaseConfig(
             base=base, engine=engine, session=session
         )
@@ -53,6 +69,8 @@ class CRUDAdmin:
                 ACCESS_TOKEN_EXPIRE_MINUTES=ACCESS_TOKEN_EXPIRE_MINUTES,
                 REFRESH_TOKEN_EXPIRE_DAYS=REFRESH_TOKEN_EXPIRE_DAYS,
             )
+        
+        self.app.include_router(self.router)
 
     def setup(
         self,
@@ -81,6 +99,8 @@ class CRUDAdmin:
             models=self.models,
             security_utils=self.security_utils,
             admin_authentication=self.admin_authentication,
+            mount_path=self.mount_path,
+            theme=self.theme,
         )
 
         self.admin_site.setup_routes()
@@ -94,7 +114,7 @@ class CRUDAdmin:
                 include_in_models=False
             )
         
-        self.router.include_router(self.admin_site.router)
+        self.router.include_router(router=self.admin_site.router)
 
     def add_view(
         self,
@@ -126,6 +146,12 @@ class CRUDAdmin:
             delete_schema=delete_schema,
             admin_site=self.admin_site,
         )
-        self.router.include_router(
-            admin_view.router, prefix=f"/admin/{model_key}", include_in_schema=False
-        )
+
+        router_info = {
+            "router": admin_view.router,
+            "prefix": f"/{model_key}",
+            "include_in_schema": False,
+        }
+        
+        self.router.include_router(**router_info)
+        self.app.router.include_router(**router_info)

@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}FastAPI Admin{% endblock %}</title>
+    <link rel="icon" type="image/png" href="/{{ mount_path }}/static/favicon.png?v=1">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/htmx.org"></script>
+    <script src="/{{ mount_path }}/static/htmx.min.js"></script>
     <style>
         /* Modern CSS Reset */
         *, *::before, *::after {
@@ -257,11 +258,11 @@
     <div class="{% if include_sidebar_and_header %}admin-container{% endif %}">
         {% if include_sidebar_and_header %}
             <header class="admin-header">
-                <a href="/admin/" class="brand">
+                <a href="/{{ mount_path }}/" class="brand">
                     FastAPI Admin
                 </a>
                 <div class="flex items-center gap-4">
-                    <a href="/admin/logout" class="btn btn-danger">Log Out</a>
+                    <a href="/{{ mount_path }}/logout" class="btn btn-danger">Log Out</a>
                 </div>
             </header>
             
@@ -275,7 +276,7 @@
                         </div>
                         <ul class="sidebar-nav">
                             <li>
-                                <a href="/admin/" class="sidebar-link active">
+                                <a href="/{{ mount_path }}/" class="sidebar-link active">
                                     Dashboard
                                 </a>
                             </li>
@@ -291,7 +292,7 @@
                         <ul class="sidebar-nav">
                             {% for auth_table_name in auth_table_names %}
                             <li>
-                                <a href="/admin/{{ auth_table_name }}" class="sidebar-link">
+                                <a href="/{{ mount_path }}/{{ auth_table_name }}/" class="sidebar-link">
                                     {{ auth_table_name }}
                                     <span class="model-count">{{ auth_model_counts[auth_table_name]|default(0) }}</span>
                                 </a>
@@ -310,7 +311,7 @@
                         <ul class="sidebar-nav">
                             {% for table_name in table_names %}
                             <li>
-                                <a href="/admin/{{ table_name }}" class="sidebar-link">
+                                <a href="/{{ mount_path }}/{{ table_name }}/" class="sidebar-link">
                                     {{ table_name }}
                                     <span class="model-count">{{ model_counts[table_name]|default(0) }}</span>
                                 </a>
@@ -329,33 +330,41 @@
     </div>
 
     <script>
-        // Get current path to highlight active link
-        const currentPath = window.location.pathname;
-        const sidebarLinks = document.querySelectorAll('.sidebar-link');
-        
-        sidebarLinks.forEach(link => {
-            if (link.getAttribute('href') === currentPath) {
-                link.classList.add('active');
-            } else {
-                link.classList.remove('active');
-            }
-        });
-
-        // Store sidebar section states in localStorage
-        document.querySelectorAll('.sidebar-section-header').forEach(header => {
-            const section = header.parentElement;
-            const sectionId = header.querySelector('.sidebar-section-title').textContent;
+        function initializeSidebar() {
+            const currentPath = window.location.pathname;
+            const sidebarLinks = document.querySelectorAll('.sidebar-link');
             
-            // Restore state from localStorage
-            if (localStorage.getItem(`sidebar-${sectionId}`) === 'collapsed') {
-                section.classList.add('collapsed');
-            }
-            
-            // Update localStorage on toggle
-            header.addEventListener('click', () => {
-                const isCollapsed = section.classList.contains('collapsed');
-                localStorage.setItem(`sidebar-${sectionId}`, isCollapsed ? '' : 'collapsed');
+            sidebarLinks.forEach(link => {
+                if (link.getAttribute('href') === currentPath) {
+                    link.classList.add('active');
+                } else {
+                    link.classList.remove('active');
+                }
             });
+        }
+
+        function initializeSidebarState() {
+            document.querySelectorAll('.sidebar-section-header').forEach(header => {
+                const section = header.parentElement;
+                const sectionId = header.querySelector('.sidebar-section-title').textContent;
+                
+                // Restore state from localStorage
+                if (localStorage.getItem(`sidebar-${sectionId}`) === 'collapsed') {
+                    section.classList.add('collapsed');
+                }
+                
+                // Update localStorage on toggle
+                header.addEventListener('click', () => {
+                    const isCollapsed = section.classList.contains('collapsed');
+                    localStorage.setItem(`sidebar-${sectionId}`, isCollapsed ? '' : 'collapsed');
+                });
+            });
+        }
+
+        // Initialize everything when the document is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeSidebar();
+            initializeSidebarState();
         });
     </script>
 </body>

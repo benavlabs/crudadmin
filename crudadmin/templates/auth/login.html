@@ -115,7 +115,7 @@
             FastAPI Administration
         </div>
         
-        <form class="login-form" action="/admin/login" method="post">
+        <form class="login-form" action="/{{ mount_path }}/login" method="post">
             {% if error %}
             <div class="error-message">
                 {{ error }}

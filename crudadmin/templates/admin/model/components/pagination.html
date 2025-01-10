@@ -3,7 +3,7 @@
 {% set total_pages = ((total_items / rows_per_page) | round(0, 'ceil')) | int %}
 <div class="pagination-controls">
     <!-- Rows Per Page -->
-    <form hx-get="/admin/{{ model_name }}/get_model_list" hx-target="#model-list" 
+    <form hx-get="/{{ mount_path }}/{{ model_name }}/get_model_list" hx-target="#model-list" 
         hx-trigger="change" class="rows-per-page-form">
         <select name="rows-per-page-select" onchange="this.form.submit()">
             <option value="10" {% if rows_per_page == 10 %}selected{% endif %}>10</option>
@@ -16,7 +16,7 @@
 
     <!-- Pagination Buttons and Page Info -->
     <div class="pagination-buttons">
-        <form hx-get="/admin/{{ model_name }}/get_model_list" hx-target="#model-list">
+        <form hx-get="/{{ mount_path }}/{{ model_name }}/get_model_list" hx-target="#model-list">
             <button type="submit" name="page" value="{{ current_page - 1 }}"
                     hx-include="[name='rows-per-page-select']"
                     {% if current_page <= 1 %}disabled{% endif %}>

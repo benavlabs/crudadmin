@@ -1,6 +1,6 @@
 {% extends "base/base.html" %}
 
-{% block title %}Model Administration{% endblock %}
+{% block title %}{{ model_name }} Administration{% endblock %}
 
 {% set include_sidebar_and_header = True %}
 
@@ -9,7 +9,7 @@
     <h1 class="centered-heading">{{ model_name }} Administration</h1>
 
     <!-- Unified Form for search and column selection with HTMX attributes -->
-    <form method="get" hx-get="/admin/{{ model_name }}/get_model_list" hx-target="#model-list" hx-trigger="keyup from:#search-input delay:500ms">
+    <form method="get" hx-get="/{{ mount_path }}/{{ model_name }}/get_model_list" hx-target="#model-list" hx-trigger="keyup from:#search-input delay:500ms">
         <div class="search-and-actions">
             <!-- Column Select Dropdown, no onchange event to trigger form submission -->
             <div class="column-select">
@@ -28,7 +28,7 @@
             </div>
 
             <!-- Add Model Button aligned to the right -->
-            <a href="/admin/{{ model_name }}/create" class="add-model-button" hx-get="/admin/{{ model_name }}/create_page" hx-target="body">Add {{ model_name }}</a>
+            <a href="/{{ mount_path }}/{{ model_name }}/create" class="add-model-button" hx-get="/{{ mount_path }}/{{ model_name }}/create_page" hx-target="body">Add {{ model_name }}</a>
         </div>
     </form>
 

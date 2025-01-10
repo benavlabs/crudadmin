@@ -7,7 +7,7 @@
 {% block content %}
 <div class="create-user-form">
     <h1 class="centered-heading">Create {{ model_name }}</h1>
-    <form method="post" action="/admin/{{ model_name }}/form_create" enctype="multipart/form-data">
+    <form method="post" action="/{{ mount_path }}/{{ model_name }}/form_create" enctype="multipart/form-data">
         {% for field in form_fields %}
             <div class="form-group">
                 <label for="{{ field.name }}">

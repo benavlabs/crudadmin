@@ -1,13 +1,11 @@
 from typing import TypeVar, Type
 
-from httpx import AsyncClient, RequestError
 from fastapi import APIRouter, Request, Depends
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy.exc import SQLAlchemyError
 from fastcrud import FastCRUD, EndpointCreator
 
 from ...db.database_config import DatabaseConfig
@@ -118,25 +116,25 @@ class ModelView:
                 result = await self.crud.create(db=db, object=item_data)
 
                 if result:
-                    return RedirectResponse(url=f"/admin/{self.model.__name__}", status_code=303)
-                else:
-                    error_message = "Failed to create item"
-            
-            except SQLAlchemyError as e:
-                error_message = f"A database error occurred: {e}"
-
-            except Exception as e:
-                error_message = f"An unexpected error occurred: {e}"
-
-            return self.templates.TemplateResponse(
-                        template,
-                        {
-                            "request": request,
-                            "model_name": self.model_key,
-                            "form_fields": form_fields,
-                            "error": error_message
-                        }
+                    return RedirectResponse(
+                        url=f"/{self.admin_site.mount_path}/{self.model.__name__}/", 
+                        status_code=303,
+                        headers={"Location": f"/{self.admin_site.mount_path}/{self.model.__name__}/"}
                     )
+                
+            except Exception as e:
+                error_message = str(e)
+                
+            return self.templates.TemplateResponse(
+                template,
+                {
+                    "request": request,
+                    "model_name": self.model_key,
+                    "form_fields": form_fields,
+                    "error": error_message
+                },
+                status_code=400 if error_message else 200
+            )
 
         return form_create_endpoint_inner
 
@@ -145,6 +143,12 @@ class ModelView:
             request: Request, 
             db: AsyncSession = Depends(self.session)
         ):
+            if not request.url.path.endswith('/'):
+                redirect_url = request.url.path + '/'
+                if request.url.query:
+                    redirect_url += '?' + request.url.query
+                return RedirectResponse(redirect_url, status_code=307)
+
             page = int(request.query_params.get("page", 1))
             limit = int(request.query_params.get("rows-per-page-select", 10))
             offset = (page - 1) * limit
@@ -178,6 +182,7 @@ class ModelView:
                     "request": request,
                     "model_name": self.model_key,
                     "form_fields": form_fields,
+                    "mount_path": self.admin_site.mount_path,
                 },
             )
         return model_create_page

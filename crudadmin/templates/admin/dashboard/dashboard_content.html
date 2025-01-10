@@ -65,9 +65,9 @@
         <div class="section-header">AUTHENTICATION</div>
         {% for table_name in auth_table_names %}
             <div class="module">
-                <a href="/admin/{{ table_name }}"><strong>{{ table_name }}</strong></a>
+                <a href="/{{ mount_path }}/{{ table_name }}"><strong>{{ table_name }}</strong></a>
                 <div>
-                    <a href="/admin/{{ table_name }}/create" hx-get="/admin/{{ table_name }}/create_page" hx-target="body">Create</a>
+                    <a href="/{{ mount_path }}/{{ table_name }}/create" hx-get="/{{ mount_path }}/{{ table_name }}/create_page" hx-target="body">Create</a>
                 </div>
             </div>
         {% endfor %}
@@ -77,9 +77,9 @@
         <div class="section-header">MODELS</div>
         {% for table_name in table_names %}
             <div class="module">
-                <a href="/admin/{{ table_name }}"><strong>{{ table_name }}</strong></a>
+                <a href="/{{ mount_path }}/{{ table_name }}"><strong>{{ table_name }}</strong></a>
                 <div>
-                    <a href="/admin/{{ table_name }}/create" hx-get="/admin/{{ table_name }}/create_page" hx-target="body">Create</a>
+                    <a href="/{{ mount_path }}/{{ table_name }}/create" hx-get="/{{ mount_path }}/{{ table_name }}/create_page" hx-target="body">Create</a>
                 </div>
             </div>
         {% endfor %}

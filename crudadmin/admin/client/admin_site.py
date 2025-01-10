@@ -10,9 +10,6 @@ from ...authentication.security import SecurityUtils
 from ...authentication.admin_auth import AdminAuthentication
 from ...db.database_config import DatabaseConfig
 
-router = APIRouter(tags=["admin"])
-
-
 class AdminSite:
     def __init__(
         self,
@@ -21,14 +18,16 @@ class AdminSite:
         models: dict,
         security_utils: SecurityUtils,
         admin_authentication: AdminAuthentication,
-        theme: str = "dark-theme",
+        mount_path: str,
+        theme: str,
     ) -> None:
         self.db_config = database_config
-        self.router = APIRouter(prefix="/admin")
+        self.router = APIRouter()
         self.templates = Jinja2Templates(directory=templates_directory)
         self.models = models
         self.security_utils = security_utils
         self.admin_authentication = admin_authentication
+        self.mount_path = mount_path
         self.theme = theme
 
     def setup_routes(self):
@@ -53,7 +52,7 @@ class AdminSite:
 
         for model_key, auth_model_key in self.admin_authentication.auth_models.items():
             self.router.add_api_route(
-                f"/{auth_model_key}",
+                f"{auth_model_key}/",
                 self.admin_auth_model_page(model_key),
                 methods=["GET"],
                 include_in_schema=False,
@@ -104,7 +103,7 @@ class AdminSite:
             return {
                 "access_token": access_token,
                 "token_type": "bearer",
-                "redirect": "/admin/",
+                "redirect": "/",
             }
 
         return login_page_inner
@@ -112,7 +111,7 @@ class AdminSite:
     async def logout_endpoint(self, response: Response):
         response.delete_cookie(key="refresh_token")
         await self.admin_authentication.blacklist_token()
-        return RedirectResponse(url="/admin/login")
+        return RedirectResponse(url=f"/{self.mount_path}/login")
 
     async def admin_login_page(self, request: Request):
         return self.templates.TemplateResponse("auth/login.html", {"request": request})
@@ -147,7 +146,8 @@ class AdminSite:
             "auth_table_names": self.admin_authentication.auth_models.keys(),
             "table_names": self.models.keys(),
             "auth_model_counts": auth_model_counts,
-            "model_counts": model_counts
+            "model_counts": model_counts,
+            "mount_path": self.mount_path,
         }
 
     def dashboard_page(self):

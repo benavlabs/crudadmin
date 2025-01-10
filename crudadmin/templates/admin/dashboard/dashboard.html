@@ -5,7 +5,7 @@
 {% set include_sidebar_and_header = True %}
 
 {% block content %}
-    <div id="dynamic-content" hx-get="/admin/dashboard-content" hx-trigger="load" hx-swap="outerHTML">
+    <div id="dynamic-content" hx-get="/{{ mount_path }}/dashboard-content" hx-trigger="load" hx-swap="outerHTML">
         <div class="loading-state">
             <div class="card">
                 <div class="loading-message">Loading dashboard content...</div>
