@@ -3,7 +3,8 @@
         <select name="rows-per-page-select" 
                 hx-get="/{{ mount_path }}/{{ model_name }}/get_model_list" 
                 hx-target="#model-list" 
-                hx-trigger="change">
+                hx-trigger="change"
+                hx-include="[name='sort_by'],[name='sort_order']">
             <option value="10" {% if rows_per_page == 10 %}selected{% endif %}>10 per page</option>
             <option value="20" {% if rows_per_page == 20 %}selected{% endif %}>20 per page</option>
             <option value="50" {% if rows_per_page == 50 %}selected{% endif %}>50 per page</option>
@@ -15,8 +16,7 @@
         <button hx-get="/{{ mount_path }}/{{ model_name }}/get_model_list"
                 hx-target="#model-list"
                 hx-include="[name='rows-per-page-select']"
-                name="page" 
-                value="{{ current_page - 1 }}"
+                hx-vals='js:{"page": "{{ current_page - 1 }}", "sort_by": "{{ sort_column }}", "sort_order": "{{ sort_order }}"}'
                 {% if current_page <= 1 %}disabled{% endif %}>
             Previous
         </button>
@@ -24,8 +24,7 @@
         <button hx-get="/{{ mount_path }}/{{ model_name }}/get_model_list"
                 hx-target="#model-list"
                 hx-include="[name='rows-per-page-select']"
-                name="page" 
-                value="{{ current_page + 1 }}"
+                hx-vals='js:{"page": "{{ current_page + 1 }}", "sort_by": "{{ sort_column }}", "sort_order": "{{ sort_order }}"}'
                 {% if current_page >= (total_items / rows_per_page) | round(0, 'ceil') %}disabled{% endif %}>
             Next
         </button>

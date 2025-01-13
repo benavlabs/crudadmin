@@ -274,6 +274,14 @@ class ModelView:
             limit = int(request.query_params.get("rows-per-page-select", 10))
             offset = (page - 1) * limit
 
+            # Get sorting parameters
+            sort_column = request.query_params.get("sort_by")
+            sort_order = request.query_params.get("sort_order", "asc")
+
+            # Set up sorting parameters for FastCRUD
+            sort_columns = [sort_column] if sort_column else None
+            sort_orders = [sort_order] if sort_column else None
+
             search_column = request.query_params.get("column-to-search")
             search_value = request.query_params.get("search-input", "").strip()
 
@@ -299,12 +307,19 @@ class ModelView:
                     elif python_type == str:
                         filter_criteria[f"{search_column}__ilike"] = f"%{search_value}%"
 
-            items = await self.crud.get_multi(
-                db=db, 
-                offset=offset, 
-                limit=limit, 
-                **filter_criteria
-            )
+            try:
+                items = await self.crud.get_multi(
+                    db=db, 
+                    offset=offset,
+                    limit=limit,
+                    sort_columns=sort_columns,
+                    sort_orders=sort_orders,
+                    **filter_criteria
+                )
+                
+                
+            except Exception as e:
+                items = {"data": [], "total_count": 0}
 
             table_columns = [column.key for column in self.model.__table__.columns]
             primary_key_info = self.db_config.get_primary_key_info(self.model)
@@ -320,6 +335,8 @@ class ModelView:
                 "selected_column": search_column,
                 "primary_key_info": primary_key_info,
                 "mount_path": self.admin_site.mount_path,
+                "sort_column": sort_column,
+                "sort_order": sort_order,
             }
 
             if "HX-Request" in request.headers:
