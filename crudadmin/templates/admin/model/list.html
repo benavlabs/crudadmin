@@ -29,6 +29,58 @@
         color: var(--text-primary-dark);
     }
 
+    /* Action Buttons */
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .action-button {
+        display: flex;
+        align-items: center;
+        padding: 0.5rem 1rem;
+        border-radius: var(--border-radius-md);
+        font-weight: 500;
+        font-size: 0.875rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: none;
+    }
+
+    .add-button {
+        background: var(--primary-color);
+        color: white;
+        text-decoration: none;
+    }
+
+    .add-button:hover {
+        background: var(--primary-dark);
+    }
+
+    .update-button {
+        background: #F59E0B;  /* Amber-500 - softer yellow */
+        color: white;
+        text-decoration: none;
+    }
+
+    .update-button:hover {
+        background: #D97706;  /* Amber-600 */
+    }
+
+    .delete-button {
+        background: #EF4444;  /* Red-500 - softer red */
+        color: white;
+        text-decoration: none;
+    }
+
+    .delete-button:hover {
+        background: #DC2626;  /* Red-600 */
+    }
+
+    .hidden {
+        display: none;
+    }
+
     /* Search Bar */
     .search-container {
         background: var(--bg-primary-light);
@@ -98,28 +150,6 @@
         color: var(--text-secondary-dark);
     }
 
-    /* Add Button */
-    .add-button {
-        background: var(--primary-color);
-        color: white;
-        padding: 0.5rem 1rem;
-        border-radius: var(--border-radius-md);
-        text-decoration: none;
-        font-weight: 500;
-        font-size: 0.875rem;
-        transition: background-color 0.2s;
-        border: none;
-        cursor: pointer;
-        white-space: nowrap;
-        display: flex;
-        align-items: center;
-        gap: 0.25rem;
-    }
-
-    .add-button:hover {
-        background: var(--primary-dark);
-    }
-
     /* Table Styling */
     .table-container {
         background: var(--bg-primary-light);
@@ -182,6 +212,18 @@
     .checkbox-cell {
         width: 40px;
         text-align: center;
+    }
+
+    .checkbox-wrapper {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .custom-checkbox {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
     }
 
     /* Pagination Controls */
@@ -287,6 +329,16 @@
         .pagination-buttons {
             justify-content: center;
         }
+
+        .action-buttons {
+            width: 100%;
+            flex-direction: column;
+        }
+
+        .action-button {
+            width: 100%;
+            justify-content: center;
+        }
     }
 </style>
 {% endblock %}
@@ -295,12 +347,31 @@
 <div class="admin-content">
     <div class="page-header">
         <h1 class="page-title">{{ model_name }} Administration</h1>
-        <a href="/{{ mount_path }}/{{ model_name }}/create" 
-           class="add-button"
-           hx-get="/{{ mount_path }}/{{ model_name }}/create_page" 
-           hx-target="body">
-            + Add {{ model_name }}
-        </a>
+        <div class="action-buttons">
+            <!-- Default Create Button -->
+            <a href="/{{ mount_path }}/{{ model_name }}/create" 
+               class="add-button action-button"
+               id="createButton"
+               hx-get="/{{ mount_path }}/{{ model_name }}/create_page" 
+               hx-target="body">
+                + Add {{ model_name }}
+            </a>
+            
+            <!-- Update Button (Hidden by default) -->
+            <a href="#" 
+               class="update-button action-button hidden"
+               id="updateButton"
+               onclick="handleUpdate()">
+                ✎ Update
+            </a>
+            
+            <!-- Delete Button (Hidden by default) -->
+            <button class="delete-button action-button hidden"
+                    id="deleteButton"
+                    onclick="handleDelete()">
+                🗑 Delete Selected
+            </button>
+        </div>
     </div>
 
     <!-- Search Bar -->
@@ -336,9 +407,213 @@
         </div>
     </div>
 
-    <div id="model-list">
+    <div class="model-list-container">
         {% include 'admin/model/components/list_content.html' %}
     </div>
-
 </div>
+
+<script>
+    function updateActionButtons() {
+        const checkedBoxes = document.querySelectorAll('input[name="rowSelect"]:checked');
+        const createButton = document.getElementById('createButton');
+        const updateButton = document.getElementById('updateButton');
+        const deleteButton = document.getElementById('deleteButton');
+        
+        if (checkedBoxes.length === 0) {
+            createButton.classList.remove('hidden');
+            updateButton.classList.add('hidden');
+            deleteButton.classList.add('hidden');
+        } else if (checkedBoxes.length === 1) {
+            createButton.classList.add('hidden');
+            updateButton.classList.remove('hidden');
+            deleteButton.classList.remove('hidden');
+        } else {
+            createButton.classList.add('hidden');
+            updateButton.classList.add('hidden');
+            deleteButton.classList.remove('hidden');
+        }
+    }
+
+    function handleSelectAll(checkbox) {
+        const rowCheckboxes = document.querySelectorAll('input[name="rowSelect"]');
+        rowCheckboxes.forEach(box => box.checked = checkbox.checked);
+        updateActionButtons();
+    }
+
+    function handleRowSelect() {
+        updateActionButtons();
+        
+        // Update "select all" checkbox
+        const allCheckboxes = document.querySelectorAll('input[name="rowSelect"]');
+        const checkedBoxes = document.querySelectorAll('input[name="rowSelect"]:checked');
+        const selectAllCheckbox = document.querySelector('input[name="select-all"]');
+        
+        selectAllCheckbox.checked = allCheckboxes.length === checkedBoxes.length;
+    }
+
+    function convertValue(value, type) {
+        if (!type) {
+            return value;
+        }
+        
+        // Normalize the type by removing SQL-specific prefixes/suffixes and converting to lowercase
+        const baseType = type.toString().toLowerCase()
+            .replace(/(sql|types|py|_type|\(.*\))/g, '')
+            .trim();
+        
+        switch(baseType) {
+            // Integer types
+            case 'int':
+            case 'integer':
+            case 'bigint':
+            case 'smallint':
+                const intValue = parseInt(value, 10);
+                if (isNaN(intValue)) {
+                    throw new Error(`Invalid integer value: ${value}`);
+                }
+                return intValue;
+
+            // Float types    
+            case 'float':
+            case 'real':
+            case 'double':
+            case 'numeric':
+            case 'decimal':
+                const floatValue = parseFloat(value);
+                if (isNaN(floatValue)) {
+                    throw new Error(`Invalid float value: ${value}`);
+                }
+                return floatValue;
+
+            // Boolean types    
+            case 'bool':
+            case 'boolean':
+                if (typeof value === 'boolean') return value;
+                const strValue = String(value).toLowerCase();
+                if (!['true', 'false', '0', '1'].includes(strValue)) {
+                    throw new Error(`Invalid boolean value: ${value}`);
+                }
+                return ['true', '1'].includes(strValue);
+
+            // UUID types    
+            case 'uuid':
+                const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+                if (!uuidRegex.test(value)) {
+                    throw new Error(`Invalid UUID format: ${value}`);
+                }
+                return value;
+
+            // String types
+            case 'str':
+            case 'string':
+            case 'text':
+            case 'varchar':
+            case 'char':
+                return String(value);
+
+            // Default case for unknown types    
+            default:
+                return value;
+        }
+    }
+
+    async function handleDelete() {
+        const checkedBoxes = document.querySelectorAll('input[name="rowSelect"]:checked');
+        if (checkedBoxes.length === 0) {
+            alert('Please select items to delete');
+            return;
+        }
+
+        if (!confirm('Are you sure you want to delete the selected items?')) {
+            return;
+        }
+
+        const modelList = document.getElementById('model-list');
+        const pkType = modelList.dataset.pkType;
+        
+        // Get current page from pagination info span
+        const paginationInfo = document.querySelector('.pagination-info');
+        const currentPageMatch = paginationInfo?.textContent.match(/Page (\d+) of/);
+        const currentPage = currentPageMatch ? currentPageMatch[1] : '1';
+        
+        // Get rows per page from select
+        const rowsPerPageSelect = document.querySelector('[name="rows-per-page-select"]');
+        const rowsPerPage = rowsPerPageSelect ? rowsPerPageSelect.value : '10';
+        
+        // Convert checkboxes to proper typed values
+        let ids;
+        try {
+            ids = Array.from(checkedBoxes).map(box => {
+                const rawValue = box.value.trim();
+                
+                // For integers, parse and validate
+                if (pkType === 'int') {
+                    const num = parseInt(rawValue, 10);
+                    if (isNaN(num)) {
+                        throw new Error(`Invalid integer value: ${rawValue}`);
+                    }
+                    return num;
+                }
+                return rawValue;
+            });
+        } catch (error) {
+            alert(error.message);
+            return;
+        }
+
+        const requestBody = { 
+            ids,
+            page: parseInt(currentPage),
+            rows_per_page: parseInt(rowsPerPage)
+        };
+
+        try {
+            const response = await fetch(`/{{ mount_path }}/{{ model_name }}/bulk-delete?page=${currentPage}&rows-per-page-select=${rowsPerPage}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(requestBody)
+            });
+            
+            if (!response.ok) {
+                // Try to parse error response as JSON
+                let errorData;
+                try {
+                    errorData = await response.json();
+                    throw new Error(errorData.detail?.[0]?.msg || 'Error deleting items');
+                } catch (parseError) {
+                    throw new Error('Error deleting items');
+                }
+            }
+
+            // Handle successful deletion - response is HTML content
+            const htmlContent = await response.text();
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = htmlContent;
+            htmx.process(tempDiv);  // Process HTMX attributes in the new content
+            modelList.replaceWith(tempDiv.firstElementChild);
+            updateActionButtons();
+            
+        } catch (error) {
+            alert(error.message || 'Failed to delete items');
+        }
+    }
+
+    function handleUpdate() {
+        const checkedBox = document.querySelector('input[name="rowSelect"]:checked');
+        const id = checkedBox.value;
+        window.location.href = `/{{ mount_path }}/{{ model_name }}/update/${id}`;
+    }
+
+    // Initialize event listeners when content is loaded or updated
+    document.addEventListener('htmx:afterSwap', function() {
+        updateActionButtons();
+    });
+
+    // Initialize when the page first loads
+    document.addEventListener('DOMContentLoaded', function() {
+        updateActionButtons();
+    });
+</script>
 {% endblock %}

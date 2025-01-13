@@ -249,6 +249,26 @@
             background: var(--bg-secondary-dark);
         }
 
+        /* Brand */
+        .brand {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: white;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .brand-icon {
+            width: 24px;
+            height: 24px;
+        }
+
+        .brand:hover {
+            color: var(--primary-light);
+        }
+
     </style>
     {% block extra_head %}{% endblock %}
 </head>
@@ -259,6 +279,7 @@
         {% if include_sidebar_and_header %}
             <header class="admin-header">
                 <a href="/{{ mount_path }}/" class="brand">
+                    <img src="/{{ mount_path }}/static/favicon.png" alt="FastAPI Admin" class="brand-icon">
                     FastAPI Admin
                 </a>
                 <div class="flex items-center gap-4">

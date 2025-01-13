@@ -75,3 +75,24 @@ class DatabaseConfig:
         inspector = inspect(model)
         primary_key_columns = inspector.primary_key
         return primary_key_columns[0].name if primary_key_columns else None
+    
+    def get_primary_key_info(self, model: DeclarativeBase) -> dict:
+        """Get the primary key information of a SQLAlchemy model.
+        
+        Returns:
+            dict: Contains name and type information of the primary key
+        """
+        inspector = inspect(model)
+        primary_key_columns = inspector.primary_key
+        if not primary_key_columns:
+            return None
+        
+        pk_column = primary_key_columns[0]
+        
+        python_type = pk_column.type.python_type
+        
+        return {
+            "name": pk_column.name,
+            "type": python_type,
+            "type_name": python_type.__name__
+        }

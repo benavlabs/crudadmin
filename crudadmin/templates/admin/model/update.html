@@ -1,0 +1,244 @@
+{% extends "base/base.html" %}
+
+{% block title %}Update {{ model_name }}{% endblock %}
+
+{% set include_sidebar_and_header = False %}
+
+{% block content %}
+<div class="admin-content">
+    <style>
+        .admin-content {
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .page-header {
+            margin-bottom: 2rem;
+        }
+
+        .page-title {
+            color: var(--text-primary-light);
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .dark-theme .page-title {
+            color: var(--text-primary-dark);
+        }
+
+        .update-form {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .field-section {
+            background: var(--bg-primary-light);
+            border: 1px solid var(--border-light);
+            border-radius: var(--border-radius-lg);
+            padding: 1.5rem;
+        }
+
+        .dark-theme .field-section {
+            background: var(--bg-primary-dark);
+            border-color: var(--border-dark);
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .form-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .label-text {
+            font-weight: 500;
+            color: var(--text-primary-light);
+        }
+
+        .dark-theme .label-text {
+            color: var(--text-primary-dark);
+        }
+
+        .required {
+            background: var(--danger-color);
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--bg-secondary-light);
+            border: 1px solid var(--border-light);
+            border-radius: var(--border-radius-md);
+            color: var(--text-primary-light);
+            transition: all 0.2s;
+        }
+
+        .dark-theme .form-control {
+            background: var(--bg-secondary-dark);
+            border-color: var(--border-dark);
+            color: var(--text-primary-dark);
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(0, 150, 136, 0.1);
+        }
+
+        .help-text {
+            margin-top: 0.5rem;
+            font-size: 0.75rem;
+            color: var(--text-secondary-light);
+        }
+
+        .dark-theme .help-text {
+            color: var(--text-secondary-dark);
+        }
+
+        .form-actions {
+            background: var(--bg-primary-light);
+            border: 1px solid var(--border-light);
+            border-radius: var(--border-radius-lg);
+            padding: 1.5rem;
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .dark-theme .form-actions {
+            background: var(--bg-primary-dark);
+            border-color: var(--border-dark);
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: var(--border-radius-md);
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-secondary {
+            background: var(--bg-secondary-light);
+            border: 1px solid var(--border-light);
+            color: var(--text-primary-light);
+            text-decoration: none;
+        }
+
+        .dark-theme .btn-secondary {
+            background: var(--bg-secondary-dark);
+            border-color: var(--border-dark);
+            color: var(--text-primary-dark);
+        }
+
+        .btn-primary {
+            background: #F59E0B;
+            color: white;
+            border: none;
+        }
+
+        .btn-primary:hover {
+            background: #D97706;
+        }
+
+        .error-message {
+            background: #fef2f2;
+            border: 1px solid #fee2e2;
+            color: var(--danger-color);
+            padding: 1rem;
+            border-radius: var(--border-radius-md);
+            margin-bottom: 1rem;
+            font-size: 0.875rem;
+        }
+
+        .dark-theme .error-message {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.2);
+        }
+
+        @media (max-width: 768px) {
+            .admin-content {
+                padding: 1rem;
+            }
+
+            .form-actions {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+        }
+    </style>
+
+    <div class="page-header">
+        <h1 class="page-title">Update {{ model_name }}</h1>
+    </div>
+
+    <form class="update-form" method="post" action="/{{ mount_path }}/{{ model_name }}/form_update/{{ id }}" enctype="multipart/form-data">
+        {% if error %}
+        <div class="error-message">
+            {{ error }}
+        </div>
+        {% endif %}
+
+        <div class="field-section">
+            {% for field in form_fields %}
+            <div class="form-group">
+                <div class="form-label">
+                    <span class="label-text">{{ field.title | default(field.name) | capitalize }}</span>
+                    {% if field.required %}
+                    <span class="required">Required</span>
+                    {% endif %}
+                </div>
+                        
+                <input class="form-control"
+                    type="{{ field.type }}" 
+                    id="{{ field.name }}" 
+                    name="{{ field.name }}"
+                    {% if field.required %}required{% endif %}
+                    {% if field.min_length %}minlength="{{ field.min_length }}"{% endif %}
+                    {% if field.max_length %}maxlength="{{ field.max_length }}"{% endif %}
+                    {% if field.pattern %}pattern="{{ field.pattern }}"{% endif %}
+                    {% if field.type == 'number' and field.min %}min="{{ field.min }}"{% endif %}
+                    {% if field.type == 'number' and field.max %}max="{{ field.max }}"{% endif %}
+                    placeholder="{{ field.examples | first | default ('Enter ' + field.title | default(field.name) | capitalize) }}">
+                
+                {% if field.description or field.examples %}
+                <div class="help-text">
+                    {% if field.description %}{{ field.description }}{% endif %}
+                    {% if field.examples %}
+                        {% if field.description %}<br>{% endif %}
+                        Example: {{ field.examples | first }}
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Form Actions -->
+        <div class="form-actions">
+            <a href="/{{ mount_path }}/{{ model_name }}/" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary">Update {{ model_name }}</button>
+        </div>
+    </div>
+</form>
+</div>
+</div>
+{% endblock %}

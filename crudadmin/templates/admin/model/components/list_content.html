@@ -1,19 +1,41 @@
-<div class="table-container">
-    <table class="data-table">
-        <thead>
-            <tr>
-                <th class="checkbox-cell">
-                    <input type="checkbox" name="select-all">
-                </th>
-                {% for header in table_columns %}
-                    <th>{{ header }}</th>
+<div id="model-list" data-pk-type="{{ primary_key_info.type_name }}" data-pk-name="{{ primary_key_info.name }}">
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th class="checkbox-cell">
+                        <div class="checkbox-wrapper">
+                            <input type="checkbox" 
+                                   class="custom-checkbox"
+                                   name="select-all"
+                                   onchange="handleSelectAll(this)">
+                        </div>
+                    </th>
+                    {% for header in table_columns %}
+                        <th>{{ header }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in model_items %}
+                    <tr>
+                        <td class="checkbox-cell">
+                            <div class="checkbox-wrapper">
+                                <input type="checkbox" 
+                                       class="custom-checkbox"
+                                       name="rowSelect"
+                                       value="{{ row[primary_key_info.name] }}"
+                                       onchange="handleRowSelect()">
+                            </div>
+                        </td>
+                        {% for attribute in row.values() %}
+                            <td>{{ attribute }}</td>
+                        {% endfor %}
+                    </tr>
                 {% endfor %}
-            </tr>
-        </thead>
-        <tbody>
-            {% include 'admin/model/components/table_content.html' %}
-        </tbody>
-    </table>
-</div>
+            </tbody>
+        </table>
+    </div>
 
-{% include 'admin/model/components/pagination.html' %}
+    {% include 'admin/model/components/pagination.html' %}
+</div>
