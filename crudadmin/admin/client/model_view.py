@@ -143,7 +143,7 @@ class ModelView:
             request: Request, 
             db: AsyncSession = Depends(self.session)
         ):
-            if not request.url.path.endswith('/'):
+            if template == "admin/model/list.html" and not request.url.path.endswith('/'):
                 redirect_url = request.url.path + '/'
                 if request.url.query:
                     redirect_url += '?' + request.url.query

@@ -1,44 +1,42 @@
-{% set include_sidebar_and_header = False %}
-
-{% set total_pages = ((total_items / rows_per_page) | round(0, 'ceil')) | int %}
 <div class="pagination-controls">
-    <!-- Rows Per Page -->
-    <form hx-get="/{{ mount_path }}/{{ model_name }}/get_model_list" hx-target="#model-list" 
-        hx-trigger="change" class="rows-per-page-form">
-        <select name="rows-per-page-select" onchange="this.form.submit()">
-            <option value="10" {% if rows_per_page == 10 %}selected{% endif %}>10</option>
-            <option value="20" {% if rows_per_page == 20 %}selected{% endif %}>20</option>
-            <option value="50" {% if rows_per_page == 50 %}selected{% endif %}>50</option>
-            <option value="100" {% if rows_per_page == 50 %}selected{% endif %}>100</option>
+    <div class="rows-per-page-form">
+        <select name="rows-per-page-select" 
+                hx-get="/{{ mount_path }}/{{ model_name }}/get_model_list" 
+                hx-target="#model-list" 
+                hx-trigger="change">
+            <option value="10" {% if rows_per_page == 10 %}selected{% endif %}>10 per page</option>
+            <option value="20" {% if rows_per_page == 20 %}selected{% endif %}>20 per page</option>
+            <option value="50" {% if rows_per_page == 50 %}selected{% endif %}>50 per page</option>
+            <option value="100" {% if rows_per_page == 100 %}selected{% endif %}>100 per page</option>
         </select>
-    </form>
-
-
-    <!-- Pagination Buttons and Page Info -->
-    <div class="pagination-buttons">
-        <form hx-get="/{{ mount_path }}/{{ model_name }}/get_model_list" hx-target="#model-list">
-            <button type="submit" name="page" value="{{ current_page - 1 }}"
-                    hx-include="[name='rows-per-page-select']"
-                    {% if current_page <= 1 %}disabled{% endif %}>
-                Previous
-            </button>
-            <span>Page {{ current_page }} of {{ total_pages }}</span>
-            <button type="submit" name="page" value="{{ current_page + 1 }}"
-                    hx-include="[name='rows-per-page-select']"
-                    {% if current_page >= total_pages %}disabled{% endif %}>
-                Next
-            </button>
-            <input type="hidden" name="rows-per-page-select" value="{{ rows_per_page }}" />
-        </form>
     </div>
 
-    <!-- Showing Rows Info -->
-    <div class="row-display">
+    <div class="pagination-buttons">
+        <button hx-get="/{{ mount_path }}/{{ model_name }}/get_model_list"
+                hx-target="#model-list"
+                hx-include="[name='rows-per-page-select']"
+                name="page" 
+                value="{{ current_page - 1 }}"
+                {% if current_page <= 1 %}disabled{% endif %}>
+            Previous
+        </button>
+        <span class="pagination-info">Page {{ current_page }} of {{ (total_items / rows_per_page) | round(0, 'ceil') | int }}</span>
+        <button hx-get="/{{ mount_path }}/{{ model_name }}/get_model_list"
+                hx-target="#model-list"
+                hx-include="[name='rows-per-page-select']"
+                name="page" 
+                value="{{ current_page + 1 }}"
+                {% if current_page >= (total_items / rows_per_page) | round(0, 'ceil') %}disabled{% endif %}>
+            Next
+        </button>
+    </div>
+
+    <div class="row-display pagination-info">
         {% set start_row = (current_page - 1) * rows_per_page + 1 %}
         {% set end_row = current_page * rows_per_page %}
         {% if end_row > total_items %}
             {% set end_row = total_items %}
         {% endif %}
-        <span>Showing {{ start_row }} to {{ end_row }} of {{ total_items }} rows</span>
+        Showing {{ start_row }} to {{ end_row }} of {{ total_items }} entries
     </div>
 </div>

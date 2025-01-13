@@ -4,16 +4,314 @@
 
 {% set include_sidebar_and_header = True %}
 
+{% block extra_head %}
+<style>
+    .admin-content {
+        padding: 2rem;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .page-header {
+        margin-bottom: 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .page-title {
+        color: var(--text-primary-light);
+        font-size: 1.5rem;
+        font-weight: 600;
+    }
+
+    .dark-theme .page-title {
+        color: var(--text-primary-dark);
+    }
+
+    /* Search Bar */
+    .search-container {
+        background: var(--bg-primary-light);
+        border: 1px solid var(--border-light);
+        border-radius: var(--border-radius-lg);
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .dark-theme .search-container {
+        background: var(--bg-primary-dark);
+        border-color: var(--border-dark);
+    }
+
+    .search-group {
+        display: flex;
+        gap: 0.5rem;
+        width: 100%;
+    }
+
+    .search-button {
+        background: var(--primary-color);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: var(--border-radius-md);
+        border: none;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+
+    .search-button:hover {
+        background: var(--primary-dark);
+    }
+
+    /* Select and Input Styling */
+    .column-select select, .search-input {
+        padding: 0.5rem;
+        border: 1px solid var(--border-light);
+        border-radius: var(--border-radius-md);
+        background: var(--bg-secondary-light);
+        color: var(--text-primary-light);
+        font-size: 0.875rem;
+    }
+
+    .dark-theme .column-select select, 
+    .dark-theme .search-input {
+        background: var(--bg-secondary-dark);
+        border-color: var(--border-dark);
+        color: var(--text-primary-dark);
+    }
+
+    .column-select select {
+        min-width: 150px;
+    }
+
+    .search-input {
+        flex: 1;
+        min-width: 200px;
+    }
+
+    .search-input::placeholder {
+        color: var(--text-secondary-light);
+    }
+
+    .dark-theme .search-input::placeholder {
+        color: var(--text-secondary-dark);
+    }
+
+    /* Add Button */
+    .add-button {
+        background: var(--primary-color);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: var(--border-radius-md);
+        text-decoration: none;
+        font-weight: 500;
+        font-size: 0.875rem;
+        transition: background-color 0.2s;
+        border: none;
+        cursor: pointer;
+        white-space: nowrap;
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .add-button:hover {
+        background: var(--primary-dark);
+    }
+
+    /* Table Styling */
+    .table-container {
+        background: var(--bg-primary-light);
+        border: 1px solid var(--border-light);
+        border-radius: var(--border-radius-lg);
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+    }
+
+    .dark-theme .table-container {
+        background: var(--bg-primary-dark);
+        border-color: var(--border-dark);
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.875rem;
+    }
+
+    .data-table th {
+        background: var(--bg-secondary-light);
+        color: var(--text-secondary-light);
+        font-weight: 600;
+        text-align: left;
+        padding: 0.75rem 1rem;
+        border-bottom: 2px solid var(--border-light);
+    }
+
+    .dark-theme .data-table th {
+        background: var(--bg-secondary-dark);
+        color: var(--text-secondary-dark);
+        border-bottom-color: var(--border-dark);
+    }
+
+    .data-table td {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid var(--border-light);
+        color: var(--text-primary-light);
+    }
+
+    .dark-theme .data-table td {
+        border-bottom-color: var(--border-dark);
+        color: var(--text-primary-dark);
+    }
+
+    .data-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    .data-table tr:hover {
+        background: var(--bg-secondary-light);
+    }
+
+    .dark-theme .data-table tr:hover {
+        background: var(--bg-secondary-dark);
+    }
+
+    /* Checkbox styling */
+    .checkbox-cell {
+        width: 40px;
+        text-align: center;
+    }
+
+    /* Pagination Controls */
+    .pagination-controls {
+        background: var(--bg-primary-light);
+        border: 1px solid var(--border-light);
+        border-radius: var(--border-radius-lg);
+        padding: 1rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .dark-theme .pagination-controls {
+        background: var(--bg-primary-dark);
+        border-color: var(--border-dark);
+    }
+
+    .rows-per-page-form select {
+        padding: 0.5rem;
+        border: 1px solid var(--border-light);
+        border-radius: var(--border-radius-md);
+        background: var(--bg-secondary-light);
+        color: var(--text-primary-light);
+    }
+
+    .dark-theme .rows-per-page-form select {
+        background: var(--bg-secondary-dark);
+        border-color: var(--border-dark);
+        color: var(--text-primary-dark);
+    }
+
+    .pagination-buttons {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .pagination-buttons button {
+        padding: 0.5rem 1rem;
+        border: 1px solid var(--border-light);
+        border-radius: var(--border-radius-md);
+        background: var(--bg-secondary-light);
+        color: var(--text-primary-light);
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .dark-theme .pagination-buttons button {
+        background: var(--bg-secondary-dark);
+        border-color: var(--border-dark);
+        color: var(--text-primary-dark);
+    }
+
+    .pagination-buttons button:hover:not(:disabled) {
+        background: var(--primary-color);
+        color: white;
+        border-color: var(--primary-color);
+    }
+
+    .pagination-buttons button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .pagination-info {
+        color: var(--text-secondary-light);
+        font-size: 0.875rem;
+    }
+
+    .dark-theme .pagination-info {
+        color: var(--text-secondary-dark);
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .admin-content {
+            padding: 1rem;
+        }
+
+        .page-header {
+            flex-direction: column;
+            gap: 1rem;
+            align-items: flex-start;
+        }
+
+        .search-group {
+            flex-direction: column;
+        }
+
+        .search-button {
+            padding: 0.75rem;
+        }
+
+        .pagination-controls {
+            flex-direction: column;
+            align-items: stretch;
+            text-align: center;
+        }
+
+        .pagination-buttons {
+            justify-content: center;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="admin-content">
-    <h1 class="centered-heading">{{ model_name }} Administration</h1>
+    <div class="page-header">
+        <h1 class="page-title">{{ model_name }} Administration</h1>
+        <a href="/{{ mount_path }}/{{ model_name }}/create" 
+           class="add-button"
+           hx-get="/{{ mount_path }}/{{ model_name }}/create_page" 
+           hx-target="body">
+            + Add {{ model_name }}
+        </a>
+    </div>
 
-    <!-- Unified Form for search and column selection with HTMX attributes -->
-    <form method="get" hx-get="/{{ mount_path }}/{{ model_name }}/get_model_list" hx-target="#model-list" hx-trigger="keyup from:#search-input delay:500ms">
-        <div class="search-and-actions">
-            <!-- Column Select Dropdown, no onchange event to trigger form submission -->
+    <!-- Search Bar -->
+    <div class="search-container">
+        <div class="search-group">
             <div class="column-select">
-                <select name="column-to-search-select" id="column-select">
+                <select name="column-to-search" 
+                        hx-get="/{{ mount_path }}/{{ model_name }}/get_model_list" 
+                        hx-target="#model-list"
+                        hx-trigger="change"
+                        hx-include="[name='search-input']">
                     {% for header in table_columns %}
                     <option value="{{ header }}" {% if selected_column == header %}selected{% endif %}>
                         {{ header }}
@@ -21,20 +319,26 @@
                     {% endfor %}
                 </select>
             </div>
-            
-            <!-- Search Input -->
-            <div class="search-form">
-                <input type="text" id="search-input" name="search" placeholder="Search...">
-            </div>
-
-            <!-- Add Model Button aligned to the right -->
-            <a href="/{{ mount_path }}/{{ model_name }}/create" class="add-model-button" hx-get="/{{ mount_path }}/{{ model_name }}/create_page" hx-target="body">Add {{ model_name }}</a>
+            <input type="text" 
+                   name="search-input"
+                   class="search-input"
+                   placeholder="Search..."
+                   hx-get="/{{ mount_path }}/{{ model_name }}/get_model_list"
+                   hx-target="#model-list"
+                   hx-trigger="keyup changed delay:500ms, search"
+                   hx-include="[name='column-to-search']">
+            <button class="search-button"
+                    hx-get="/{{ mount_path }}/{{ model_name }}/get_model_list"
+                    hx-target="#model-list"
+                    hx-include="[name='column-to-search'],[name='search-input']">
+                Search
+            </button>
         </div>
-    </form>
+    </div>
 
-    <!-- HTMX updated Model List -->
     <div id="model-list">
         {% include 'admin/model/components/list_content.html' %}
     </div>
+
 </div>
 {% endblock %}

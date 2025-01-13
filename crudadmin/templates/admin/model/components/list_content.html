@@ -1,26 +1,19 @@
-<!-- Model List with HTMX -->
-<div id="model-list">
-    <div class="table-container">
-        <table id="data-table" class="table">
-            <thead>
-                <tr>
-                    <th></th>
-                    {% for header in table_columns %}
-                        <th>{{ header }}</th>
-                    {% endfor %}
-                </tr>
-            </thead>
-            <tbody id="table-body">
-                {% for row in model_items %}
-                    <tr>
-                        <td class="checkbox-cell"><input type="checkbox" name="rowSelect"></td>
-                        {% for attribute in row.values() %}
-                            <td>{{ attribute }}</td>
-                        {% endfor %}
-                    </tr>
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th class="checkbox-cell">
+                    <input type="checkbox" name="select-all">
+                </th>
+                {% for header in table_columns %}
+                    <th>{{ header }}</th>
                 {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% include 'admin/model/components/pagination.html' %}
+            </tr>
+        </thead>
+        <tbody>
+            {% include 'admin/model/components/table_content.html' %}
+        </tbody>
+    </table>
 </div>
+
+{% include 'admin/model/components/pagination.html' %}

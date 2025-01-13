@@ -1,6 +1,8 @@
 {% for row in model_items %}
     <tr>
-        <td class="checkbox-cell"><input type="checkbox" name="rowSelect"></td>
+        <td class="checkbox-cell">
+            <input type="checkbox" name="rowSelect">
+        </td>
         {% for attribute in row.values() %}
             <td>{{ attribute }}</td>
         {% endfor %}
