@@ -7,6 +7,31 @@
 {% block content %}
 <div class="admin-content">
     <style>
+        .error-message {
+            background-color: #FEE2E2;
+            border: 1px solid #F87171;
+            color: #991B1B;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            border-radius: 0.375rem;
+        }
+
+        .dark-theme .error-message {
+            background-color: rgba(248, 113, 113, 0.1);
+            border-color: rgba(248, 113, 113, 0.2);
+            color: #FCA5A5;
+        }
+
+        .field-error {
+            color: #DC2626;
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
+        }
+
+        .dark-theme .field-error {
+            color: #F87171;
+        }
+        
         .create-form-container .admin-content {
             padding: 2rem;
             max-width: 1400px;
@@ -165,6 +190,12 @@
             <h1 class="page-title">Create {{ model_name }}</h1>
         </div>
 
+        {% if error %}
+        <div class="error-message">
+            {{ error }}
+        </div>
+        {% endif %}
+
         <form method="post" action="/{{ mount_path }}/{{ model_name }}/form_create" enctype="multipart/form-data">
             <div class="create-form">
                 <div class="field-section">
@@ -177,7 +208,7 @@
                             {% endif %}
                         </div>
                         
-                        <input class="form-control"
+                        <input class="form-control{% if field.name in field_errors %} error{% endif %}"
                             type="{{ field.type }}" 
                             id="{{ field.name }}" 
                             name="{{ field.name }}"
@@ -187,8 +218,15 @@
                             {% if field.pattern %}pattern="{{ field.pattern }}"{% endif %}
                             {% if field.type == 'number' and field.min %}min="{{ field.min }}"{% endif %}
                             {% if field.type == 'number' and field.max %}max="{{ field.max }}"{% endif %}
+                            value="{{ field_values[field.name] if field_values and field.name in field_values else '' }}"
                             placeholder="{{ field.examples | first | default ('Enter ' + field.title | default(field.name) | capitalize) }}">
                         
+                        {% if field.name in field_errors %}
+                        <div class="field-error">
+                            {{ field_errors[field.name] }}
+                        </div>
+                        {% endif %}
+
                         {% if field.description or field.examples %}
                         <div class="help-text">
                             {% if field.description %}{{ field.description }}{% endif %}

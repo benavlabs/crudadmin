@@ -28,6 +28,7 @@ class CRUDAdmin:
         ALGORITHM: str | None = "HS256",
         ACCESS_TOKEN_EXPIRE_MINUTES: int = 30,
         REFRESH_TOKEN_EXPIRE_DAYS: int = 1,
+        admin_db_url: str | None = None,
         db_config: DatabaseConfig | None = None,
         setup_on_initialization: bool = True,
     ) -> None:
@@ -56,8 +57,12 @@ class CRUDAdmin:
         self.models: Dict[str, Dict[str, Any]] = {}
         self.router = APIRouter(tags=["admin"])
         self.oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"/{mount_path}/login")
+        
         self.db_config = db_config or DatabaseConfig(
-            base=base, engine=engine, session=session
+            base=base,
+            engine=engine,
+            session=session,
+            admin_db_url=admin_db_url
         )
 
         self.templates = Jinja2Templates(directory=self.templates_directory)
@@ -71,6 +76,12 @@ class CRUDAdmin:
             )
         
         self.app.include_router(self.router)
+
+    async def initialize(self):
+        """Initialize the admin database tables."""
+        async with self.db_config.admin_engine.begin() as conn:
+            await conn.run_sync(self.db_config.AdminUser.metadata.create_all)
+            await conn.run_sync(self.db_config.AdminTokenBlacklist.metadata.create_all)
 
     def setup(
         self,

@@ -5,7 +5,7 @@ from datetime import timezone
 from fastapi import APIRouter, Request, Depends
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import RedirectResponse, JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy import inspect
@@ -120,44 +120,66 @@ class ModelView:
             db: AsyncSession = Depends(self.session)
         ):
             form_fields = _get_form_fields_from_schema(self.create_schema)
+            error_message = None
+            field_errors = {}
+            field_values = {}
+
             try:
-                form_data_raw = await request.form()
-                form_data = {}
+                if request.method == "POST":
+                    form_data_raw = await request.form()
+                    form_data = {}
 
-                for field in form_fields:
-                    key = field["name"]
-                    raw_value = form_data_raw.getlist(key)
-                    if len(raw_value) == 1:
-                        value = raw_value[0]
-                        form_data[key] = value if value else field.get("default", None)
-                    elif len(raw_value) > 1:
-                        form_data[key] = raw_value
-                    else:
-                        form_data[key] = field.get("default", None)
+                    for field in form_fields:
+                        key = field["name"]
+                        raw_value = form_data_raw.getlist(key)
+                        if len(raw_value) == 1:
+                            value = raw_value[0]
+                            form_data[key] = value if value else field.get("default", None)
+                            field_values[key] = value
+                        elif len(raw_value) > 1:
+                            form_data[key] = raw_value
+                            field_values[key] = raw_value
+                        else:
+                            form_data[key] = field.get("default", None)
 
-                item_data = self.create_schema(**form_data)
-                
-                result = await self.crud.create(db=db, object=item_data)
+                    try:
+                        item_data = self.create_schema(**form_data)
+                        result = await self.crud.create(db=db, object=item_data)
 
-                if result:
-                    return RedirectResponse(
-                        url=f"/{self.admin_site.mount_path}/{self.model.__name__}/", 
-                        status_code=303,
-                        headers={"Location": f"/{self.admin_site.mount_path}/{self.model.__name__}/"}
-                    )
-                
+                        if result:
+                            if "HX-Request" in request.headers:
+                                return RedirectResponse(
+                                    url=f"/{self.admin_site.mount_path}/{self.model.__name__}/",
+                                    headers={"HX-Redirect": f"/{self.admin_site.mount_path}/{self.model.__name__}/"}
+                                )
+                            return RedirectResponse(
+                                url=f"/{self.admin_site.mount_path}/{self.model.__name__}/",
+                                status_code=303
+                            )
+
+                    except ValidationError as e:
+                        field_errors = {error["loc"][0]: error["msg"] for error in e.errors()}
+                        error_message = "Please correct the errors below."
+                    except Exception as e:
+                        error_message = str(e)
+
             except Exception as e:
                 error_message = str(e)
-                
+
+            context = {
+                "request": request,
+                "model_name": self.model_key,
+                "form_fields": form_fields,
+                "error": error_message,
+                "field_errors": field_errors,
+                "field_values": field_values,
+                "mount_path": self.admin_site.mount_path,
+            }
+
             return self.templates.TemplateResponse(
                 template,
-                {
-                    "request": request,
-                    "model_name": self.model_key,
-                    "form_fields": form_fields,
-                    "error": error_message
-                },
-                status_code=400 if error_message else 200
+                context,
+                status_code=422 if error_message else 200
             )
 
         return form_create_endpoint_inner
@@ -274,11 +296,9 @@ class ModelView:
             limit = int(request.query_params.get("rows-per-page-select", 10))
             offset = (page - 1) * limit
 
-            # Get sorting parameters
             sort_column = request.query_params.get("sort_by")
             sort_order = request.query_params.get("sort_order", "asc")
 
-            # Set up sorting parameters for FastCRUD
             sort_columns = [sort_column] if sort_column else None
             sort_orders = [sort_order] if sort_column else None
 
@@ -411,53 +431,73 @@ class ModelView:
                     content={"message": f"Item with id {id} not found"}
                 )
             
+            form_fields = _get_form_fields_from_schema(self.update_schema)
+            error_message = None
+            field_errors = {}
+            field_values = {}
+            
             try:
                 form_data = await request.form()
                 update_data = {}
+                has_updates = False
                 
                 for key, value in form_data.items():
-                    if value:
-                        update_data[key] = value
-                
-                if hasattr(self.update_internal_schema, "updated_at"):
-                    update_data["updated_at"] = datetime.now(timezone.utc)
-                
-                update_schema_instance = self.update_schema(**update_data)
-                
-                await self.crud.update(
-                    db=db,
-                    id=id,
-                    object=update_schema_instance
-                )
-                
-                return RedirectResponse(
-                    url=f"/{self.admin_site.mount_path}/{self.model.__name__}/",
-                    status_code=303
-                )
+                    if value and value.strip():
+                        update_data[key] = value.strip()
+                        field_values[key] = value.strip()
+                        has_updates = True
+
+                if not has_updates:
+                    error_message = "No changes were provided for update"
+                else:
+                    if hasattr(self.update_internal_schema, "updated_at"):
+                        update_data["updated_at"] = datetime.now(timezone.utc)
+                    
+                    try:
+                        update_schema_instance = self.update_schema(**update_data)
+                        await self.crud.update(
+                            db=db,
+                            id=id,
+                            object=update_schema_instance
+                        )
+                        
+                        return RedirectResponse(
+                            url=f"/{self.admin_site.mount_path}/{self.model.__name__}/",
+                            status_code=303
+                        )
+                        
+                    except ValidationError as e:
+                        field_errors = {error["loc"][0]: error["msg"] for error in e.errors()}
+                        error_message = "Please correct the errors below."
+                    except Exception as e:
+                        error_message = str(e)
                 
             except Exception as e:
                 error_message = str(e)
-                form_fields = _get_form_fields_from_schema(self.update_schema)
-                
-                for field in form_fields:
-                    field_name = field["name"]
-                    if field_name in form_data:
-                        field["value"] = form_data[field_name]
-                    elif field_name in item:
-                        field["value"] = item[field_name]
-                
-                return self.templates.TemplateResponse(
-                    "admin/model/update.html",
-                    {
-                        "request": request,
-                        "model_name": self.model_key,
-                        "form_fields": form_fields,
-                        "error": error_message,
-                        "mount_path": self.admin_site.mount_path,
-                        "id": id
-                    },
-                    status_code=400
-                )
+
+            for field in form_fields:
+                field_name = field["name"]
+                if field_name not in field_values:
+                    if field_name in item:
+                        field_values[field_name] = item[field_name]
+            
+            context = {
+                "request": request,
+                "model_name": self.model_key,
+                "form_fields": form_fields,
+                "error": error_message,
+                "field_errors": field_errors,
+                "field_values": field_values,
+                "mount_path": self.admin_site.mount_path,
+                "id": id,
+                "include_sidebar_and_header": False
+            }
+            
+            return self.templates.TemplateResponse(
+                "admin/model/update.html",
+                context,
+                status_code=400 if error_message else 200
+            )
         
         return form_update_endpoint_inner
 
