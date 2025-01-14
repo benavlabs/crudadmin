@@ -16,6 +16,6 @@ def create_admin_token_blacklist(base):
             primary_key=True,
         )
         token: Mapped[str] = mapped_column(String, unique=True, index=True)
-        expires_at: Mapped[datetime] = mapped_column(DateTime)
+        expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
     return AdminTokenBlacklist

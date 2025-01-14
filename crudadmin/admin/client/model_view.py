@@ -41,7 +41,10 @@ class ModelView:
         admin_site = None,
     ) -> None:
         self.db_config = database_config
-        self.session = database_config.session
+        if self._model_is_admin_model(model):
+            self.session = self.db_config.get_admin_db
+        else:
+            self.session = database_config.session
         self.templates = templates
         self.model = model
         self.model_key = model.__name__
@@ -59,7 +62,7 @@ class ModelView:
         self.crud = CRUDModel(model)
 
         self.endpoints_template = EndpointCreator(
-            session=self.db_config.session,
+            session=self.session,
             model=model,
             crud=self.crud,
             create_schema=create_schema,
@@ -114,6 +117,14 @@ class ModelView:
             include_in_schema=False,
         )
 
+    def _model_is_admin_model(self, model: DeclarativeBase) -> bool:
+        """Determine if a model is an admin model."""
+        admin_models = {
+            self.db_config.AdminUser.__name__,
+            self.db_config.AdminTokenBlacklist.__name__
+        }
+        return model.__name__ in admin_models
+
     def form_create_endpoint(self, template: str):
         async def form_create_endpoint_inner(
             request: Request,
@@ -143,8 +154,22 @@ class ModelView:
                             form_data[key] = field.get("default", None)
 
                     try:
-                        item_data = self.create_schema(**form_data)
-                        result = await self.crud.create(db=db, object=item_data)
+                        if self.model.__name__ == "AdminUser":
+                            item_data = self.create_schema(**form_data)
+                            
+                            hashed_password = self.admin_site.security_utils.get_password_hash(
+                                item_data.password
+                            )
+                            
+                            from ...schemas.admin_user import AdminUserCreateInternal
+                            internal_data = AdminUserCreateInternal(
+                                username=item_data.username,
+                                hashed_password=hashed_password
+                            )
+                            result = await self.crud.create(db=db, object=internal_data)
+                        else:
+                            item_data = self.create_schema(**form_data)
+                            result = await self.crud.create(db=db, object=item_data)
 
                         if result:
                             if "HX-Request" in request.headers:
@@ -454,12 +479,29 @@ class ModelView:
                         update_data["updated_at"] = datetime.now(timezone.utc)
                     
                     try:
-                        update_schema_instance = self.update_schema(**update_data)
-                        await self.crud.update(
-                            db=db,
-                            id=id,
-                            object=update_schema_instance
-                        )
+                        if self.model.__name__ == "AdminUser":
+                            update_schema_instance = self.update_schema(**update_data)
+                            internal_update_data = {"updated_at": datetime.now(timezone.utc)}
+                            
+                            if update_schema_instance.username is not None:
+                                internal_update_data["username"] = update_schema_instance.username
+                                
+                            if update_schema_instance.password is not None:
+                                internal_update_data["hashed_password"] = self.admin_site.security_utils.get_password_hash(
+                                    update_schema_instance.password
+                                )
+                            
+                            from ...schemas.admin_user import AdminUserUpdateInternal
+                            internal_update_schema = AdminUserUpdateInternal(**internal_update_data)
+                            await self.crud.update(db=db, id=id, object=internal_update_schema)
+                        else:
+                            # Normal model update
+                            update_schema_instance = self.update_schema(**update_data)
+                            await self.crud.update(
+                                db=db,
+                                id=id,
+                                object=update_schema_instance
+                            )
                         
                         return RedirectResponse(
                             url=f"/{self.admin_site.mount_path}/{self.model.__name__}/",

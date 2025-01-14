@@ -1,20 +1,18 @@
 from typing import Annotated, Optional
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict
 
 from .timestamp import TimestampSchema
 
 
 class AdminUserBase(BaseModel):
-    name: Annotated[str, Field(min_length=2, max_length=30, examples=["User Userson"])]
     username: Annotated[
         str,
         Field(
-            min_length=2, max_length=20, pattern=r"^[a-z0-9]+$", examples=["userson"]
+            min_length=2, max_length=20, pattern=r"^[a-z0-9]+$", examples=["admin"]
         ),
     ]
-    email: Annotated[EmailStr, Field(examples=["user.userson@example.com"])]
 
 
 class AdminUser(TimestampSchema, AdminUserBase):
@@ -24,15 +22,7 @@ class AdminUser(TimestampSchema, AdminUserBase):
 
 class AdminUserRead(BaseModel):
     id: int
-
-    name: Annotated[str, Field(min_length=2, max_length=30, examples=["User Userson"])]
-    username: Annotated[
-        str,
-        Field(
-            min_length=2, max_length=20, pattern=r"^[a-z0-9]+$", examples=["userson"]
-        ),
-    ]
-    email: Annotated[EmailStr, Field(examples=["user.userson@example.com"])]
+    username: str
     is_superuser: bool
 
 
@@ -55,24 +45,26 @@ class AdminUserCreateInternal(AdminUserBase):
 class AdminUserUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    name: Annotated[
-        Optional[str],
-        Field(min_length=2, max_length=30, examples=["User Userberg"], default=None),
-    ]
     username: Annotated[
         Optional[str],
         Field(
             min_length=2,
             max_length=20,
             pattern=r"^[a-z0-9]+$",
-            examples=["userberg"],
+            examples=["admin"],
             default=None,
         ),
     ]
-    email: Annotated[
-        Optional[EmailStr], Field(examples=["user.userberg@example.com"], default=None)
+    password: Annotated[
+        Optional[str],
+        Field(
+            pattern=r"^.{8,}|[0-9]+|[A-Z]+|[a-z]+|[^a-zA-Z0-9]+$",
+            examples=["NewStr1ngst!"],
+            default=None,
+        ),
     ]
 
 
 class AdminUserUpdateInternal(AdminUserUpdate):
     updated_at: datetime
+    hashed_password: Optional[str] = None

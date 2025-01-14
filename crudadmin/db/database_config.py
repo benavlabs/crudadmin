@@ -1,6 +1,5 @@
 import os
-from typing import Type, Optional
-from pathlib import Path
+from typing import Type, Optional, AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
@@ -17,6 +16,17 @@ from ..schemas.admin_token import AdminTokenBlacklistCreate, AdminTokenBlacklist
 from ..models.admin_user import create_admin_user
 from ..models.admin_token_blacklist import create_admin_token_blacklist
 
+
+def get_default_db_path() -> str:
+    """Get the default database path relative to the current working directory."""
+    cwd = os.getcwd()
+    
+    data_dir = os.path.join(cwd, 'crudadmin_data')
+    os.makedirs(data_dir, exist_ok=True)
+    
+    return os.path.join(data_dir, 'admin.db')
+
+
 class DatabaseConfig:
     """
     Configuration for database entities related to admin functionality.
@@ -29,25 +39,58 @@ class DatabaseConfig:
         engine: AsyncEngine,
         session: AsyncSession,
         admin_db_url: Optional[str] = None,
+        admin_db_path: Optional[str] = None,
         admin_user: Optional[Type[DeclarativeBase]] = None,
         admin_token_blacklist: Optional[Type[DeclarativeBase]] = None,
         crud_admin_user: Optional[FastCRUD] = None,
         crud_admin_token_blacklist: Optional[FastCRUD] = None,
     ) -> None:
+        """
+        Initialize database configuration.
+
+        Parameters
+        ----------
+        base : DeclarativeBase
+            SQLAlchemy declarative base
+        engine : AsyncEngine
+            Main application database engine
+        session : AsyncSession
+            Main application database session
+        admin_db_url : Optional[str]
+            Complete database URL for admin database. Takes precedence over admin_db_path.
+        admin_db_path : Optional[str]
+            Path where SQLite database should be stored. Only used if admin_db_url is None.
+        admin_user : Optional[Type[DeclarativeBase]]
+            Custom admin user model
+        admin_token_blacklist : Optional[Type[DeclarativeBase]]
+            Custom token blacklist model
+        crud_admin_user : Optional[FastCRUD]
+            Custom CRUD operations for admin user
+        crud_admin_token_blacklist : Optional[FastCRUD]
+            Custom CRUD operations for token blacklist
+        """
         self.base = base
         self.engine = engine
         self.session = session
 
         if admin_db_url is None:
-            db_path = os.path.join(str(Path.home()), '.fastapi_admin.db')
-            admin_db_url = f"sqlite+aiosqlite:///{db_path}"
+            if admin_db_path is None:
+                admin_db_path = get_default_db_path()
+            admin_db_url = f"sqlite+aiosqlite:///{admin_db_path}"
 
         self.admin_engine = create_async_engine(admin_db_url)
         self.admin_session = sessionmaker(
             self.admin_engine,
             class_=AsyncSession,
-            expire_on_commit=False
+            expire_on_commit=False,
         )
+
+        async def get_admin_session() -> AsyncGenerator[AsyncSession, None]:
+            async with self.admin_session() as session:
+                yield session
+                await session.commit()
+
+        self.get_admin_db = get_admin_session
 
         if admin_user is None:
             admin_user = create_admin_user(base)

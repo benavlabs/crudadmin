@@ -29,6 +29,7 @@ class CRUDAdmin:
         ACCESS_TOKEN_EXPIRE_MINUTES: int = 30,
         REFRESH_TOKEN_EXPIRE_DAYS: int = 1,
         admin_db_url: str | None = None,
+        admin_db_path: str | None = None,
         db_config: DatabaseConfig | None = None,
         setup_on_initialization: bool = True,
     ) -> None:
@@ -62,7 +63,8 @@ class CRUDAdmin:
             base=base,
             engine=engine,
             session=session,
-            admin_db_url=admin_db_url
+            admin_db_url=admin_db_url,
+            admin_db_path=admin_db_path
         )
 
         self.templates = Jinja2Templates(directory=self.templates_directory)
