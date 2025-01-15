@@ -12,7 +12,7 @@ from ..schemas.admin_user import (
     AdminUserUpdateInternal,
     AdminUser
 )
-from ..schemas.admin_token import AdminTokenBlacklistCreate, AdminTokenBlacklistUpdate
+from ..schemas.admin_token import AdminTokenBlacklistCreate, AdminTokenBlacklistUpdate, AdminTokenBlacklistBase
 from ..models.admin_user import create_admin_user
 from ..models.admin_token_blacklist import create_admin_token_blacklist
 
@@ -79,18 +79,13 @@ class DatabaseConfig:
             admin_db_url = f"sqlite+aiosqlite:///{admin_db_path}"
 
         self.admin_engine = create_async_engine(admin_db_url)
-        self.admin_session = sessionmaker(
-            self.admin_engine,
-            class_=AsyncSession,
-            expire_on_commit=False,
-        )
+        self.admin_session = AsyncSession(self.admin_engine, expire_on_commit=False)
 
-        async def get_admin_session() -> AsyncGenerator[AsyncSession, None]:
-            async with self.admin_session() as session:
-                yield session
-                await session.commit()
+        async def get_admin_db() -> AsyncGenerator[AsyncSession, None]:
+            yield self.admin_session
+            await self.admin_session.commit()
 
-        self.get_admin_db = get_admin_session
+        self.get_admin_db = get_admin_db
 
         if admin_user is None:
             admin_user = create_admin_user(base)
@@ -119,7 +114,7 @@ class DatabaseConfig:
                 AdminTokenBlacklistUpdate,
                 AdminTokenBlacklistUpdate,
                 None,
-                AdminUser
+                AdminTokenBlacklistBase
             ]
             crud_admin_token_blacklist = CRUDAdminTokenBlacklist(admin_token_blacklist)
         self.crud_token_blacklist = crud_admin_token_blacklist

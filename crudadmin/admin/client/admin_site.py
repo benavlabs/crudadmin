@@ -132,13 +132,14 @@ class AdminSite:
     async def get_base_context(self, db: AsyncSession) -> dict:
         """Get common context data needed for base template"""
         auth_model_counts = {}
-        for model_name in self.admin_authentication.auth_models.keys():
-            count = await self.db_config.crud_users.count(db)
+        for model_name, model_data in self.admin_authentication.auth_models.items():
+            crud = model_data["crud"]
+            count = await crud.count(self.db_config.admin_session)
             auth_model_counts[model_name] = count
 
         model_counts = {}
-        for model_name in self.models.keys():
-            crud = self.models[model_name]["crud"]
+        for model_name, model_data in self.models.items():
+            crud = model_data["crud"]
             count = await crud.count(db)
             model_counts[model_name] = count
 
@@ -170,6 +171,7 @@ class AdminSite:
     def admin_auth_model_page(self, model_key: str):
         async def admin_auth_model_page_inner(
                 request: Request,
+                admin_db: AsyncSession = Depends(self.db_config.get_admin_db),
                 db: AsyncSession = Depends(self.db_config.session)
         ):
             auth_model = self.admin_authentication.auth_models[model_key]
@@ -179,7 +181,7 @@ class AdminSite:
             limit = int(request.query_params.get("rows-per-page-select", 10))
             offset = (page - 1) * limit
 
-            items = await auth_model["crud"].get_multi(db=db, offset=offset, limit=limit)
+            items = await auth_model["crud"].get_multi(db=admin_db, offset=offset, limit=limit)
             total_items = items["total_count"]
             total_pages = (total_items + limit - 1) // limit
 
