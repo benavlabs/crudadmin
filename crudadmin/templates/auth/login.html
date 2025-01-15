@@ -28,15 +28,6 @@
             background: var(--bg-primary-dark);
         }
 
-        .login-header {
-            background: var(--primary-color);
-            color: white;
-            padding: 1.5rem;
-            text-align: center;
-            font-size: 1.5rem;
-            font-weight: 600;
-        }
-
         .login-form {
             padding: 2rem;
         }
@@ -108,10 +99,32 @@
             background: rgba(239, 68, 68, 0.1);
             border-color: rgba(239, 68, 68, 0.2);
         }
+
+        /* Brand */
+        .login-header {
+            background: var(--primary-color);
+            color: white;
+            padding: 1.5rem;
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .login-header-icon {
+            width: 1.75rem;
+            height: 1.75rem;
+            display: inline-block;
+            vertical-align: middle;
+        }
     </style>
 
     <div class="login-container">
         <div class="login-header">
+            <img src="/admin/static/favicon.png" alt="FastAPI Admin" class="login-header-icon">
             FastAPI Administration
         </div>
         
