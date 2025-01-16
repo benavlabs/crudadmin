@@ -317,15 +317,18 @@ class ModelView:
                     redirect_url += '?' + request.url.query
                 return RedirectResponse(redirect_url, status_code=307)
 
-            page = int(request.query_params.get("page", 1))
-            limit = int(request.query_params.get("rows-per-page-select", 10))
-            offset = (page - 1) * limit
+            try:
+                page = max(1, int(request.query_params.get("page", 1)))
+                rows_per_page = int(request.query_params.get("rows-per-page-select", 10))
+            except ValueError:
+                page = 1
+                rows_per_page = 10
 
             sort_column = request.query_params.get("sort_by")
             sort_order = request.query_params.get("sort_order", "asc")
 
-            sort_columns = [sort_column] if sort_column else None
-            sort_orders = [sort_order] if sort_column else None
+            sort_columns = [sort_column] if sort_column and sort_column != "None" else None
+            sort_orders = [sort_order] if sort_column and sort_column != "None" else None
 
             search_column = request.query_params.get("column-to-search")
             search_value = request.query_params.get("search-input", "").strip()
@@ -353,18 +356,26 @@ class ModelView:
                         filter_criteria[f"{search_column}__ilike"] = f"%{search_value}%"
 
             try:
+                total_items = await self.crud.count(db=db, **filter_criteria)
+
+                max_page = max(1, (total_items + rows_per_page - 1) // rows_per_page)
+                page = min(page, max_page)
+
+                offset = (page - 1) * rows_per_page
+
                 items = await self.crud.get_multi(
                     db=db, 
                     offset=offset,
-                    limit=limit,
+                    limit=rows_per_page,
                     sort_columns=sort_columns,
                     sort_orders=sort_orders,
                     **filter_criteria
                 )
-                
-                
             except Exception as e:
+                print(f"Error fetching data: {e}")
                 items = {"data": [], "total_count": 0}
+                total_items = 0
+                page = 1
 
             table_columns = [column.key for column in self.model.__table__.columns]
             primary_key_info = self.db_config.get_primary_key_info(self.model)
@@ -374,9 +385,9 @@ class ModelView:
                 "model_items": items["data"],
                 "model_name": self.model_key,
                 "table_columns": table_columns,
-                "total_items": items["total_count"],
+                "total_items": total_items,
                 "current_page": page,
-                "rows_per_page": limit,
+                "rows_per_page": rows_per_page,
                 "selected_column": search_column,
                 "primary_key_info": primary_key_info,
                 "mount_path": self.admin_site.mount_path,
@@ -495,7 +506,6 @@ class ModelView:
                             internal_update_schema = AdminUserUpdateInternal(**internal_update_data)
                             await self.crud.update(db=db, id=id, object=internal_update_schema)
                         else:
-                            # Normal model update
                             update_schema_instance = self.update_schema(**update_data)
                             await self.crud.update(
                                 db=db,

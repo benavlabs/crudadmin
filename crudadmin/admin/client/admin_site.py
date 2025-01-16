@@ -1,6 +1,7 @@
 from datetime import timedelta
+from typing import Optional
 
-from fastapi import Request, APIRouter, Depends, Response
+from fastapi import Request, APIRouter, Depends, Response, Cookie
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.security import OAuth2PasswordRequestForm
@@ -9,6 +10,7 @@ from sqlalchemy.ext.asyncio.session import AsyncSession
 from ...authentication.security import SecurityUtils
 from ...authentication.admin_auth import AdminAuthentication
 from ...db.database_config import DatabaseConfig
+
 
 class AdminSite:
     def __init__(
@@ -35,7 +37,11 @@ class AdminSite:
             "/login", self.login_page(), methods=["POST"], include_in_schema=False
         )
         self.router.add_api_route(
-            "/logout", self.logout_endpoint, methods=["get"], include_in_schema=False
+            "/logout",
+            self.logout_endpoint(),
+            methods=["get"],
+            include_in_schema=False,
+            dependencies=[Depends(self.admin_authentication.get_current_user())],
         )
         self.router.add_api_route(
             "/login", self.admin_login_page, methods=["GET"], include_in_schema=False
@@ -45,9 +51,14 @@ class AdminSite:
             self.dashboard_content(),
             methods=["GET"],
             include_in_schema=False,
+            dependencies=[Depends(self.admin_authentication.get_current_user())],
         )
         self.router.add_api_route(
-            "/", self.dashboard_page(), methods=["GET"], include_in_schema=False
+            "/",
+            self.dashboard_page(),
+            methods=["GET"],
+            include_in_schema=False,
+            dependencies=[Depends(self.admin_authentication.get_current_user())],
         )
 
         for model_key, auth_model_key in self.admin_authentication.auth_models.items():
@@ -56,6 +67,7 @@ class AdminSite:
                 self.admin_auth_model_page(model_key),
                 methods=["GET"],
                 include_in_schema=False,
+                dependencies=[Depends(self.admin_authentication.get_current_user())],
             )
 
     def login_page(self):
@@ -63,7 +75,7 @@ class AdminSite:
             request: Request,
             response: Response,
             form_data: OAuth2PasswordRequestForm = Depends(),
-            db: AsyncSession = Depends(self.db_config.session),
+            db: AsyncSession = Depends(self.db_config.get_admin_db),
         ):
             user = await self.security_utils.authenticate_user(
                 form_data.username, form_data.password, db=db
@@ -74,6 +86,7 @@ class AdminSite:
                     {
                         "request": request,
                         "error": "Invalid credentials. Please try again.",
+                        "mount_path": self.mount_path
                     },
                 )
 
@@ -84,37 +97,67 @@ class AdminSite:
                 data={"sub": user["username"]}, expires_delta=access_token_expires
             )
 
-            refresh_token_expires = timedelta(
-                days=self.security_utils.REFRESH_TOKEN_EXPIRE_DAYS
+            response = RedirectResponse(
+                url=f"/{self.mount_path}/",
+                status_code=303
             )
-            refresh_token = await self.security_utils.create_refresh_token(
-                data={"sub": user["username"]}, expires_delta=refresh_token_expires
-            )
-
+            
             response.set_cookie(
-                key="refresh_token",
-                value=refresh_token,
+                key="access_token",
+                value=access_token,
                 httponly=True,
-                secure=False,
-                samesite="Lax",
-                max_age=int(refresh_token_expires.total_seconds()),
+                max_age=access_token_expires.total_seconds(),
+                path=f"/{self.mount_path}",
+                samesite="lax"
             )
-
-            return {
-                "access_token": access_token,
-                "token_type": "bearer",
-                "redirect": "/",
-            }
+            
+            return response
 
         return login_page_inner
 
-    async def logout_endpoint(self, response: Response):
-        response.delete_cookie(key="refresh_token")
-        await self.admin_authentication.blacklist_token()
-        return RedirectResponse(url=f"/{self.mount_path}/login")
+    def logout_endpoint(self):
+        async def logout_endpoint_inner(
+            request: Request,
+            response: Response,
+            db: AsyncSession = Depends(self.db_config.get_admin_db),
+            access_token: Optional[str] = Cookie(None),
+            refresh_token: Optional[str] = Cookie(None)
+        ):
+            """Handle user logout by blacklisting both access and refresh tokens."""
+            if access_token:
+                token = access_token.replace('Bearer ', '') if access_token.startswith('Bearer ') else access_token
+                await self.admin_authentication.blacklist_token(token, db)
+
+            if refresh_token:
+                await self.admin_authentication.blacklist_token(refresh_token, db)
+
+            response = RedirectResponse(
+                url=f"/{self.mount_path}/login",
+                status_code=303
+            )
+            
+            response.delete_cookie(
+                key="access_token",
+                path=f"/{self.mount_path}"
+            )
+            response.delete_cookie(
+                key="refresh_token",
+                path=f"/{self.mount_path}"
+            )
+            
+            return response
+    
+        return logout_endpoint_inner
 
     async def admin_login_page(self, request: Request):
-        return self.templates.TemplateResponse("auth/login.html", {"request": request})
+        return self.templates.TemplateResponse(
+            "auth/login.html", 
+            {
+                "request": request,
+                "mount_path": self.mount_path,
+                "theme": self.theme
+            }
+        )
 
     def dashboard_content(self):
         async def dashboard_content_inner(request: Request, db: AsyncSession = Depends(self.db_config.session)):

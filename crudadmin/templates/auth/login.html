@@ -122,31 +122,39 @@
         }
     </style>
 
-    <div class="login-container">
-        <div class="login-header">
-            <img src="/admin/static/favicon.png" alt="FastAPI Admin" class="login-header-icon">
-            FastAPI Administration
+<div class="login-container">
+    <div class="login-header">
+        <img src="/{{ mount_path }}/static/favicon.png" alt="FastAPI Admin" class="login-header-icon">
+        FastAPI Administration
+    </div>
+    
+    <form class="login-form" 
+          action="/{{ mount_path }}/login" 
+          method="post"
+          enctype="application/x-www-form-urlencoded">
+        {% if error %}
+        <div class="error-message">
+            {{ error }}
+        </div>
+        {% endif %}
+        
+        <div class="form-group">
+            <label class="form-label" for="username">Username</label>
+            <input type="text" id="username" name="username" class="form-control" required>
         </div>
         
-        <form class="login-form" action="/{{ mount_path }}/login" method="post">
-            {% if error %}
-            <div class="error-message">
-                {{ error }}
-            </div>
-            {% endif %}
-            
-            <div class="form-group">
-                <label class="form-label" for="username">Username</label>
-                <input type="text" id="username" name="username" class="form-control" required>
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label" for="password">Password</label>
-                <input type="password" id="password" name="password" class="form-control" required>
-            </div>
-            
-            <button type="submit" class="login-btn">Log in</button>
-        </form>
-    </div>
+        <div class="form-group">
+            <label class="form-label" for="password">Password</label>
+            <input type="password" id="password" name="password" class="form-control" required>
+        </div>
+        
+        <input type="hidden" name="grant_type" value="password">
+        <input type="hidden" name="scope" value="">
+        <input type="hidden" name="client_id" value="">
+        <input type="hidden" name="client_secret" value="">
+        
+        <button type="submit" class="login-btn">Log in</button>
+    </form>
+</div>
 </div>
 {% endblock %}

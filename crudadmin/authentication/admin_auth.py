@@ -1,9 +1,9 @@
-from typing import Union, Any, Annotated
+from typing import Union, Any, Annotated, Optional
 from datetime import datetime
 
 from jose import jwt, JWTError
 from sqlalchemy.ext.asyncio.session import AsyncSession
-from fastapi import Depends
+from fastapi import Depends, Cookie, Request
 from fastapi.security import OAuth2PasswordBearer
 
 from ..exceptions.http_exceptions import UnauthorizedException, ForbiddenException
@@ -20,7 +20,6 @@ from ..schemas.admin_user import (
     AdminUserUpdate,
     AdminUserUpdateInternal,
 )
-
 
 class AdminAuthentication:
     def __init__(
@@ -100,11 +99,13 @@ class AdminAuthentication:
         except JWTError:
             return None
 
-    async def blacklist_token(self):
-        async def blacklist_token_inner(
-            token: Annotated[str, Depends(self.oauth2_scheme)],
-            db: Annotated[AsyncSession, Depends(self.async_get_db)],
-        ) -> None:
+    async def blacklist_token(
+        self,
+        token: str,
+        db: AsyncSession,
+    ) -> None:
+        """Blacklist a token."""
+        try:
             payload = jwt.decode(
                 token,
                 self.security_utils.SECRET_KEY,
@@ -117,31 +118,51 @@ class AdminAuthentication:
                     **{"token": token, "expires_at": expires_at}
                 ),
             )
+        except JWTError:
+            pass
 
-        return blacklist_token_inner
+    async def get_token_from_cookie(
+        self,
+        request: Request,
+        access_token: Optional[str] = Cookie(None)
+    ) -> Optional[str]:
+        """Get token from cookie."""
+        if access_token and access_token.startswith('Bearer '):
+            return access_token.split(' ')[1]
+        return None
 
-    async def get_current_user(self):
+    def get_current_user(self):
         async def get_current_user_inner(
-            token: Annotated[str, Depends(self.oauth2_scheme)],
-            db: Annotated[AsyncSession, Depends(self.async_get_db)],
+            request: Request,
+            db: AsyncSession = Depends(self.db_config.get_admin_db),
+            access_token: Optional[str] = Cookie(None)
         ) -> Union[dict[str, Any], None]:
+            if not access_token:
+                raise UnauthorizedException("Not authenticated")
+                
+            token = None
+            if access_token.startswith('Bearer '):
+                token = access_token.split(' ')[1]
+            else:
+                token = access_token
+                
             token_data = await self.verify_token(token, db)
             if token_data is None:
-                raise UnauthorizedException("User not authenticated.")
+                raise UnauthorizedException("Could not validate credentials")
 
             if "@" in token_data.username_or_email:
                 user: dict | None = await self.db_config.crud_users.get(
-                    db=db, email=token_data.username_or_email, is_deleted=False
+                    db=db, email=token_data.username_or_email
                 )
             else:
                 user = await self.db_config.crud_users.get(
-                    db=db, username=token_data.username_or_email, is_deleted=False
+                    db=db, username=token_data.username_or_email
                 )
 
             if user:
                 return user
 
-            raise UnauthorizedException("User not authenticated.")
+            raise UnauthorizedException("User not authenticated")
 
         return get_current_user_inner
 

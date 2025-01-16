@@ -21,6 +21,7 @@ class SecurityUtils:
         self.ALGORITHM = ALGORITHM
         self.ACCESS_TOKEN_EXPIRE_MINUTES = ACCESS_TOKEN_EXPIRE_MINUTES
         self.REFRESH_TOKEN_EXPIRE_DAYS = REFRESH_TOKEN_EXPIRE_DAYS
+        self.db_config = db_config
         self.crud_users = db_config.crud_users
         self.crud_token_blacklist = db_config.crud_token_blacklist
 
@@ -33,20 +34,26 @@ class SecurityUtils:
     async def authenticate_user(
         self, username_or_email: str, password: str, db: AsyncSession
     ) -> Union[Dict[str, Any], Literal[False]]:
-        if "@" in username_or_email:
-            db_user: dict | None = await self.crud_users.get(
-                db=db, email=username_or_email
-            )
-        else:
-            db_user = await self.crud_users.get(db=db, username=username_or_email)
+        async for admin_session in self.db_config.get_admin_db():
+            try:
+                if "@" in username_or_email:
+                    db_user: dict | None = await self.crud_users.get(
+                        db=admin_session, email=username_or_email
+                    )
+                else:
+                    db_user = await self.crud_users.get(
+                        db=admin_session, username=username_or_email
+                    )
 
-        if not db_user:
-            return False
+                if not db_user:
+                    return False
 
-        elif not await self.verify_password(password, db_user["hashed_password"]):
-            return False
+                if not await self.verify_password(password, db_user["hashed_password"]):
+                    return False
 
-        return db_user
+                return db_user
+            except Exception as e:
+                return False
 
     async def create_access_token(
         self, data: dict[str, Any], expires_delta: timedelta | None = None

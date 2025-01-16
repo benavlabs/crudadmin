@@ -1,7 +1,7 @@
 import os
 from typing import Type, Dict, Any
 
-from fastapi import APIRouter, FastAPI
+from fastapi import APIRouter, FastAPI, Depends
 from fastapi.templating import Jinja2Templates
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.staticfiles import StaticFiles
@@ -165,6 +165,5 @@ class CRUDAdmin:
             "prefix": f"/{model_key}",
             "include_in_schema": False,
         }
-        
-        self.router.include_router(**router_info)
-        self.app.router.include_router(**router_info)
+
+        self.app.router.include_router(dependencies=[Depends(self.admin_authentication.get_current_user())], **router_info)
