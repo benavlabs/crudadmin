@@ -11,6 +11,7 @@ from sqlalchemy.orm import DeclarativeBase
 
 from .client.model_view import ModelView
 from .client.admin_site import AdminSite
+from .middleware.auth import AdminAuthMiddleware
 from ..authentication.security import SecurityUtils
 from ..authentication.admin_auth import AdminAuthentication
 from ..db.database_config import DatabaseConfig
@@ -49,6 +50,8 @@ class CRUDAdmin:
             StaticFiles(directory=self.static_directory), 
             name="admin_static"
         )
+
+        self.app.add_middleware(AdminAuthMiddleware, admin_instance=self)
 
         self.SECRET_KEY = SECRET_KEY
         self.ALGORITHM = ALGORITHM

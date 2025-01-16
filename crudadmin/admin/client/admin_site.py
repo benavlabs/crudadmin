@@ -150,12 +150,14 @@ class AdminSite:
         return logout_endpoint_inner
 
     async def admin_login_page(self, request: Request):
+        error = request.query_params.get("error")
         return self.templates.TemplateResponse(
             "auth/login.html", 
             {
                 "request": request,
                 "mount_path": self.mount_path,
-                "theme": self.theme
+                "theme": self.theme,
+                "error": error
             }
         )
 
