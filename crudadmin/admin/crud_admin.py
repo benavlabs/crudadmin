@@ -1,11 +1,13 @@
+import logging
 import os
-from typing import Type, Dict, Any
+from typing import Type, Dict, Any, Union, Optional
 
 from fastapi import APIRouter, FastAPI, Depends
 from fastapi.templating import Jinja2Templates
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.staticfiles import StaticFiles
 from fastcrud import FastCRUD
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 
@@ -15,6 +17,10 @@ from .middleware.auth import AdminAuthMiddleware
 from ..authentication.security import SecurityUtils
 from ..authentication.admin_auth import AdminAuthentication
 from ..db.database_config import DatabaseConfig
+from ..schemas.admin_user import AdminUserCreate, AdminUserCreateInternal
+
+
+logger = logging.getLogger("crudadmin")
 
 
 class CRUDAdmin:
@@ -33,6 +39,7 @@ class CRUDAdmin:
         admin_db_path: str | None = None,
         db_config: DatabaseConfig | None = None,
         setup_on_initialization: bool = True,
+        initial_admin: Optional[Union[dict, BaseModel]] = None,
     ) -> None:
         self.mount_path = mount_path.strip('/')
         self.theme = theme
@@ -57,6 +64,8 @@ class CRUDAdmin:
         self.ALGORITHM = ALGORITHM
         self.ACCESS_TOKEN_EXPIRE_MINUTES = ACCESS_TOKEN_EXPIRE_MINUTES
         self.REFRESH_TOKEN_EXPIRE_DAYS = REFRESH_TOKEN_EXPIRE_DAYS
+
+        self.initial_admin = initial_admin
 
         self.models: Dict[str, Dict[str, Any]] = {}
         self.router = APIRouter(tags=["admin"])
@@ -87,6 +96,9 @@ class CRUDAdmin:
         async with self.db_config.admin_engine.begin() as conn:
             await conn.run_sync(self.db_config.AdminUser.metadata.create_all)
             await conn.run_sync(self.db_config.AdminTokenBlacklist.metadata.create_all)
+
+        if self.initial_admin:
+            await self._create_initial_admin(self.initial_admin)
 
     def setup(
         self,
@@ -170,3 +182,52 @@ class CRUDAdmin:
         }
 
         self.app.router.include_router(dependencies=[Depends(self.admin_authentication.get_current_user())], **router_info)
+
+    async def _create_initial_admin(
+        self, 
+        admin_data: Union[dict, BaseModel]
+    ) -> None:
+        """
+        Create initial admin user if no admin exists.
+        
+        Parameters
+        ----------
+        admin_data : Union[dict, BaseModel]
+            Admin user data as either a dictionary or a Pydantic model.
+            Must contain username and password fields.
+        """
+        async for admin_session in self.db_config.get_admin_db():
+            try:
+                admins_count = await self.db_config.crud_users.count(admin_session)
+
+                if admins_count < 1:
+                    if isinstance(admin_data, dict):
+                        create_data = AdminUserCreate(**admin_data)
+                    elif isinstance(admin_data, BaseModel):
+                        if isinstance(admin_data, AdminUserCreate):
+                            create_data = admin_data
+                        else:
+                            create_data = AdminUserCreate(**admin_data.dict())
+                    else:
+                        msg = "Initial admin data must be either a dict or Pydantic model"
+                        logger.error(msg)
+                        raise ValueError(msg)
+
+                    hashed_password = self.security_utils.get_password_hash(
+                        create_data.password
+                    )
+                    internal_data = AdminUserCreateInternal(
+                        username=create_data.username,
+                        hashed_password=hashed_password,
+                    )
+
+                    await self.db_config.crud_users.create(
+                        admin_session, 
+                        object=internal_data
+                    )
+                    await admin_session.commit()
+                    logger.info("Created initial admin user - username: %s", create_data.username)
+
+            except Exception as e:
+                logger.error("Error creating initial admin user: %s", str(e), exc_info=True)
+                raise
