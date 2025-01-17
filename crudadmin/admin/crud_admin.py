@@ -14,11 +14,12 @@ from sqlalchemy.orm import DeclarativeBase
 from .client.model_view import ModelView
 from .client.admin_site import AdminSite
 from .middleware.auth import AdminAuthMiddleware
+from ..session import create_admin_session_model, SessionManager
 from ..authentication.security import SecurityUtils
 from ..authentication.admin_auth import AdminAuthentication
 from ..db.database_config import DatabaseConfig
 from ..schemas.admin_user import AdminUserCreate, AdminUserCreateInternal
-
+from ..session.schemas import AdminSessionCreate, AdminSessionUpdate, AdminSessionRead
 
 logger = logging.getLogger("crudadmin")
 
@@ -76,7 +77,15 @@ class CRUDAdmin:
             engine=engine,
             session=session,
             admin_db_url=admin_db_url,
-            admin_db_path=admin_db_path
+            admin_db_path=admin_db_path,
+            admin_session=create_admin_session_model(base),
+        )
+
+        self.session_manager = SessionManager(
+            self.db_config,
+            max_sessions_per_user=5,
+            session_timeout_minutes=30,
+            cleanup_interval_minutes=15
         )
 
         self.templates = Jinja2Templates(directory=self.templates_directory)
@@ -96,7 +105,8 @@ class CRUDAdmin:
         async with self.db_config.admin_engine.begin() as conn:
             await conn.run_sync(self.db_config.AdminUser.metadata.create_all)
             await conn.run_sync(self.db_config.AdminTokenBlacklist.metadata.create_all)
-
+            await conn.run_sync(self.db_config.AdminSession.metadata.create_all)
+        
         if self.initial_admin:
             await self._create_initial_admin(self.initial_admin)
 
@@ -132,6 +142,7 @@ class CRUDAdmin:
         )
 
         self.admin_site.setup_routes()
+
         for data in self.admin_authentication.auth_models.values():
             self.add_view(
                 model=data["model"],

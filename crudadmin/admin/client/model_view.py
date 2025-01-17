@@ -121,7 +121,8 @@ class ModelView:
         """Determine if a model is an admin model."""
         admin_models = {
             self.db_config.AdminUser.__name__,
-            self.db_config.AdminTokenBlacklist.__name__
+            self.db_config.AdminTokenBlacklist.__name__,
+            self.db_config.AdminSession.__name__,
         }
         return model.__name__ in admin_models
 
@@ -183,7 +184,7 @@ class ModelView:
                             )
 
                     except ValidationError as e:
-                        field_errors = {error["loc"][0]: error["msg"] for error in e.errors()}
+                        field_errors = {error["loc"][0]: error["message"] for error in e.errors()}
                         error_message = "Please correct the errors below."
                     except Exception as e:
                         error_message = str(e)
@@ -224,7 +225,7 @@ class ModelView:
                 if not ids:
                     return JSONResponse(
                         status_code=400,
-                        content={"detail": [{"msg": "No IDs provided for deletion"}]}
+                        content={"detail": [{"message": "No IDs provided for deletion"}]}
                     )
 
                 inspector = inspect(self.model)
@@ -247,7 +248,7 @@ class ModelView:
                     except (ValueError, TypeError):
                         return JSONResponse(
                             status_code=422,
-                            content={"detail": [{"msg": f"Invalid ID value: {id_value}"}]}
+                            content={"detail": [{"message": f"Invalid ID value: {id_value}"}]}
                         )
 
                 try:
@@ -258,7 +259,7 @@ class ModelView:
                     await db.rollback()
                     return JSONResponse(
                         status_code=400,
-                        content={"detail": [{"msg": f"Error during deletion: {str(e)}"}]}
+                        content={"detail": [{"message": f"Error during deletion: {str(e)}"}]}
                     )
 
                 total_count = await self.crud.count(db=db)
@@ -296,12 +297,12 @@ class ModelView:
             except ValueError as e:
                 return JSONResponse(
                     status_code=422,
-                    content={"detail": [{"msg": str(e)}]}
+                    content={"detail": [{"message": str(e)}]}
                 )
             except Exception as e:
                 return JSONResponse(
                     status_code=422,
-                    content={"detail": [{"msg": f"Error processing request: {str(e)}"}]}
+                    content={"detail": [{"message": f"Error processing request: {str(e)}"}]}
                 )
 
         return bulk_delete_endpoint_inner
@@ -372,7 +373,6 @@ class ModelView:
                     **filter_criteria
                 )
             except Exception as e:
-                print(f"Error fetching data: {e}")
                 items = {"data": [], "total_count": 0}
                 total_items = 0
                 page = 1
@@ -519,7 +519,7 @@ class ModelView:
                         )
                         
                     except ValidationError as e:
-                        field_errors = {error["loc"][0]: error["msg"] for error in e.errors()}
+                        field_errors = {error["loc"][0]: error["message"] for error in e.errors()}
                         error_message = "Please correct the errors below."
                     except Exception as e:
                         error_message = str(e)

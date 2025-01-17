@@ -1,5 +1,6 @@
-from datetime import timedelta
+from datetime import timedelta, timezone, datetime
 from typing import Optional
+import logging
 
 from fastapi import Request, APIRouter, Depends, Response, Cookie
 from fastapi.responses import RedirectResponse
@@ -10,7 +11,9 @@ from sqlalchemy.ext.asyncio.session import AsyncSession
 from ...authentication.security import SecurityUtils
 from ...authentication.admin_auth import AdminAuthentication
 from ...db.database_config import DatabaseConfig
+from ...session.manager import SessionManager
 
+logger = logging.getLogger(__name__)
 
 class AdminSite:
     def __init__(
@@ -31,6 +34,13 @@ class AdminSite:
         self.admin_authentication = admin_authentication
         self.mount_path = mount_path
         self.theme = theme
+
+        self.session_manager = SessionManager(
+            self.db_config,
+            max_sessions_per_user=5,
+            session_timeout_minutes=30,
+            cleanup_interval_minutes=15
+        )
 
     def setup_routes(self):
         self.router.add_api_route(
@@ -61,15 +71,6 @@ class AdminSite:
             dependencies=[Depends(self.admin_authentication.get_current_user())],
         )
 
-        for model_key, auth_model_key in self.admin_authentication.auth_models.items():
-            self.router.add_api_route(
-                f"{auth_model_key}/",
-                self.admin_auth_model_page(model_key),
-                methods=["GET"],
-                include_in_schema=False,
-                dependencies=[Depends(self.admin_authentication.get_current_user())],
-            )
-
     def login_page(self):
         async def login_page_inner(
             request: Request,
@@ -77,41 +78,102 @@ class AdminSite:
             form_data: OAuth2PasswordRequestForm = Depends(),
             db: AsyncSession = Depends(self.db_config.get_admin_db),
         ):
-            user = await self.security_utils.authenticate_user(
-                form_data.username, form_data.password, db=db
-            )
-            if not user:
+            logger.info("Processing login attempt...")
+            try:
+                user = await self.security_utils.authenticate_user(
+                    form_data.username, form_data.password, db=db
+                )
+                if not user:
+                    logger.warning(f"Authentication failed for user: {form_data.username}")
+                    return self.templates.TemplateResponse(
+                        "auth/login.html",
+                        {
+                            "request": request,
+                            "error": "Invalid credentials. Please try again.",
+                            "mount_path": self.mount_path,
+                            "theme": self.theme,
+                        },
+                    )
+
+                logger.info("User authenticated successfully, creating token")
+                access_token_expires = timedelta(
+                    minutes=self.security_utils.ACCESS_TOKEN_EXPIRE_MINUTES
+                )
+                access_token = await self.security_utils.create_access_token(
+                    data={"sub": user["username"]}, expires_delta=access_token_expires
+                )
+
+                try:
+                    logger.info("Creating user session...")
+                    session = await self.session_manager.create_session(
+                        request=request,
+                        user_id=user["id"],
+                        metadata={
+                            "login_type": "password",
+                            "username": user["username"],
+                            "creation_time": datetime.now(timezone.utc).isoformat()
+                        }
+                    )
+
+                    if not session:
+                        logger.error("Failed to create session")
+                        raise Exception("Session creation failed")
+
+                    logger.info(f"Session created successfully: {session.session_id}")
+
+                    response = RedirectResponse(
+                        url=f"/{self.mount_path}/",
+                        status_code=303
+                    )
+                    
+                    response.set_cookie(
+                        key="access_token",
+                        value=f"Bearer {access_token}",
+                        httponly=True,
+                        max_age=access_token_expires.total_seconds(),
+                        path=f"/{self.mount_path}",
+                        samesite="lax",
+                        secure=False
+                    )
+                    
+                    response.set_cookie(
+                        key="session_id",
+                        value=session.session_id,
+                        httponly=True,
+                        max_age=access_token_expires.total_seconds(),
+                        path=f"/{self.mount_path}",
+                        samesite="lax",
+                        secure=False
+                    )
+                    
+                    await db.commit()
+                    logger.info("Login completed successfully")
+                    return response
+
+                except Exception as e:
+                    logger.error(f"Error during session creation: {str(e)}", exc_info=True)
+                    await db.rollback()
+                    return self.templates.TemplateResponse(
+                        "auth/login.html",
+                        {
+                            "request": request,
+                            "error": f"Error creating session: {str(e)}",
+                            "mount_path": self.mount_path,
+                            "theme": self.theme,
+                        },
+                    )
+
+            except Exception as e:
+                logger.error(f"Error during login: {str(e)}", exc_info=True)
                 return self.templates.TemplateResponse(
                     "auth/login.html",
                     {
                         "request": request,
-                        "error": "Invalid credentials. Please try again.",
-                        "mount_path": self.mount_path
+                        "error": "An error occurred during login. Please try again.",
+                        "mount_path": self.mount_path,
+                        "theme": self.theme,
                     },
                 )
-
-            access_token_expires = timedelta(
-                minutes=self.security_utils.ACCESS_TOKEN_EXPIRE_MINUTES
-            )
-            access_token = await self.security_utils.create_access_token(
-                data={"sub": user["username"]}, expires_delta=access_token_expires
-            )
-
-            response = RedirectResponse(
-                url=f"/{self.mount_path}/",
-                status_code=303
-            )
-            
-            response.set_cookie(
-                key="access_token",
-                value=access_token,
-                httponly=True,
-                max_age=access_token_expires.total_seconds(),
-                path=f"/{self.mount_path}",
-                samesite="lax"
-            )
-            
-            return response
 
         return login_page_inner
 
@@ -121,15 +183,18 @@ class AdminSite:
             response: Response,
             db: AsyncSession = Depends(self.db_config.get_admin_db),
             access_token: Optional[str] = Cookie(None),
-            refresh_token: Optional[str] = Cookie(None)
+            session_id: Optional[str] = Cookie(None)
         ):
-            """Handle user logout by blacklisting both access and refresh tokens."""
+            """Handle user logout by terminating session and blacklisting tokens."""
             if access_token:
                 token = access_token.replace('Bearer ', '') if access_token.startswith('Bearer ') else access_token
                 await self.admin_authentication.blacklist_token(token, db)
 
-            if refresh_token:
-                await self.admin_authentication.blacklist_token(refresh_token, db)
+            if session_id:
+                await self.admin_site.session_manager.terminate_session(
+                    db=db,
+                    session_id=session_id
+                )
 
             response = RedirectResponse(
                 url=f"/{self.mount_path}/login",
@@ -141,7 +206,7 @@ class AdminSite:
                 path=f"/{self.mount_path}"
             )
             response.delete_cookie(
-                key="refresh_token",
+                key="session_id",
                 path=f"/{self.mount_path}"
             )
             
@@ -226,9 +291,36 @@ class AdminSite:
             limit = int(request.query_params.get("rows-per-page-select", 10))
             offset = (page - 1) * limit
 
-            items = await auth_model["crud"].get_multi(db=admin_db, offset=offset, limit=limit)
-            total_items = items["total_count"]
-            total_pages = (total_items + limit - 1) // limit
+            try:
+                items = await auth_model["crud"].get_multi(
+                    db=admin_db,
+                    offset=offset,
+                    limit=limit
+                )
+                
+                logger.info(f"Retrieved items for {model_key}: {items}")
+                total_items = items["total_count"]
+
+                if model_key == "AdminSession":
+                    formatted_items = []
+                    for item in items["data"]:
+                        formatted_item = {}
+                        for key, value in item.items():
+                            if key == "device_info" and isinstance(value, dict):
+                                formatted_item[key] = str(value)
+                            elif key == "session_metadata" and isinstance(value, dict):
+                                formatted_item[key] = str(value)
+                            else:
+                                formatted_item[key] = value
+                        formatted_items.append(formatted_item)
+                    items["data"] = formatted_items
+
+            except Exception as e:
+                logger.error(f"Error retrieving {model_key} data: {str(e)}", exc_info=True)
+                items = {"data": [], "total_count": 0}
+                total_items = 0
+
+            total_pages = (total_items + limit - 1) // limit if total_items > 0 else 1
 
             context = await self.get_base_context(db)
             context.update({
@@ -240,12 +332,15 @@ class AdminSite:
                 "rows_per_page": limit,
                 "total_items": total_items,
                 "total_pages": total_pages,
-                "include_sidebar_and_header": True
+                "primary_key_info": self.db_config.get_primary_key_info(auth_model["model"]),
+                "sort_column": None,
+                "sort_order": "asc",
+                "include_sidebar_and_header": True,
             })
 
             return self.templates.TemplateResponse(
                 "admin/model/list.html",
                 context
             )
-        
+
         return admin_auth_model_page_inner

@@ -1,5 +1,6 @@
 from typing import Union, Any, Annotated, Optional
 from datetime import datetime
+import logging
 
 from jose import jwt, JWTError
 from sqlalchemy.ext.asyncio.session import AsyncSession
@@ -20,6 +21,9 @@ from ..schemas.admin_user import (
     AdminUserUpdate,
     AdminUserUpdateInternal,
 )
+from ..session.schemas import AdminSessionCreate, AdminSessionUpdate
+
+logger = logging.getLogger(__name__)
 
 class AdminAuthentication:
     def __init__(
@@ -52,6 +56,16 @@ class AdminAuthentication:
             "delete_schema": None,
         }
 
+        self.auth_models[self.db_config.AdminSession.__name__] = {
+            "model": self.db_config.AdminSession,
+            "crud": self.db_config.crud_sessions,
+            "create_schema": AdminSessionCreate,
+            "update_schema": AdminSessionUpdate,
+            "update_internal_schema": AdminSessionUpdate,
+            "delete_schema": None,
+        }
+
+
     async def create_user_table(self) -> None:
         async with self.engine.begin() as conn:
             await conn.run_sync(self.admin_user.metadata.create_all)
@@ -64,39 +78,37 @@ class AdminAuthentication:
             await db.commit()
 
     async def verify_token(self, token: str, db: AsyncSession) -> AdminTokenData | None:
-        """
-        Verify a JWT token and return TokenData if valid.
-
-        Parameters
-        ----------
-        token: str
-            The JWT token to be verified.
-        db: AsyncSession
-            Database session for performing database operations.
-
-        Returns
-        -------
-        TokenData | None
-            TokenData instance if the token is valid, None otherwise.
-        """
-        is_blacklisted = await self.db_config.crud_token_blacklist.exists(
-            db, token=token
-        )
-        if is_blacklisted:
-            return None
-
+        """Verify a JWT token and return TokenData if valid."""
         try:
-            payload = jwt.decode(
-                token,
-                self.security_utils.SECRET_KEY,
-                algorithms=[self.security_utils.ALGORITHM],
+            logger.info("Checking if token is blacklisted")
+            is_blacklisted = await self.db_config.crud_token_blacklist.exists(
+                db, token=token
             )
-            username_or_email: str = payload.get("sub")
-            if username_or_email is None:
+            if is_blacklisted:
+                logger.warning("Token is blacklisted")
                 return None
-            return AdminTokenData(username_or_email=username_or_email)
 
-        except JWTError:
+            try:
+                logger.info("Decoding JWT token")
+                payload = jwt.decode(
+                    token,
+                    self.security_utils.SECRET_KEY,
+                    algorithms=[self.security_utils.ALGORITHM],
+                )
+                username_or_email: str = payload.get("sub")
+                if username_or_email is None:
+                    logger.warning("No username/email found in token")
+                    return None
+                    
+                logger.info("Token verified successfully")
+                return AdminTokenData(username_or_email=username_or_email)
+
+            except JWTError as e:
+                logger.error(f"JWT decode error: {str(e)}")
+                return None
+
+        except Exception as e:
+            logger.error(f"Token verification error: {str(e)}", exc_info=True)
             return None
 
     async def blacklist_token(
