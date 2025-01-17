@@ -2,8 +2,8 @@ import os
 import logging
 from typing import Type, Optional, AsyncGenerator
 
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
-from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy import inspect
 from fastcrud import FastCRUD
 
@@ -39,7 +39,6 @@ class DatabaseConfig:
     def __init__(
         self,
         base: DeclarativeBase,
-        engine: AsyncEngine,
         session: AsyncSession,
         admin_db_url: Optional[str] = None,
         admin_db_path: Optional[str] = None,
@@ -51,7 +50,6 @@ class DatabaseConfig:
         crud_admin_session: Optional[FastCRUD] = None,
     ) -> None:
         self.base = base
-        self.engine = engine
         self.session = session
 
         if admin_db_url is None:

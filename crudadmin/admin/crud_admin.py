@@ -28,7 +28,6 @@ class CRUDAdmin:
     def __init__(
         self,
         base: DeclarativeBase,
-        engine: AsyncEngine,
         session: AsyncSession,
         SECRET_KEY: str,
         mount_path: str | None = "/admin",
@@ -74,7 +73,6 @@ class CRUDAdmin:
         
         self.db_config = db_config or DatabaseConfig(
             base=base,
-            engine=engine,
             session=session,
             admin_db_url=admin_db_url,
             admin_db_path=admin_db_path,
