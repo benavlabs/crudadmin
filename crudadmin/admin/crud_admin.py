@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import Type, Dict, Any, Union, Optional
+from typing import Type, Dict, Any, Union, Optional, List
 
 from fastapi import APIRouter, FastAPI, Depends
 from fastapi.templating import Jinja2Templates
@@ -14,6 +14,7 @@ from sqlalchemy.orm import DeclarativeBase
 from .client.model_view import ModelView
 from .client.admin_site import AdminSite
 from .middleware.auth import AdminAuthMiddleware
+from .middleware.ip_restriction import IPRestrictionMiddleware
 from ..session import create_admin_session_model, SessionManager
 from ..authentication.security import SecurityUtils
 from ..authentication.admin_auth import AdminAuthentication
@@ -39,6 +40,8 @@ class CRUDAdmin:
         db_config: DatabaseConfig | None = None,
         setup_on_initialization: bool = True,
         initial_admin: Optional[Union[dict, BaseModel]] = None,
+        allowed_ips: Optional[List[str]] = None,
+        allowed_networks: Optional[List[str]] = None,
         secure_cookies: bool = True,
         enforce_https: bool = False,
         https_port: int = 443,
@@ -97,6 +100,13 @@ class CRUDAdmin:
                 ALGORITHM=ALGORITHM,
                 ACCESS_TOKEN_EXPIRE_MINUTES=ACCESS_TOKEN_EXPIRE_MINUTES,
                 REFRESH_TOKEN_EXPIRE_DAYS=REFRESH_TOKEN_EXPIRE_DAYS,
+            )
+
+        if allowed_ips or allowed_networks:
+            self.app.add_middleware(
+                IPRestrictionMiddleware,
+                allowed_ips=allowed_ips,
+                allowed_networks=allowed_networks
             )
 
         if enforce_https:
