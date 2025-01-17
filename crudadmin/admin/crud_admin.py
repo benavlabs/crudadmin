@@ -39,7 +39,7 @@ class CRUDAdmin:
         db_config: DatabaseConfig | None = None,
         setup_on_initialization: bool = True,
         initial_admin: Optional[Union[dict, BaseModel]] = None,
-        secure_cookies: bool = False,
+        secure_cookies: bool = True,
         enforce_https: bool = False,
         https_port: int = 443,
     ) -> None:
