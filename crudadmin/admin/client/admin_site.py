@@ -25,6 +25,7 @@ class AdminSite:
         admin_authentication: AdminAuthentication,
         mount_path: str,
         theme: str,
+        secure_cookies: bool,
     ) -> None:
         self.db_config = database_config
         self.router = APIRouter()
@@ -41,6 +42,8 @@ class AdminSite:
             session_timeout_minutes=30,
             cleanup_interval_minutes=15
         )
+
+        self.secure_cookies = secure_cookies
 
     def setup_routes(self):
         self.router.add_api_route(
@@ -130,20 +133,20 @@ class AdminSite:
                         key="access_token",
                         value=f"Bearer {access_token}",
                         httponly=True,
+                        secure=self.secure_cookies,
                         max_age=access_token_expires.total_seconds(),
                         path=f"/{self.mount_path}",
                         samesite="lax",
-                        secure=False
                     )
                     
                     response.set_cookie(
                         key="session_id",
                         value=session.session_id,
                         httponly=True,
+                        secure=self.secure_cookies,
                         max_age=access_token_expires.total_seconds(),
                         path=f"/{self.mount_path}",
                         samesite="lax",
-                        secure=False
                     )
                     
                     await db.commit()

@@ -8,7 +8,7 @@ from fastapi.security import OAuth2PasswordBearer
 from fastapi.staticfiles import StaticFiles
 from fastcrud import FastCRUD
 from pydantic import BaseModel
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 
 from .client.model_view import ModelView
@@ -19,7 +19,6 @@ from ..authentication.security import SecurityUtils
 from ..authentication.admin_auth import AdminAuthentication
 from ..db.database_config import DatabaseConfig
 from ..schemas.admin_user import AdminUserCreate, AdminUserCreateInternal
-from ..session.schemas import AdminSessionCreate, AdminSessionUpdate, AdminSessionRead
 
 logger = logging.getLogger("crudadmin")
 
@@ -40,6 +39,9 @@ class CRUDAdmin:
         db_config: DatabaseConfig | None = None,
         setup_on_initialization: bool = True,
         initial_admin: Optional[Union[dict, BaseModel]] = None,
+        secure_cookies: bool = False,
+        enforce_https: bool = False,
+        https_port: int = 443,
     ) -> None:
         self.mount_path = mount_path.strip('/')
         self.theme = theme
@@ -70,6 +72,7 @@ class CRUDAdmin:
         self.models: Dict[str, Dict[str, Any]] = {}
         self.router = APIRouter(tags=["admin"])
         self.oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"/{mount_path}/login")
+        self.secure_cookies = secure_cookies
         
         self.db_config = db_config or DatabaseConfig(
             base=base,
@@ -94,6 +97,13 @@ class CRUDAdmin:
                 ALGORITHM=ALGORITHM,
                 ACCESS_TOKEN_EXPIRE_MINUTES=ACCESS_TOKEN_EXPIRE_MINUTES,
                 REFRESH_TOKEN_EXPIRE_DAYS=REFRESH_TOKEN_EXPIRE_DAYS,
+            )
+
+        if enforce_https:
+            from .middleware.https import HTTPSRedirectMiddleware
+            self.app.add_middleware(
+                HTTPSRedirectMiddleware,
+                https_port=https_port
             )
         
         self.app.include_router(self.router)
@@ -137,6 +147,7 @@ class CRUDAdmin:
             admin_authentication=self.admin_authentication,
             mount_path=self.mount_path,
             theme=self.theme,
+            secure_cookies=self.secure_cookies,
         )
 
         self.admin_site.setup_routes()
