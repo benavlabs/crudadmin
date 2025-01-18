@@ -11,8 +11,8 @@ from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy import inspect
 from fastcrud import FastCRUD, EndpointCreator
 
-from ...db.database_config import DatabaseConfig
-from ..helper import _get_form_fields_from_schema
+from ..core.db import DatabaseConfig
+from .helper import _get_form_fields_from_schema
 
 ModelType = TypeVar("ModelType", bound=DeclarativeBase)
 CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
@@ -162,7 +162,7 @@ class ModelView:
                                 item_data.password
                             )
                             
-                            from ...schemas.admin_user import AdminUserCreateInternal
+                            from ..admin_user.schemas import AdminUserCreateInternal
                             internal_data = AdminUserCreateInternal(
                                 username=item_data.username,
                                 hashed_password=hashed_password
@@ -502,7 +502,7 @@ class ModelView:
                                     update_schema_instance.password
                                 )
                             
-                            from ...schemas.admin_user import AdminUserUpdateInternal
+                            from ..admin_user.schemas import AdminUserUpdateInternal
                             internal_update_schema = AdminUserUpdateInternal(**internal_update_data)
                             await self.crud.update(db=db, id=id, object=internal_update_schema)
                         else:

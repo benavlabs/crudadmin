@@ -5,7 +5,7 @@ import bcrypt
 from sqlalchemy.ext.asyncio import AsyncSession
 from jose import jwt
 
-from ..db.database_config import DatabaseConfig
+from ..core.db import DatabaseConfig
 
 
 class SecurityUtils:

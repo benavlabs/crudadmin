@@ -3,7 +3,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field, ConfigDict
 
-from .timestamp import TimestampSchema
+from ..core.schemas.timestamp import TimestampSchema
 
 
 class AdminUserBase(BaseModel):

@@ -11,15 +11,15 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 
-from .client.model_view import ModelView
-from .client.admin_site import AdminSite
-from .middleware.auth import AdminAuthMiddleware
-from .middleware.ip_restriction import IPRestrictionMiddleware
+from .model_view import ModelView
+from .admin_site import AdminSite
+from ..admin_interface.middleware.auth import AdminAuthMiddleware
+from ..admin_interface.middleware.ip_restriction import IPRestrictionMiddleware
 from ..session import create_admin_session_model, SessionManager
 from ..authentication.security import SecurityUtils
 from ..authentication.admin_auth import AdminAuthentication
-from ..db.database_config import DatabaseConfig
-from ..schemas.admin_user import AdminUserCreate, AdminUserCreateInternal
+from ..core.db import DatabaseConfig
+from ..admin_user.schemas import AdminUserCreate, AdminUserCreateInternal
 
 logger = logging.getLogger("crudadmin")
 
@@ -110,7 +110,7 @@ class CRUDAdmin:
             )
 
         if enforce_https:
-            from .middleware.https import HTTPSRedirectMiddleware
+            from ..admin.middleware.https import HTTPSRedirectMiddleware
             self.app.add_middleware(
                 HTTPSRedirectMiddleware,
                 https_port=https_port

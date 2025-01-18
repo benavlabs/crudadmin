@@ -7,16 +7,16 @@ from sqlalchemy.ext.asyncio.session import AsyncSession
 from fastapi import Depends, Cookie, Request
 from fastapi.security import OAuth2PasswordBearer
 
-from ..exceptions.http_exceptions import UnauthorizedException, ForbiddenException
+from ..core.exceptions import UnauthorizedException, ForbiddenException
 
 from ..authentication.security import SecurityUtils
-from ..schemas.admin_token import (
+from ..token.schemas import (
     AdminTokenData,
     AdminTokenBlacklistCreate,
     AdminTokenBlacklistUpdate,
 )
-from ..db.database_config import DatabaseConfig
-from ..schemas.admin_user import (
+from ..core.db import DatabaseConfig
+from ..admin_user.schemas import (
     AdminUserCreate,
     AdminUserUpdate,
     AdminUserUpdateInternal,

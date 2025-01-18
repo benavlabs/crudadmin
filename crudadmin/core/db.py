@@ -7,15 +7,15 @@ from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy import inspect
 from fastcrud import FastCRUD
 
-from ..schemas.admin_user import (
+from ..admin_user.schemas import (
     AdminUserCreate,
     AdminUserUpdate,
     AdminUserUpdateInternal,
     AdminUser
 )
-from ..schemas.admin_token import AdminTokenBlacklistCreate, AdminTokenBlacklistUpdate, AdminTokenBlacklistBase
-from ..models.admin_user import create_admin_user
-from ..models.admin_token_blacklist import create_admin_token_blacklist
+from ..token.schemas import AdminTokenBlacklistCreate, AdminTokenBlacklistUpdate, AdminTokenBlacklistBase
+from ..admin_user.models import create_admin_user
+from ..token.models import create_admin_token_blacklist
 from ..session import create_admin_session_model, AdminSessionCreate, AdminSessionUpdate
 
 logger = logging.getLogger(__name__)

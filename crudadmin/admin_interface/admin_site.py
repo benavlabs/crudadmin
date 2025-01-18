@@ -8,10 +8,10 @@ from fastapi.templating import Jinja2Templates
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio.session import AsyncSession
 
-from ...authentication.security import SecurityUtils
-from ...authentication.admin_auth import AdminAuthentication
-from ...db.database_config import DatabaseConfig
-from ...session.manager import SessionManager
+from ..authentication.security import SecurityUtils
+from ..authentication.admin_auth import AdminAuthentication
+from ..core.db import DatabaseConfig
+from ..session.manager import SessionManager
 
 logger = logging.getLogger(__name__)
 
