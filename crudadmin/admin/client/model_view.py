@@ -184,7 +184,7 @@ class ModelView:
                             )
 
                     except ValidationError as e:
-                        field_errors = {error["loc"][0]: error["message"] for error in e.errors()}
+                        field_errors = {error["loc"][0]: error["msg"] for error in e.errors()}
                         error_message = "Please correct the errors below."
                     except Exception as e:
                         error_message = str(e)
@@ -519,7 +519,7 @@ class ModelView:
                         )
                         
                     except ValidationError as e:
-                        field_errors = {error["loc"][0]: error["message"] for error in e.errors()}
+                        field_errors = {error["loc"][0]: error["msg"] for error in e.errors()}
                         error_message = "Please correct the errors below."
                     except Exception as e:
                         error_message = str(e)

@@ -70,7 +70,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.25rem; /* Slight margin below label */
         }
 
         .create-form-container .label-text {
@@ -93,16 +93,16 @@
         .create-form-container .form-control {
             width: 100%;
             padding: 0.75rem;
-            background: var(--bg-secondary-light);
             border: 1px solid var(--border-light);
             border-radius: var(--border-radius-md);
+            background: var(--bg-secondary-light);
             color: var(--text-primary-light);
             transition: all 0.2s;
         }
 
         .dark-theme .create-form-container .form-control {
-            background: var(--bg-secondary-dark);
             border-color: var(--border-dark);
+            background: var(--bg-secondary-dark);
             color: var(--text-primary-dark);
         }
 
@@ -113,7 +113,7 @@
         }
 
         .create-form-container .help-text {
-            margin-top: 0.5rem;
+            margin-bottom: 0.5rem; /* Space above the input */
             font-size: 0.75rem;
             color: var(--text-secondary-light);
         }
@@ -183,6 +183,68 @@
                 width: 100%;
             }
         }
+
+        .create-form-container .form-control[type="datetime-local"],
+        .create-form-container .form-control[type="date"],
+        .create-form-container .form-control[type="time"] {
+            padding: 0.6rem 0.75rem;
+        }
+
+        .create-form-container select.form-control {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background: var(--bg-secondary-light)
+                        url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e")
+                        no-repeat right 0.75rem center / 16px 12px;
+            padding-right: 2.5rem;
+        }
+
+        .dark-theme .create-form-container select.form-control {
+            background: var(--bg-secondary-dark)
+                        url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23ffffff' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e")
+                        no-repeat right 0.75rem center / 16px 12px;
+        }
+
+        .create-form-container select.form-control::-ms-expand {
+            display: none; /* IE/Edge arrow */
+        }
+
+        .create-form-container .form-control[type="checkbox"] {
+            width: auto;
+            margin-top: 0.5rem;
+        }
+
+        .create-form-container .checkbox-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .create-form-container .form-control[type="number"] {
+            -moz-appearance: none;
+        }
+
+        .create-form-container .form-control[type="number"]::-webkit-outer-spin-button,
+        .create-form-container .form-control[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .create-form-container textarea.form-control {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .input-help {
+            font-size: 0.75rem;
+            color: var(--text-secondary-light);
+            margin-top: 0.25rem;
+        }
+
+        .dark-theme .input-help {
+            color: var(--text-secondary-dark);
+        }
     </style>
 
     <div class="create-form-container">
@@ -201,32 +263,15 @@
                 <div class="field-section">
                     {% for field in form_fields %}
                     <div class="form-group">
+                        <!-- Field Label -->
                         <div class="form-label">
                             <span class="label-text">{{ field.title | default(field.name) | capitalize }}</span>
                             {% if field.required %}
                             <span class="required">Required</span>
                             {% endif %}
                         </div>
-                        
-                        <input class="form-control{% if field.name in field_errors %} error{% endif %}"
-                            type="{{ field.type }}" 
-                            id="{{ field.name }}" 
-                            name="{{ field.name }}"
-                            {% if field.required %}required{% endif %}
-                            {% if field.min_length %}minlength="{{ field.min_length }}"{% endif %}
-                            {% if field.max_length %}maxlength="{{ field.max_length }}"{% endif %}
-                            {% if field.pattern %}pattern="{{ field.pattern }}"{% endif %}
-                            {% if field.type == 'number' and field.min %}min="{{ field.min }}"{% endif %}
-                            {% if field.type == 'number' and field.max %}max="{{ field.max }}"{% endif %}
-                            value="{{ field_values[field.name] if field_values and field.name in field_values else '' }}"
-                            placeholder="{{ field.examples | first | default ('Enter ' + field.title | default(field.name) | capitalize) }}">
-                        
-                        {% if field.name in field_errors %}
-                        <div class="field-error">
-                            {{ field_errors[field.name] }}
-                        </div>
-                        {% endif %}
 
+                        <!-- Description / Example immediately under label -->
                         {% if field.description or field.examples %}
                         <div class="help-text">
                             {% if field.description %}{{ field.description }}{% endif %}
@@ -234,6 +279,68 @@
                                 {% if field.description %}<br>{% endif %}
                                 Example: {{ field.examples | first }}
                             {% endif %}
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Field Input -->
+                        {% if field.type == "select" %}
+                            <select class="form-control{% if field.name in field_errors %} error{% endif %}"
+                                id="{{ field.name }}"
+                                name="{{ field.name }}"
+                                {% if field.required %}required{% endif %}>
+                                <option value="">Select {{ field.title | default(field.name) | capitalize }}</option>
+                                {% for option in field.options %}
+                                <option value="{{ option.value }}"
+                                    {% if field_values and field_values[field.name] == option.value %}selected{% endif %}>
+                                    {{ option.label }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        
+                        {% elif field.type == "checkbox" %}
+                            <div class="checkbox-wrapper">
+                                <input class="form-control{% if field.name in field_errors %} error{% endif %}"
+                                    type="checkbox"
+                                    id="{{ field.name }}"
+                                    name="{{ field.name }}"
+                                    {% if field_values and field_values[field.name] %}checked{% endif %}>
+                                {% if field.description %}
+                                <span class="checkbox-label">{{ field.description }}</span>
+                                {% endif %}
+                            </div>
+                        
+                        {% elif field.type == "json" %}
+                            <textarea class="form-control{% if field.name in field_errors %} error{% endif %}"
+                                id="{{ field.name }}"
+                                name="{{ field.name }}"
+                                {% if field.required %}required{% endif %}
+                                placeholder="Enter JSON data">{{ field_values[field.name] if field_values and field.name in field_values else '' }}</textarea>
+                        
+                        {% else %}
+                            <input class="form-control{% if field.name in field_errors %} error{% endif %}"
+                                type="{{ field.type }}"
+                                id="{{ field.name }}"
+                                name="{{ field.name }}"
+                                {% if field.required %}required{% endif %}
+                                {% if field.min_length %}minlength="{{ field.min_length }}"{% endif %}
+                                {% if field.max_length %}maxlength="{{ field.max_length }}"{% endif %}
+                                {% if field.pattern %}pattern="{{ field.pattern }}"{% endif %}
+                                {% if field.step %}step="{{ field.step }}"{% endif %}
+                                {% if field.min %}min="{{ field.min }}"{% endif %}
+                                {% if field.max %}max="{{ field.max }}"{% endif %}
+                                value="{{ field_values[field.name] if field_values and field.name in field_values else '' }}"
+                                placeholder="{{ field.examples | first | default ('Enter ' + field.title | default(field.name) | capitalize) }}">
+                        {% endif %}
+                        
+                        {% if field.name in field_errors %}
+                        <div class="field-error">
+                            {{ field_errors[field.name] }}
+                        </div>
+                        {% endif %}
+
+                        {% if field.format %}
+                        <div class="input-help">
+                            Format: {{ field.format }}
                         </div>
                         {% endif %}
                     </div>
@@ -249,4 +356,29 @@
         </form>
     </div>
 </div>
+
+<script>
+    // Helper function to format JSON input
+    function formatJsonInput() {
+        const jsonInputs = document.querySelectorAll('textarea[name$="json"]');
+        jsonInputs.forEach(input => {
+            input.addEventListener('blur', function() {
+                try {
+                    const value = this.value.trim();
+                    if (value) {
+                        const formatted = JSON.stringify(JSON.parse(value), null, 2);
+                        this.value = formatted;
+                    }
+                } catch (e) {
+                    // Invalid JSON - leave as is
+                }
+            });
+        });
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        formatJsonInput();
+    });
+</script>
 {% endblock %}
