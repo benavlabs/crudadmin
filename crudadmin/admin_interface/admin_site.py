@@ -8,8 +8,10 @@ from fastapi.templating import Jinja2Templates
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio.session import AsyncSession
 
-from ..authentication.security import SecurityUtils
-from ..authentication.admin_auth import AdminAuthentication
+from .auth import AdminAuthentication
+from ..admin_user.service import AdminUserService
+from ..token.service import TokenService
+from ..admin_interface.auth import AdminAuthentication
 from ..core.db import DatabaseConfig
 from ..session.manager import SessionManager
 
@@ -21,7 +23,6 @@ class AdminSite:
         database_config: DatabaseConfig,
         templates_directory: str,
         models: dict,
-        security_utils: SecurityUtils,
         admin_authentication: AdminAuthentication,
         mount_path: str,
         theme: str,
@@ -31,8 +32,10 @@ class AdminSite:
         self.router = APIRouter()
         self.templates = Jinja2Templates(directory=templates_directory)
         self.models = models
-        self.security_utils = security_utils
+        self.admin_user_service = AdminUserService(db_config=database_config)
         self.admin_authentication = admin_authentication
+        self.admin_user_service = admin_authentication.user_service
+        self.token_service = admin_authentication.token_service
         self.mount_path = mount_path
         self.theme = theme
 
@@ -83,7 +86,7 @@ class AdminSite:
         ):
             logger.info("Processing login attempt...")
             try:
-                user = await self.security_utils.authenticate_user(
+                user = await self.admin_user_service.authenticate_user(
                     form_data.username, form_data.password, db=db
                 )
                 if not user:
@@ -100,9 +103,9 @@ class AdminSite:
 
                 logger.info("User authenticated successfully, creating token")
                 access_token_expires = timedelta(
-                    minutes=self.security_utils.ACCESS_TOKEN_EXPIRE_MINUTES
+                    minutes=self.token_service.ACCESS_TOKEN_EXPIRE_MINUTES
                 )
-                access_token = await self.security_utils.create_access_token(
+                access_token = await self.token_service.create_access_token(
                     data={"sub": user["username"]}, expires_delta=access_token_expires
                 )
 

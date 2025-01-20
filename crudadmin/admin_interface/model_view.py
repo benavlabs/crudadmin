@@ -55,6 +55,7 @@ class ModelView:
         self.delete_schema = delete_schema
         self.admin_model = admin_model
         self.admin_site = admin_site
+        self.user_service = self.admin_site.admin_user_service
 
         CRUDModel = FastCRUD[
             model, create_schema, update_schema, update_internal_schema, delete_schema, select_schema
@@ -158,7 +159,7 @@ class ModelView:
                         if self.model.__name__ == "AdminUser":
                             item_data = self.create_schema(**form_data)
                             
-                            hashed_password = self.admin_site.security_utils.get_password_hash(
+                            hashed_password = self.admin_user_service.get_password_hash(
                                 item_data.password
                             )
                             
@@ -498,7 +499,7 @@ class ModelView:
                                 internal_update_data["username"] = update_schema_instance.username
                                 
                             if update_schema_instance.password is not None:
-                                internal_update_data["hashed_password"] = self.admin_site.security_utils.get_password_hash(
+                                internal_update_data["hashed_password"] = self.admin_user_service.get_password_hash(
                                     update_schema_instance.password
                                 )
                             

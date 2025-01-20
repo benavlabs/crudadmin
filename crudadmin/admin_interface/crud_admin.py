@@ -13,11 +13,12 @@ from sqlalchemy.orm import DeclarativeBase
 
 from .model_view import ModelView
 from .admin_site import AdminSite
+from ..admin_interface.auth import AdminAuthentication
 from ..admin_interface.middleware.auth import AdminAuthMiddleware
 from ..admin_interface.middleware.ip_restriction import IPRestrictionMiddleware
 from ..session import create_admin_session_model, SessionManager
-from ..authentication.security import SecurityUtils
-from ..authentication.admin_auth import AdminAuthentication
+from ..token.service import TokenService
+from ..admin_user.service import AdminUserService
 from ..core.db import DatabaseConfig
 from ..admin_user.schemas import AdminUserCreate, AdminUserCreateInternal
 
@@ -65,18 +66,6 @@ class CRUDAdmin:
 
         self.app.add_middleware(AdminAuthMiddleware, admin_instance=self)
 
-        self.SECRET_KEY = SECRET_KEY
-        self.ALGORITHM = ALGORITHM
-        self.ACCESS_TOKEN_EXPIRE_MINUTES = ACCESS_TOKEN_EXPIRE_MINUTES
-        self.REFRESH_TOKEN_EXPIRE_DAYS = REFRESH_TOKEN_EXPIRE_DAYS
-
-        self.initial_admin = initial_admin
-
-        self.models: Dict[str, Dict[str, Any]] = {}
-        self.router = APIRouter(tags=["admin"])
-        self.oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"/{mount_path}/login")
-        self.secure_cookies = secure_cookies
-        
         self.db_config = db_config or DatabaseConfig(
             base=base,
             session=session,
@@ -84,6 +73,28 @@ class CRUDAdmin:
             admin_db_path=admin_db_path,
             admin_session=create_admin_session_model(base),
         )
+
+        self.SECRET_KEY = SECRET_KEY
+        self.ALGORITHM = ALGORITHM
+        self.ACCESS_TOKEN_EXPIRE_MINUTES = ACCESS_TOKEN_EXPIRE_MINUTES
+        self.REFRESH_TOKEN_EXPIRE_DAYS = REFRESH_TOKEN_EXPIRE_DAYS
+
+        self.token_service = TokenService(
+            db_config=self.db_config,
+            SECRET_KEY=SECRET_KEY,
+            ALGORITHM=ALGORITHM,
+            ACCESS_TOKEN_EXPIRE_MINUTES=ACCESS_TOKEN_EXPIRE_MINUTES,
+            REFRESH_TOKEN_EXPIRE_DAYS=REFRESH_TOKEN_EXPIRE_DAYS,
+        )
+
+        self.admin_user_service = AdminUserService(db_config=self.db_config)
+
+        self.initial_admin = initial_admin
+
+        self.models: Dict[str, Dict[str, Any]] = {}
+        self.router = APIRouter(tags=["admin"])
+        self.oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"/{mount_path}/login")
+        self.secure_cookies = secure_cookies
 
         self.session_manager = SessionManager(
             self.db_config,
@@ -95,12 +106,7 @@ class CRUDAdmin:
         self.templates = Jinja2Templates(directory=self.templates_directory)
 
         if setup_on_initialization:
-            self.setup(
-                SECRET_KEY=SECRET_KEY,
-                ALGORITHM=ALGORITHM,
-                ACCESS_TOKEN_EXPIRE_MINUTES=ACCESS_TOKEN_EXPIRE_MINUTES,
-                REFRESH_TOKEN_EXPIRE_DAYS=REFRESH_TOKEN_EXPIRE_DAYS,
-            )
+            self.setup()
 
         if allowed_ips or allowed_networks:
             self.app.add_middleware(
@@ -110,7 +116,7 @@ class CRUDAdmin:
             )
 
         if enforce_https:
-            from ..admin.middleware.https import HTTPSRedirectMiddleware
+            from .middleware.https import HTTPSRedirectMiddleware
             self.app.add_middleware(
                 HTTPSRedirectMiddleware,
                 https_port=https_port
@@ -130,22 +136,11 @@ class CRUDAdmin:
 
     def setup(
         self,
-        SECRET_KEY,
-        ALGORITHM,
-        ACCESS_TOKEN_EXPIRE_MINUTES,
-        REFRESH_TOKEN_EXPIRE_DAYS,
     ) -> None:
-        self.security_utils = SecurityUtils(
-            SECRET_KEY=SECRET_KEY,
-            ALGORITHM=ALGORITHM,
-            ACCESS_TOKEN_EXPIRE_MINUTES=ACCESS_TOKEN_EXPIRE_MINUTES,
-            REFRESH_TOKEN_EXPIRE_DAYS=REFRESH_TOKEN_EXPIRE_DAYS,
-            db_config=self.db_config,
-        )
-
         self.admin_authentication = AdminAuthentication(
             database_config=self.db_config,
-            security_utils=self.security_utils,
+            user_service=self.admin_user_service,
+            token_service=self.token_service,
             oauth2_scheme=self.oauth2_scheme,
         )
 
@@ -153,7 +148,6 @@ class CRUDAdmin:
             database_config=self.db_config,
             templates_directory=self.templates_directory,
             models=self.models,
-            security_utils=self.security_utils,
             admin_authentication=self.admin_authentication,
             mount_path=self.mount_path,
             theme=self.theme,
@@ -211,21 +205,17 @@ class CRUDAdmin:
             "include_in_schema": False,
         }
 
-        self.app.router.include_router(dependencies=[Depends(self.admin_authentication.get_current_user())], **router_info)
+        self.app.router.include_router(
+            dependencies=[
+                Depends(self.admin_site.admin_authentication.get_current_user)
+            ], 
+            **router_info
+        )
 
     async def _create_initial_admin(
         self, 
         admin_data: Union[dict, BaseModel]
     ) -> None:
-        """
-        Create initial admin user if no admin exists.
-        
-        Parameters
-        ----------
-        admin_data : Union[dict, BaseModel]
-            Admin user data as either a dictionary or a Pydantic model.
-            Must contain username and password fields.
-        """
         async for admin_session in self.db_config.get_admin_db():
             try:
                 admins_count = await self.db_config.crud_users.count(admin_session)
@@ -243,7 +233,7 @@ class CRUDAdmin:
                         logger.error(msg)
                         raise ValueError(msg)
 
-                    hashed_password = self.security_utils.get_password_hash(
+                    hashed_password = self.admin_user_service.get_password_hash(
                         create_data.password
                     )
                     internal_data = AdminUserCreateInternal(
