@@ -27,7 +27,7 @@ class AdminAuthMiddleware(BaseHTTPMiddleware):
                         
                         token = access_token.split(' ')[1] if access_token.startswith('Bearer ') else access_token
                         try:
-                            token_data = await self.admin_instance.token_service.verify_token(token, db)  # Use token_service directly
+                            token_data = await self.admin_instance.token_service.verify_token(token, db)
                             if not token_data:
                                 return RedirectResponse(
                                     url=f"/{self.admin_instance.mount_path}/login?error=Session+expired",

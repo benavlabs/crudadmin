@@ -1,5 +1,3 @@
-# In crudadmin/session/models.py
-
 from datetime import datetime, timezone
 from sqlalchemy import String, DateTime, JSON, Boolean
 from sqlalchemy.orm import Mapped, mapped_column

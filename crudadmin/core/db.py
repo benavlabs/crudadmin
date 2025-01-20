@@ -1,34 +1,20 @@
 import os
 import logging
-from typing import Type, Optional, AsyncGenerator
+from typing import Type, Optional, AsyncGenerator, Any, Dict
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy import inspect
 from fastcrud import FastCRUD
 
-from ..admin_user.schemas import (
-    AdminUserCreate,
-    AdminUserUpdate,
-    AdminUserUpdateInternal,
-    AdminUser
-)
-from ..token.schemas import AdminTokenBlacklistCreate, AdminTokenBlacklistUpdate, AdminTokenBlacklistBase
-from ..admin_user.models import create_admin_user
-from ..token.models import create_admin_token_blacklist
-from ..session import create_admin_session_model, AdminSessionCreate, AdminSessionUpdate
-
 logger = logging.getLogger(__name__)
 
 def get_default_db_path() -> str:
     """Get the default database path relative to the current working directory."""
     cwd = os.getcwd()
-    
     data_dir = os.path.join(cwd, 'crudadmin_data')
     os.makedirs(data_dir, exist_ok=True)
-    
     return os.path.join(data_dir, 'admin.db')
-
 
 class DatabaseConfig:
     """
@@ -49,6 +35,7 @@ class DatabaseConfig:
         crud_admin_token_blacklist: Optional[FastCRUD] = None,
         crud_admin_session: Optional[FastCRUD] = None,
     ) -> None:
+        """Initialize DatabaseConfig with dynamic imports to avoid circular dependencies."""
         self.base = base
         self.session = session
 
@@ -65,16 +52,23 @@ class DatabaseConfig:
             await self.admin_session.commit()
 
         self.get_admin_db = get_admin_db
-
         if admin_user is None:
+            from ..admin_user.models import create_admin_user
             admin_user = create_admin_user(base)
         self.AdminUser = admin_user
 
         if admin_token_blacklist is None:
+            from ..token.models import create_admin_token_blacklist
             admin_token_blacklist = create_admin_token_blacklist(base)
         self.AdminTokenBlacklist = admin_token_blacklist
 
+        if admin_session is None:
+            from ..session import create_admin_session_model
+            admin_session = create_admin_session_model(base)
+        self.AdminSession = admin_session
+
         if crud_admin_user is None:
+            from ..admin_user.schemas import AdminUserCreate, AdminUserUpdate, AdminUserUpdateInternal, AdminUser
             CRUDUser = FastCRUD[
                 admin_user,
                 AdminUserCreate,
@@ -87,6 +81,7 @@ class DatabaseConfig:
         self.crud_users = crud_admin_user
 
         if crud_admin_token_blacklist is None:
+            from ..token.schemas import AdminTokenBlacklistCreate, AdminTokenBlacklistUpdate, AdminTokenBlacklistBase
             CRUDAdminTokenBlacklist = FastCRUD[
                 admin_token_blacklist,
                 AdminTokenBlacklistCreate,
@@ -98,11 +93,8 @@ class DatabaseConfig:
             crud_admin_token_blacklist = CRUDAdminTokenBlacklist(admin_token_blacklist)
         self.crud_token_blacklist = crud_admin_token_blacklist
 
-        if admin_session is None:
-            admin_session = create_admin_session_model(base)
-        self.AdminSession = admin_session
-
         if crud_admin_session is None:
+            from ..session import AdminSessionCreate, AdminSessionUpdate
             CRUDSession = FastCRUD[
                 admin_session,
                 AdminSessionCreate,
@@ -145,7 +137,7 @@ class DatabaseConfig:
         primary_key_columns = inspector.primary_key
         return primary_key_columns[0].name if primary_key_columns else None
     
-    def get_primary_key_info(self, model: DeclarativeBase) -> dict:
+    def get_primary_key_info(self, model: DeclarativeBase) -> Dict[str, Any]:
         """Get the primary key information of a SQLAlchemy model."""
         inspector = inspect(model)
         primary_key_columns = inspector.primary_key
