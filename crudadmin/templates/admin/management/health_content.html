@@ -1,0 +1,49 @@
+{% macro status_icon(status) %}
+    {% if status == 'healthy' %}
+        <svg class="status-icon status-healthy" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+    {% elif status == 'degraded' %}
+        <svg class="status-icon status-degraded" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+    {% else %}
+        <svg class="status-icon status-unhealthy" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                  d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+    {% endif %}
+{% endmacro %}
+
+<div class="health-grid">
+    {% for service, info in health_checks.items() %}
+    <div class="health-card">
+        <div class="health-card-header">
+            <span class="health-card-title">{{ service | replace('_', ' ') | title }}</span>
+            {{ status_icon(info.status) }}
+        </div>
+        <div class="health-status status-{{ info.status }}">
+            {{ info.status | title }}
+        </div>
+        {% if info.message %}
+        <div class="status-message">
+            {{ info.message }}
+        </div>
+        {% endif %}
+        {% if info.latency is defined %}
+        <div class="status-latency">
+            <svg class="inline-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+            </svg>
+            Response time: {{ "%.2f"|format(info.latency) }}ms
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+<div class="last-checked">
+    Last checked: {{ last_checked.strftime('%Y-%m-%d %H:%M:%S') if last_checked else 'Never' }}
+</div>

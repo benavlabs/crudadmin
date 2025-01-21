@@ -306,6 +306,21 @@
                         </ul>
                     </div>
 
+                    <div class="sidebar-section">
+                        <div class="sidebar-section-header" onclick="this.parentElement.classList.toggle('collapsed')">
+                            <h3 class="sidebar-section-title">Management</h3>
+                            <span class="sidebar-section-toggle"></span>
+                        </div>
+                        <ul class="sidebar-nav">
+                            <li>
+                                <a href="/{{ mount_path }}/management/health" class="sidebar-link">
+                                    Health Checks
+                                    <span class="badge badge-primary">System</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+
                     <!-- Authentication Section -->
                     <div class="sidebar-section">
                         <div class="sidebar-section-header" onclick="this.parentElement.classList.toggle('collapsed')">

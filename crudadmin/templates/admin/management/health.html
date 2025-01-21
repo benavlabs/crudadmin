@@ -1,0 +1,241 @@
+{% extends "base/base.html" %}
+
+{% block title %}System Health{% endblock %}
+
+{% set include_sidebar_and_header = True %}
+
+{% block content %}
+<style>
+    .admin-content {
+        padding: 2rem;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .health-dashboard {
+        display: grid;
+        gap: 1.5rem;
+    }
+
+    .dashboard-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid var(--border-light);
+    }
+
+    .dark-theme .dashboard-header {
+        border-color: var(--border-dark);
+    }
+
+    .refresh-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.25rem;
+        background-color: var(--primary-color);
+        color: white;
+        border: none;
+        border-radius: var(--border-radius-md);
+        cursor: pointer;
+        font-size: 0.875rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .refresh-button:hover {
+        background-color: var(--primary-dark);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .refresh-button:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .health-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .health-card {
+        background: var(--bg-primary-light);
+        border: 1px solid var(--border-light);
+        border-radius: var(--border-radius-lg);
+        padding: 1.5rem;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .health-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .dark-theme .health-card {
+        background: var(--bg-primary-dark);
+        border-color: var(--border-dark);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .dark-theme .health-card:hover {
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .health-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.25rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid var(--border-light);
+    }
+
+    .dark-theme .health-card-header {
+        border-color: var(--border-dark);
+    }
+
+    .health-card-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--text-primary-light);
+    }
+
+    .dark-theme .health-card-title {
+        color: var(--text-primary-dark);
+    }
+
+    .health-status {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-bottom: 0.75rem;
+    }
+
+    .status-healthy {
+        color: #10B981;
+    }
+
+    .status-degraded {
+        color: #F59E0B;
+    }
+
+    .status-unhealthy {
+        color: #EF4444;
+    }
+
+    .status-message {
+        font-size: 0.875rem;
+        color: var(--text-secondary-light);
+        margin-bottom: 0.5rem;
+        line-height: 1.5;
+    }
+
+    .dark-theme .status-message {
+        color: var(--text-secondary-dark);
+    }
+
+    .status-latency {
+        font-size: 0.875rem;
+        color: var(--text-secondary-light);
+        padding: 0.5rem;
+        background: var(--bg-secondary-light);
+        border-radius: var(--border-radius-md);
+        margin-top: 0.75rem;
+    }
+
+    .dark-theme .status-latency {
+        color: var(--text-secondary-dark);
+        background: var(--bg-secondary-dark);
+    }
+
+    .last-checked {
+        grid-column: 1 / -1;
+        text-align: center;
+        font-size: 0.875rem;
+        color: var(--text-secondary-light);
+        margin-top: 1rem;
+        padding: 1rem;
+        background: var(--bg-primary-light);
+        border: 1px solid var(--border-light);
+        border-radius: var(--border-radius-lg);
+    }
+
+    .dark-theme .last-checked {
+        color: var(--text-secondary-dark);
+        background: var(--bg-primary-dark);
+        border-color: var(--border-dark);
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .refresh-icon {
+        width: 16px;
+        height: 16px;
+        transition: transform 0.3s ease;
+    }
+
+    .refresh-icon.htmx-request {
+        animation: spin 1s linear infinite;
+    }
+
+    .status-icon {
+        width: 28px;
+        height: 28px;
+    }
+
+    .loading-placeholder {
+        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: .5;
+        }
+    }
+</style>
+
+<div class="admin-content">
+    <div class="health-dashboard">
+        <div class="dashboard-header">
+            <h1 class="page-title">System Health</h1>
+            <button class="refresh-button"
+                    hx-get="/{{ mount_path }}/management/health/content"
+                    hx-target="#health-content"
+                    hx-indicator=".refresh-icon">
+                <svg class="refresh-icon"
+                     fill="none" 
+                     stroke="currentColor" 
+                     viewBox="0 0 24 24">
+                    <path stroke-linecap="round" 
+                          stroke-linejoin="round" 
+                          stroke-width="2" 
+                          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Refresh
+            </button>
+        </div>
+        
+        <div id="health-content" 
+             hx-get="/{{ mount_path }}/management/health/content"
+             hx-trigger="load delay:100ms">
+            <div class="health-grid">
+                <div class="health-card loading-placeholder">
+                    <div class="health-card-header">
+                        <span class="health-card-title">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

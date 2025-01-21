@@ -1,13 +1,16 @@
 import logging
 import os
 from typing import Type, Dict, Any, Union, Optional, List
+from datetime import datetime, timezone
+import time
 
-from fastapi import APIRouter, FastAPI, Depends
+from fastapi import APIRouter, FastAPI, Depends, Request
 from fastapi.templating import Jinja2Templates
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.staticfiles import StaticFiles
 from fastcrud import FastCRUD
 from pydantic import BaseModel
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 
@@ -172,7 +175,23 @@ class CRUDAdmin:
                 include_in_models=False,
                 allowed_actions=allowed_actions,
             )
+
+        self.router.add_api_route(
+            "/management/health",
+            self.health_check_page(),
+            methods=["GET"],
+            include_in_schema=False,
+            dependencies=[Depends(self.admin_authentication.get_current_user())],
+        )
         
+        self.router.add_api_route(
+            "/management/health/content",
+            self.health_check_content(),
+            methods=["GET"],
+            include_in_schema=False,
+            dependencies=[Depends(self.admin_authentication.get_current_user())],
+        )
+
         self.router.include_router(router=self.admin_site.router)
 
     def add_view(
@@ -222,6 +241,82 @@ class CRUDAdmin:
             ], 
             **router_info
         )
+
+    def health_check_page(self):
+        async def health_check_page_inner(
+            request: Request,
+            db: AsyncSession = Depends(self.db_config.session)
+        ):
+            context = await self.admin_site.get_base_context(db)
+            context.update({
+                "request": request,
+                "include_sidebar_and_header": True
+            })
+            
+            return self.templates.TemplateResponse(
+                "admin/management/health.html",
+                context
+            )
+        return health_check_page_inner
+
+    def health_check_content(self):
+        async def health_check_content_inner(
+            request: Request,
+            db: AsyncSession = Depends(self.db_config.session)
+        ):
+            health_checks = {}
+            
+            start_time = time.time()
+            try:
+                await db.execute(text("SELECT 1"))
+                latency = (time.time() - start_time) * 1000
+                health_checks["database"] = {
+                    "status": "healthy",
+                    "message": "Connected successfully",
+                    "latency": latency
+                }
+            except Exception as e:
+                health_checks["database"] = {
+                    "status": "unhealthy",
+                    "message": str(e)
+                }
+
+            try:
+                await self.session_manager.cleanup_expired_sessions(db)
+                health_checks["session_management"] = {
+                    "status": "healthy",
+                    "message": "Session cleanup working"
+                }
+            except Exception as e:
+                health_checks["session_management"] = {
+                    "status": "unhealthy",
+                    "message": str(e)
+                }
+
+            try:
+                test_token = await self.token_service.create_access_token({"test": "data"})
+                if test_token:
+                    health_checks["token_service"] = {
+                        "status": "healthy",
+                        "message": "Token generation working"
+                    }
+            except Exception as e:
+                health_checks["token_service"] = {
+                    "status": "unhealthy",
+                    "message": str(e)
+                }
+
+            context = {
+                "request": request,
+                "health_checks": health_checks,
+                "last_checked": datetime.now(timezone.utc)
+            }
+            
+            return self.templates.TemplateResponse(
+                "admin/management/health_content.html",
+                context
+            )
+        return health_check_content_inner
 
     async def _create_initial_admin(
         self, 
