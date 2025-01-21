@@ -350,7 +350,7 @@
     <div class="page-header">
         <h1 class="page-title">{{ model_name }} Administration</h1>
         <div class="action-buttons">
-            <!-- Default Create Button -->
+            {% if 'create' in allowed_actions %}
             <a href="/{{ mount_path }}/{{ model_name }}/create" 
                class="add-button action-button"
                id="createButton"
@@ -358,21 +358,24 @@
                hx-target="body">
                 + Add {{ model_name }}
             </a>
+            {% endif %}
             
-            <!-- Update Button (Hidden by default) -->
+            {% if 'update' in allowed_actions %}
             <a href="#" 
                class="update-button action-button hidden"
                id="updateButton"
                onclick="handleUpdate()">
                 ✎ Update
             </a>
+            {% endif %}
             
-            <!-- Delete Button (Hidden by default) -->
+            {% if 'delete' in allowed_actions %}
             <button class="delete-button action-button hidden"
                     id="deleteButton"
                     onclick="handleDelete()">
                 🗑 Delete Selected
             </button>
+            {% endif %}
         </div>
     </div>
 
@@ -422,17 +425,17 @@
         const deleteButton = document.getElementById('deleteButton');
         
         if (checkedBoxes.length === 0) {
-            createButton.classList.remove('hidden');
-            updateButton.classList.add('hidden');
-            deleteButton.classList.add('hidden');
+            if (createButton) createButton.classList.remove('hidden');
+            if (updateButton) updateButton.classList.add('hidden');
+            if (deleteButton) deleteButton.classList.add('hidden');
         } else if (checkedBoxes.length === 1) {
-            createButton.classList.add('hidden');
-            updateButton.classList.remove('hidden');
-            deleteButton.classList.remove('hidden');
+            if (createButton) createButton.classList.add('hidden');
+            if (updateButton) updateButton.classList.remove('hidden');
+            if (deleteButton) deleteButton.classList.remove('hidden');
         } else {
-            createButton.classList.add('hidden');
-            updateButton.classList.add('hidden');
-            deleteButton.classList.remove('hidden');
+            if (createButton) createButton.classList.add('hidden');
+            if (updateButton) updateButton.classList.add('hidden');
+            if (deleteButton) deleteButton.classList.remove('hidden');
         }
     }
 

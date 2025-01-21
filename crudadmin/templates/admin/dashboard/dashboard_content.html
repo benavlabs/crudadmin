@@ -5,12 +5,12 @@
 {% block content %}
 <style>
     :root {
-        --section-header-bg-color: #009688; /* Adjust this green color as needed */
-        --module-link-color: #009688; /* Green color for the module links */
-        --text-color-light: #5D5D5D; /* Dark color for text on light backgrounds */
-        --text-color-dark: #E7E7E7; /* Light color for text on dark backgrounds */
-        --bg-color-light: #FFFFFF; /* Light background */
-        --bg-color-dark: #1e2129; /* Dark background */
+        --section-header-bg-color: #009688;
+        --module-link-color: #009688;
+        --text-color-light: #5D5D5D;
+        --text-color-dark: #E7E7E7;
+        --bg-color-light: #FFFFFF;
+        --bg-color-dark: #1e2129;
     }
 
     .dashboard-main {
@@ -18,71 +18,138 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: center; /* Center vertically */
-        min-height: 80vh; /* Minimum height to enable vertical centering */
+        justify-content: center;
+        min-height: 80vh;
     }
+
     .section {
         width: 100%;
         max-width: 600px;
         margin-top: 30px;
     }
+
     .section-header {
         padding: 10px;
-        background-color: var(--section-header-bg-color); /* Green background for headers */
-        color: var(--text-color-dark); /* White text for headers */
+        background-color: var(--section-header-bg-color);
+        color: var(--text-color-dark);
         font-weight: bold;
         border-radius: 4px;
         text-align: center;
     }
+
     .module {
-        background-color: var(--bg-color-light); /* Light background for modules */
+        background-color: var(--bg-color-light);
         border: 1px solid #dee2e6;
         border-radius: 4px;
         margin-top: 10px;
         padding: 20px;
-        color: var(--text-color-light); /* Dark text for modules */
+        color: var(--text-color-light);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
     }
-    .module a {
-        color: var(--module-link-color); /* Green color for action links */
+
+    .module-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .module-title {
+        color: var(--module-link-color);
         text-decoration: none;
-        margin-right: 10px;
+        font-weight: 600;
     }
+
+    .module-stats {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        color: var(--text-secondary-light);
+        font-size: 0.875rem;
+    }
+
+    .stats-badge {
+        background-color: var(--primary-color);
+        color: white;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
     .dark-theme .module {
-        background-color: var(--bg-color-dark); /* Dark background for modules */
-        color: var(--text-color-dark); /* Light text for modules */
+        background-color: var(--bg-color-dark);
+        color: var(--text-color-dark);
     }
-    .dark-theme .module a {
-        color: var(--module-link-color); /* Green color for action links in dark mode */
+
+    .dark-theme .module-stats {
+        color: var(--text-secondary-dark);
     }
+
     .dark-theme .section-header {
-        background-color: var(--section-header-bg-color); /* Green background for headers in dark mode */
-        color: var(--text-color-dark); /* White text for headers in dark mode */
+        background-color: var(--section-header-bg-color);
+        color: var(--text-color-dark);
     }
 </style>
 
 <div class="dashboard-main">
     <div class="section">
         <div class="section-header">AUTHENTICATION</div>
-        {% for table_name in auth_table_names %}
+        {% if "AdminUser" in auth_table_names %}
             <div class="module">
-                <a href="/{{ mount_path }}/{{ table_name }}"><strong>{{ table_name }}</strong></a>
-                <div>
-                    <a href="/{{ mount_path }}/{{ table_name }}/create" hx-get="/{{ mount_path }}/{{ table_name }}/create_page" hx-target="body">Create</a>
+                <div class="module-info">
+                    <a href="/{{ mount_path }}/AdminUser" class="module-title">Admin Users</a>
+                    <div class="module-stats">
+                        <span>Active Users:</span>
+                        <span class="stats-badge">{{ auth_model_counts["AdminUser"]|default(0) }}</span>
+                    </div>
                 </div>
             </div>
-        {% endfor %}
+        {% endif %}
+
+        {% if "AdminSession" in auth_table_names %}
+            <div class="module">
+                <div class="module-info">
+                    <a href="/{{ mount_path }}/AdminSession" class="module-title">Sessions</a>
+                    <div class="module-stats">
+                        <span>Active Sessions:</span>
+                        <span class="stats-badge" title="Total / Active">
+                            {{ auth_model_counts["AdminSession_active"]|default(0) }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+
+        {% if "AdminTokenBlacklist" in auth_table_names %}
+            <div class="module">
+                <div class="module-info">
+                    <a href="/{{ mount_path }}/AdminTokenBlacklist" class="module-title">Token Blacklist</a>
+                    <div class="module-stats">
+                        <span>Blacklisted Tokens:</span>
+                        <span class="stats-badge">{{ auth_model_counts["AdminTokenBlacklist"]|default(0) }}</span>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
     </div>
 
+    {% if table_names %}
     <div class="section">
         <div class="section-header">MODELS</div>
         {% for table_name in table_names %}
             <div class="module">
-                <a href="/{{ mount_path }}/{{ table_name }}"><strong>{{ table_name }}</strong></a>
-                <div>
-                    <a href="/{{ mount_path }}/{{ table_name }}/create" hx-get="/{{ mount_path }}/{{ table_name }}/create_page" hx-target="body">Create</a>
+                <div class="module-info">
+                    <a href="/{{ mount_path }}/{{ table_name }}" class="module-title">{{ table_name }}</a>
+                    <div class="module-stats">
+                        <span>Total Records:</span>
+                        <span class="stats-badge">{{ model_counts[table_name]|default(0) }}</span>
+                    </div>
                 </div>
             </div>
         {% endfor %}
     </div>
+    {% endif %}
 </div>
 {% endblock %}

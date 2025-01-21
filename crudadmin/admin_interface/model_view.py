@@ -1,4 +1,4 @@
-from typing import TypeVar, Type, List
+from typing import TypeVar, Type, List, Optional
 import datetime
 from datetime import timezone
 
@@ -32,6 +32,7 @@ class ModelView:
         database_config: DatabaseConfig,
         templates: Jinja2Templates,
         model: DeclarativeBase,
+        allowed_actions: set[str],
         create_schema: Type[CreateSchemaType],
         update_schema: Type[UpdateSchemaType],
         update_internal_schema: Type[UpdateSchemaInternalType] | None = None,
@@ -56,6 +57,7 @@ class ModelView:
         self.admin_model = admin_model
         self.admin_site = admin_site
         self.user_service = self.admin_site.admin_user_service
+        self.allowed_actions = allowed_actions
 
         CRUDModel = FastCRUD[
             model, create_schema, update_schema, update_internal_schema, delete_schema, select_schema
@@ -76,47 +78,52 @@ class ModelView:
         self.setup_routes()
 
     def setup_routes(self):
-        self.router.add_api_route(
-            "/form_create", 
-            self.form_create_endpoint(template="admin/model/create.html"),
-            methods=["POST"], 
-            include_in_schema=False
-        )
-        self.router.add_api_route(
-            "/", self.get_model_admin_page(), methods=["GET"], include_in_schema=False
-        )
-        self.router.add_api_route(
-            "/create_page", 
-            self.get_model_create_page(template="admin/model/create.html"), 
-            methods=["GET"], 
-            include_in_schema=False
-        )
-        self.router.add_api_route(
-            "/get_model_list",
-            self.get_model_admin_page(template="admin/model/components/list_content.html"),
-            methods=["GET"],
-            include_in_schema=False,
-        )
-        
-        self.router.add_api_route(
-            "/bulk-delete",
-            self.bulk_delete_endpoint(),
-            methods=["DELETE"],
-            include_in_schema=False,
-        )
-        
-        self.router.add_api_route(
-            "/update/{id}",
-            self.get_model_update_page(template="admin/model/update.html"),
-            methods=["GET"],
-            include_in_schema=False,
-        )
-        self.router.add_api_route(
-            "/form_update/{id}",
-            self.form_update_endpoint(),
-            methods=["POST"],
-            include_in_schema=False,
-        )
+        if "create" in self.allowed_actions:
+            self.router.add_api_route(
+                "/form_create", 
+                self.form_create_endpoint(template="admin/model/create.html"),
+                methods=["POST"], 
+                include_in_schema=False
+            )
+            self.router.add_api_route(
+                "/create_page", 
+                self.get_model_create_page(template="admin/model/create.html"), 
+                methods=["GET"], 
+                include_in_schema=False
+            )
+
+        if "view" in self.allowed_actions:
+            self.router.add_api_route(
+                "/", self.get_model_admin_page(), methods=["GET"], include_in_schema=False
+            )
+            self.router.add_api_route(
+                "/get_model_list",
+                self.get_model_admin_page(template="admin/model/components/list_content.html"),
+                methods=["GET"],
+                include_in_schema=False,
+            )
+
+        if "delete" in self.allowed_actions:
+            self.router.add_api_route(
+                "/bulk-delete",
+                self.bulk_delete_endpoint(),
+                methods=["DELETE"],
+                include_in_schema=False,
+            )
+
+        if "update" in self.allowed_actions:
+            self.router.add_api_route(
+                "/update/{id}",
+                self.get_model_update_page(template="admin/model/update.html"),
+                methods=["GET"],
+                include_in_schema=False,
+            )
+            self.router.add_api_route(
+                "/form_update/{id}",
+                self.form_update_endpoint(),
+                methods=["POST"],
+                include_in_schema=False,
+            )
 
     def _model_is_admin_model(self, model: DeclarativeBase) -> bool:
         """Determine if a model is an admin model."""
@@ -394,6 +401,7 @@ class ModelView:
                 "mount_path": self.admin_site.mount_path,
                 "sort_column": sort_column,
                 "sort_order": sort_order,
+                "allowed_actions": self.allowed_actions,
             }
 
             if "HX-Request" in request.headers:

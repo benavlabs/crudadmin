@@ -250,8 +250,14 @@ class AdminSite:
         auth_model_counts = {}
         for model_name, model_data in self.admin_authentication.auth_models.items():
             crud = model_data["crud"]
-            count = await crud.count(self.db_config.admin_session)
-            auth_model_counts[model_name] = count
+            if model_name == "AdminSession":
+                total_count = await crud.count(self.db_config.admin_session)
+                active_count = await crud.count(self.db_config.admin_session, is_active=True)
+                auth_model_counts[model_name] = total_count
+                auth_model_counts[f"{model_name}_active"] = active_count
+            else:
+                count = await crud.count(self.db_config.admin_session)
+                auth_model_counts[model_name] = count
 
         model_counts = {}
         for model_name, model_data in self.models.items():

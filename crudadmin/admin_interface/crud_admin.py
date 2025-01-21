@@ -156,14 +156,21 @@ class CRUDAdmin:
 
         self.admin_site.setup_routes()
 
-        for data in self.admin_authentication.auth_models.values():
+        for model_name, data in self.admin_authentication.auth_models.items():
+            allowed_actions = {
+                "AdminUser": {"view", "create", "update"},
+                "AdminSession": {"view", "delete"},
+                "AdminTokenBlacklist": {"view"},
+            }.get(model_name, {"view"})
+            
             self.add_view(
                 model=data["model"],
                 create_schema=data["create_schema"],
                 update_schema=data["update_schema"],
                 update_internal_schema=data["update_internal_schema"],
                 delete_schema=data["delete_schema"],
-                include_in_models=False
+                include_in_models=False,
+                allowed_actions=allowed_actions,
             )
         
         self.router.include_router(router=self.admin_site.router)
@@ -176,6 +183,7 @@ class CRUDAdmin:
         update_internal_schema: Type[Any],
         delete_schema: Type[Any],
         include_in_models: bool = True,
+        allowed_actions: Optional[set[str]] = None,
     ) -> None:
         model_key = model.__name__
         if include_in_models:
@@ -188,6 +196,8 @@ class CRUDAdmin:
                 "crud": FastCRUD(model)
             }
 
+        allowed_actions = allowed_actions or {"view", "create", "update", "delete"}
+
         admin_view = ModelView(
             database_config=self.db_config,
             templates=self.templates,
@@ -197,6 +207,7 @@ class CRUDAdmin:
             update_internal_schema=update_internal_schema,
             delete_schema=delete_schema,
             admin_site=self.admin_site,
+            allowed_actions=allowed_actions,
         )
 
         router_info = {
