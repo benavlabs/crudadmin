@@ -63,7 +63,7 @@ class AdminSite:
             dependencies=[Depends(self.admin_authentication.get_current_user())],
         )
         self.router.add_api_route(
-            "/login", self.admin_login_page, methods=["GET"], include_in_schema=False
+            "/login", self.admin_login_page(), methods=["GET"], include_in_schema=False
         )
         self.router.add_api_route(
             "/dashboard-content",
@@ -240,17 +240,48 @@ class AdminSite:
 
         return logout_endpoint_inner
 
-    async def admin_login_page(self, request: Request):
-        error = request.query_params.get("error")
-        return self.templates.TemplateResponse(
-            "auth/login.html",
-            {
-                "request": request,
-                "mount_path": self.mount_path,
-                "theme": self.theme,
-                "error": error,
-            },
-        )
+    def admin_login_page(self):
+        async def admin_login_page_inner(
+            request: Request,
+            db: AsyncSession = Depends(self.db_config.get_admin_db),
+        ):
+            try:
+                access_token = request.cookies.get("access_token")
+                session_id = request.cookies.get("session_id")
+
+                if access_token and session_id:
+                    token = (
+                        access_token.split(" ")[1]
+                        if access_token.startswith("Bearer ")
+                        else access_token
+                    )
+                    token_data = await self.token_service.verify_token(token, db)
+
+                    if token_data:
+                        is_valid_session = await self.session_manager.validate_session(
+                            db=db, session_id=session_id
+                        )
+
+                        if is_valid_session:
+                            return RedirectResponse(
+                                url=f"/{self.mount_path}/", status_code=303
+                            )
+
+            except Exception:
+                pass
+
+            error = request.query_params.get("error")
+            return self.templates.TemplateResponse(
+                "auth/login.html",
+                {
+                    "request": request,
+                    "mount_path": self.mount_path,
+                    "theme": self.theme,
+                    "error": error,
+                },
+            )
+
+        return admin_login_page_inner
 
     def dashboard_content(self):
         async def dashboard_content_inner(
