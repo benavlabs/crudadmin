@@ -6,30 +6,7 @@
 
 {% block content %}
 <style>
-    .admin-content {
-        padding: 2rem;
-        max-width: 1400px;
-        margin: 0 auto;
-    }
-
-    .event-dashboard {
-        display: grid;
-        gap: 1.5rem;
-    }
-
-    .dashboard-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 2rem;
-        padding-bottom: 1rem;
-        border-bottom: 2px solid var(--border-light);
-    }
-
-    .dark-theme .dashboard-header {
-        border-color: var(--border-dark);
-    }
-
+    /* Styles for filter section */
     .filter-section {
         background: var(--bg-primary-light);
         border: 1px solid var(--border-light);
@@ -43,20 +20,36 @@
         border-color: var(--border-dark);
     }
 
+    .filter-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+
     .filter-group {
         display: flex;
-        gap: 1rem;
-        align-items: center;
-        flex-wrap: wrap;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .filter-label {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--text-secondary-light);
+    }
+
+    .dark-theme .filter-label {
+        color: var(--text-secondary-dark);
     }
 
     .filter-control {
-        padding: 0.5rem;
+        padding: 0.75rem;
         border: 1px solid var(--border-light);
         border-radius: var(--border-radius-md);
         background: var(--bg-secondary-light);
         color: var(--text-primary-light);
-        min-width: 150px;
+        width: 100%;
+        transition: all 0.2s;
     }
 
     .dark-theme .filter-control {
@@ -65,33 +58,66 @@
         color: var(--text-primary-dark);
     }
 
-    .event-grid {
-        display: grid;
-        gap: 1rem;
+    .filter-control:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 2px rgba(0, 150, 136, 0.1);
     }
 
+    .filter-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 1rem;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--border-light);
+    }
+
+    .dark-theme .filter-actions {
+        border-color: var(--border-dark);
+    }
+
+    .filter-button {
+        padding: 0.75rem 1.5rem;
+        border-radius: var(--border-radius-md);
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .apply-filters {
+        background: var(--primary-color);
+        color: white;
+        border: none;
+    }
+
+    .apply-filters:hover {
+        background: var(--primary-dark);
+    }
+
+    .reset-filters {
+        background: var(--bg-secondary-light);
+        color: var(--text-primary-light);
+        border: 1px solid var(--border-light);
+    }
+
+    .dark-theme .reset-filters {
+        background: var(--bg-secondary-dark);
+        color: var(--text-primary-dark);
+        border-color: var(--border-dark);
+    }
+
+    /* Event card styles */
     .event-card {
         background: var(--bg-primary-light);
         border: 1px solid var(--border-light);
         border-radius: var(--border-radius-lg);
         padding: 1.5rem;
+        margin-bottom: 1rem;
     }
 
     .dark-theme .event-card {
         background: var(--bg-primary-dark);
-        border-color: var(--border-dark);
-    }
-
-    .event-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1rem;
-        padding-bottom: 0.5rem;
-        border-bottom: 1px solid var(--border-light);
-    }
-
-    .dark-theme .event-header {
         border-color: var(--border-dark);
     }
 
@@ -105,85 +131,50 @@
         color: white;
     }
 
+    .event-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid var(--border-light);
+    }
+
+    .dark-theme .event-header {
+        border-color: var(--border-dark);
+    }
+
     .event-timestamp {
         font-size: 0.875rem;
         color: var(--text-secondary-light);
     }
 
-    .dark-theme .event-timestamp {
-        color: var(--text-secondary-dark);
-    }
-
     .event-summary {
-        padding: 1rem 0;
         cursor: pointer;
-        position: relative;
-        border-bottom: 1px solid var(--border-light);
-    }
-
-    .dark-theme .event-summary {
-        border-color: var(--border-dark);
+        padding: 1rem;
+        border-radius: var(--border-radius-md);
+        transition: background-color 0.2s;
     }
 
     .event-summary:hover {
         background: var(--bg-secondary-light);
     }
 
-    .dark-theme .event-summary:hover {
-        background: var(--bg-secondary-dark);
-    }
-
-    .expand-button {
-        position: absolute;
-        right: 1rem;
-        top: 50%;
-        transform: translateY(-50%);
-        transition: transform 0.2s ease;
-    }
-
-    .event-summary.expanded .expand-button {
-        transform: translateY(-50%) rotate(180deg);
-    }
-
-    .hidden {
-        display: none;
-    }
-
-    .event-summary.expanded + .event-details {
-        display: block;
-        padding-top: 1rem;
-    }
-
     .event-details {
-        display: grid;
-        gap: 1rem;
+        display: none;
+        padding: 1rem;
+        border-top: 1px solid var(--border-light);
+        margin-top: 1rem;
     }
 
-    .event-field {
-        display: flex;
-        gap: 0.5rem;
-        align-items: center;
+    .event-details.visible {
+        display: block;
     }
 
-    .field-label {
-        color: var(--text-secondary-light);
-        font-size: 0.875rem;
-        font-weight: 500;
-        min-width: 120px;
-    }
-
-    .dark-theme .field-label {
-        color: var(--text-secondary-dark);
-    }
-
-    .field-value {
-        font-family: ui-monospace, monospace;
-        font-size: 0.875rem;
-    }
-
+    /* Status badges */
     .status-success, .status-failure, .status-warning {
         display: inline-block;
-        padding: 0.125rem 0.5rem;
+        padding: 0.25rem 0.75rem;
         border-radius: 999px;
         font-size: 0.75rem;
         font-weight: 600;
@@ -204,6 +195,7 @@
         color: #F59E0B;
     }
 
+    /* Details sections */
     .event-section {
         background: var(--bg-secondary-light);
         border-radius: var(--border-radius-md);
@@ -217,10 +209,9 @@
 
     .event-section h4 {
         font-size: 0.875rem;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: var(--text-secondary-light);
+        font-weight: 600;
         margin-bottom: 1rem;
+        color: var(--text-secondary-light);
     }
 
     .dark-theme .event-section h4 {
@@ -236,61 +227,25 @@
         display: grid;
         grid-template-columns: 150px 1fr;
         gap: 1rem;
-        align-items: baseline;
     }
 
-    .detail-label {
-        color: var(--text-secondary-light);
-        font-size: 0.875rem;
-        font-weight: 500;
-    }
-
-    .dark-theme .detail-label {
-        color: var(--text-secondary-dark);
-    }
-
-    .detail-value {
-        font-family: ui-monospace, monospace;
-        font-size: 0.875rem;
-    }
-
-    .changes-section {
-        grid-column: 1 / -1;
-    }
-
-    .changes-section pre {
-        font-size: 0.875rem;
-        margin: 0.5rem 0;
-        padding: 1rem;
-        background: var(--bg-primary-light);
-        border: 1px solid var(--border-light);
-        border-radius: var(--border-radius-md);
-        overflow-x: auto;
-        white-space: pre-wrap;
-        max-height: 400px;
-        overflow-y: auto;
-    }
-
-    .dark-theme .changes-section pre {
-        background: var(--bg-primary-dark);
-        border-color: var(--border-dark);
-    }
-
+    /* Pagination */
     .pagination {
         display: flex;
         justify-content: center;
+        align-items: center;
         gap: 1rem;
         margin-top: 2rem;
     }
 
     .pagination-button {
-        padding: 0.5rem 1rem;
+        padding: 0.75rem 1.5rem;
         border: 1px solid var(--border-light);
         border-radius: var(--border-radius-md);
         background: var(--bg-primary-light);
         color: var(--text-primary-light);
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all 0.2s;
     }
 
     .dark-theme .pagination-button {
@@ -301,7 +256,6 @@
 
     .pagination-button:hover:not(:disabled) {
         background: var(--primary-color);
-        border-color: var(--primary-color);
         color: white;
     }
 
@@ -310,34 +264,23 @@
         cursor: not-allowed;
     }
 
-    .pagination-info {
-        display: flex;
-        align-items: center;
-        color: var(--text-secondary-light);
-        font-size: 0.875rem;
-    }
-
-    .dark-theme .pagination-info {
-        color: var(--text-secondary-dark);
-    }
-
+    /* Responsive adjustments */
     @media (max-width: 768px) {
-        .admin-content {
-            padding: 1rem;
+        .filter-grid {
+            grid-template-columns: 1fr;
         }
-
-        .filter-group {
-            flex-direction: column;
-            align-items: stretch;
-        }
-
-        .filter-control {
-            width: 100%;
-        }
-
+        
         .detail-item {
             grid-template-columns: 1fr;
             gap: 0.25rem;
+        }
+        
+        .filter-actions {
+            flex-direction: column;
+        }
+        
+        .filter-button {
+            width: 100%;
         }
     }
 </style>
@@ -349,40 +292,69 @@
         </div>
         
         <div class="filter-section">
-            <div class="filter-group">
-                <select name="event-type" class="filter-control" hx-get="/{{ mount_path }}/management/events/content" hx-target="#events-content">
-                    <option value="">All Event Types</option>
-                    {% for event_type in event_types %}
-                    <option value="{{ event_type }}" {% if selected_type == event_type %}selected{% endif %}>
-                        {{ event_type }}
-                    </option>
-                    {% endfor %}
-                </select>
+            <div class="filter-grid">
+                <div class="filter-group">
+                    <label class="filter-label" for="username">User</label>
+                    <select id="username" name="username" class="filter-control">
+                        <option value="">All Users</option>
+                        {% for user in users %}
+                        <option value="{{ user.username }}" {% if selected_user == user.username %}selected{% endif %}>
+                            {{ user.username }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label class="filter-label" for="event-type">Event Type</label>
+                    <select id="event-type" name="event-type" class="filter-control">
+                        <option value="">All Event Types</option>
+                        {% for event_type in event_types %}
+                        <option value="{{ event_type }}" {% if selected_type == event_type %}selected{% endif %}>
+                            {{ event_type | replace('_', ' ') | title }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
 
-                <select name="status" class="filter-control" hx-get="/{{ mount_path }}/management/events/content" hx-target="#events-content">
-                    <option value="">All Statuses</option>
-                    {% for status in statuses %}
-                    <option value="{{ status }}" {% if selected_status == status %}selected{% endif %}>
-                        {{ status }}
-                    </option>
-                    {% endfor %}
-                </select>
+                <div class="filter-group">
+                    <label class="filter-label" for="status">Status</label>
+                    <select id="status" name="status" class="filter-control">
+                        <option value="">All Statuses</option>
+                        {% for status in statuses %}
+                        <option value="{{ status }}" {% if selected_status == status %}selected{% endif %}>
+                            {{ status | title }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
 
-                <input type="date" 
-                       name="start-date" 
-                       class="filter-control" 
-                       value="{{ start_date }}"
-                       hx-get="/{{ mount_path }}/management/events/content" 
-                       hx-target="#events-content"
-                       hx-trigger="change">
+                <div class="filter-group">
+                    <label class="filter-label" for="start-date">Start Date</label>
+                    <input type="date" 
+                           id="start-date"
+                           name="start-date" 
+                           class="filter-control" 
+                           value="{{ start_date }}">
+                </div>
 
-                <input type="date" 
-                       name="end-date" 
-                       class="filter-control" 
-                       value="{{ end_date }}"
-                       hx-get="/{{ mount_path }}/management/events/content" 
-                       hx-target="#events-content"
-                       hx-trigger="change">
+                <div class="filter-group">
+                    <label class="filter-label" for="end-date">End Date</label>
+                    <input type="date" 
+                           id="end-date"
+                           name="end-date" 
+                           class="filter-control" 
+                           value="{{ end_date }}">
+                </div>
+            </div>
+
+            <div class="filter-actions">
+                <button type="button" class="filter-button reset-filters" onclick="resetFilters()">
+                    Reset Filters
+                </button>
+                <button type="button" class="filter-button apply-filters" onclick="applyFilters()">
+                    Apply Filters
+                </button>
             </div>
         </div>
 
@@ -401,10 +373,58 @@
 </div>
 
 <script>
+function getFilterValues() {
+    return {
+        event_type: document.getElementById('event-type').value,
+        status: document.getElementById('status').value,
+        start_date: document.getElementById('start-date').value,
+        end_date: document.getElementById('end-date').value
+    };
+}
+
+function applyFilters() {
+    const filters = getFilterValues();
+    const queryParams = new URLSearchParams();
+    
+    Object.entries(filters).forEach(([key, value]) => {
+        if (value) queryParams.append(key, value);
+    });
+
+    const url = `/{{ mount_path }}/management/events/content?${queryParams.toString()}`;
+    htmx.ajax('GET', url, '#events-content');
+}
+
+function resetFilters() {
+    document.getElementById('event-type').value = '';
+    document.getElementById('status').value = '';
+    document.getElementById('start-date').value = '';
+    document.getElementById('end-date').value = '';
+    applyFilters();
+}
+
+function updateURL() {
+    const filters = getFilterValues();
+    const queryParams = new URLSearchParams();
+    
+    Object.entries(filters).forEach(([key, value]) => {
+        if (value) queryParams.append(key, value);
+    });
+
+    const newURL = `${window.location.pathname}?${queryParams.toString()}`;
+    window.history.pushState({}, '', newURL);
+}
+
 function toggleDetails(element) {
     element.classList.toggle('expanded');
     const details = element.nextElementSibling;
-    details.classList.toggle('hidden');
+    details.classList.toggle('visible');
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    const filterElements = ['event-type', 'status', 'start-date', 'end-date'];
+    filterElements.forEach(id => {
+        document.getElementById(id).addEventListener('change', updateURL);
+    });
+});
 </script>
 {% endblock %}

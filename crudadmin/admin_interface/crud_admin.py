@@ -1,7 +1,7 @@
 import logging
 import os
 from typing import Type, Dict, Any, Union, Optional, List
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import time
 
 from fastapi import APIRouter, FastAPI, Depends, Request
@@ -183,12 +183,12 @@ class CRUDAdmin:
             )
 
     def event_log_page(self):
-        """Event log main page endpoint."""
-
         async def event_log_page_inner(
-            request: Request, db: AsyncSession = Depends(self.db_config.session)
+            request: Request, db: AsyncSession = Depends(self.db_config.get_admin_db)
         ):
             from ..event import EventType, EventStatus
+
+            users = await self.db_config.crud_users.get_multi(db=db)
 
             context = await self.admin_site.get_base_context(db)
             context.update(
@@ -197,6 +197,7 @@ class CRUDAdmin:
                     "include_sidebar_and_header": True,
                     "event_types": [e.value for e in EventType],
                     "statuses": [s.value for s in EventStatus],
+                    "users": users["data"],
                     "mount_path": self.mount_path,
                 }
             )
@@ -208,8 +209,6 @@ class CRUDAdmin:
         return event_log_page_inner
 
     def event_log_content(self):
-        """Event log content endpoint with filtering and pagination."""
-
         async def event_log_content_inner(
             request: Request,
             db: AsyncSession = Depends(self.db_config.get_admin_db),
@@ -218,25 +217,54 @@ class CRUDAdmin:
         ):
             try:
                 crud_events = FastCRUD(self.db_config.AdminEventLog)
+
+                event_type = request.query_params.get("event_type")
+                status = request.query_params.get("status")
+                username = request.query_params.get("username")
+                start_date = request.query_params.get("start_date")
+                end_date = request.query_params.get("end_date")
+
+                filter_criteria = {}
+                if event_type:
+                    filter_criteria["event_type"] = event_type
+                if status:
+                    filter_criteria["status"] = status
+
+                if username:
+                    user = await self.db_config.crud_users.get(db=db, username=username)
+                    if user:
+                        filter_criteria["user_id"] = user["id"]
+
+                if start_date:
+                    start = datetime.strptime(start_date, "%Y-%m-%d").replace(
+                        tzinfo=timezone.utc
+                    )
+                    filter_criteria["timestamp__gte"] = start
+
+                if end_date:
+                    end = (
+                        datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
+                    ).replace(tzinfo=timezone.utc)
+                    filter_criteria["timestamp__lt"] = end
+
                 events = await crud_events.get_multi(
                     db=db,
                     offset=(page - 1) * limit,
                     limit=limit,
                     sort_columns=["timestamp"],
                     sort_orders=["desc"],
+                    **filter_criteria,
                 )
 
                 enriched_events = []
                 for event in events["data"]:
                     event_data = dict(event)
 
-                    # Get user info
                     user = await self.db_config.crud_users.get(
                         db=db, id=event["user_id"]
                     )
                     event_data["username"] = user["username"] if user else "Unknown"
 
-                    # Get audit log details if exists
                     if event["resource_type"] and event["resource_id"]:
                         crud_audits = FastCRUD(self.db_config.AdminAuditLog)
                         audit = await crud_audits.get(db=db, event_id=event["id"])
@@ -253,14 +281,21 @@ class CRUDAdmin:
 
                     enriched_events.append(event_data)
 
+                total_pages = max(1, (events["total_count"] + limit - 1) // limit)
+
                 return self.templates.TemplateResponse(
                     "admin/management/events_content.html",
                     {
                         "request": request,
                         "events": enriched_events,
                         "page": page,
-                        "total_pages": (events["total_count"] + limit - 1) // limit,
+                        "total_pages": total_pages,
                         "mount_path": self.mount_path,
+                        "start_date": start_date,
+                        "end_date": end_date,
+                        "selected_type": event_type,
+                        "selected_status": status,
+                        "selected_user": username,
                     },
                 )
 

@@ -1,58 +1,30 @@
 {% if events and events|length > 0 %}
-<style>
-.event-summary {
-    cursor: pointer;
-    padding: 0.5rem;
-    border-radius: 4px;
-    transition: background-color 0.2s;
-}
-
-.event-summary:hover {
-    background: var(--bg-secondary-light);
-}
-
-.expand-button {
-    display: inline-flex;
-    align-items: center;
-    margin-left: 0.5rem;
-}
-
-.expand-icon {
-    transition: transform 0.2s;
-}
-
-.event-summary.expanded .expand-icon {
-    transform: rotate(180deg);
-}
-
-.event-details {
-    margin-top: 1rem;
-    display: none;
-}
-
-.event-details.visible {
-    display: block;
-}
-
-.dark-theme .event-summary:hover {
-    background: var(--bg-secondary-dark);
-}
-</style>
-
 <div class="event-grid">
    {% for event in events %}
-   <div class="event-card">
+   <div class="event-card" hx-preserve>
        <div class="event-header">
-           <span class="event-type">{{ event.event_type }}</span>
-           <span class="event-timestamp">{{ event.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</span>
+           <div class="header-info">
+               <span class="event-type">{{ event.event_type | replace('_', ' ') | title }}</span>
+               <span class="event-timestamp">{{ event.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</span>
+           </div>
        </div>
        
        <div class="event-summary" onclick="toggleDetails(this)">
-           <div class="event-field">
-               <span class="field-label">Status:</span>
-               <span class="field-value status-{{ event.status }}">{{ event.status }}</span>
+           <div class="summary-grid">
+               <div class="summary-item">
+                   <span class="field-label">Status</span>
+                   <span class="field-value status-{{ event.status }}">{{ event.status | title }}</span>
+               </div>
+               <div class="summary-item">
+                   <span class="field-label">User</span>
+                   <span class="field-value">{{ event.username }}</span>
+               </div>
+               <div class="summary-item">
+                   <span class="field-label">IP Address</span>
+                   <span class="field-value">{{ event.ip_address }}</span>
+               </div>
                <span class="expand-button">
-                   <svg class="expand-icon" viewBox="0 0 24 24" width="24" height="24">
+                   <svg class="expand-icon" viewBox="0 0 24 24" width="20" height="20">
                        <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                    </svg>
                </span>
@@ -60,15 +32,6 @@
        </div>
 
        <div class="event-details">
-           <div class="event-field">
-               <span class="field-label">User:</span>
-               <span class="field-value">{{ event.username }}</span>
-           </div>
-           <div class="event-field">
-               <span class="field-label">IP Address:</span>
-               <span class="field-value">{{ event.ip_address }}</span>
-           </div>
-
            {% if event.details is defined and event.details %}
                {% if event.details.resource_details is defined and event.details.resource_details %}
                <div class="event-section">
@@ -100,24 +63,12 @@
                <div class="event-section">
                    <h4>Authentication Details</h4>
                    <div class="details-grid">
-                       {% if event.details.auth_details.event_type is defined %}
+                       {% for key, value in event.details.auth_details.items() %}
                        <div class="detail-item">
-                           <span class="detail-label">Event Type:</span>
-                           <span class="detail-value">{{ event.details.auth_details.event_type }}</span>
+                           <span class="detail-label">{{ key | replace('_', ' ') | title }}:</span>
+                           <span class="detail-value">{{ value }}</span>
                        </div>
-                       {% endif %}
-                       {% if event.details.auth_details.username is defined %}
-                       <div class="detail-item">
-                           <span class="detail-label">Username:</span>
-                           <span class="detail-value">{{ event.details.auth_details.username }}</span>
-                       </div>
-                       {% endif %}
-                       {% if event.details.auth_details.success is defined %}
-                       <div class="detail-item">
-                           <span class="detail-label">Success:</span>
-                           <span class="detail-value">{{ event.details.auth_details.success }}</span>
-                       </div>
-                       {% endif %}
+                       {% endfor %}
                    </div>
                </div>
                {% endif %}
@@ -126,44 +77,12 @@
                <div class="event-section">
                    <h4>Request Details</h4>
                    <div class="details-grid">
-                       {% if event.details.request_details.method is defined %}
+                       {% for key, value in event.details.request_details.items() %}
                        <div class="detail-item">
-                           <span class="detail-label">Method:</span>
-                           <span class="detail-value">{{ event.details.request_details.method }}</span>
+                           <span class="detail-label">{{ key | replace('_', ' ') | title }}:</span>
+                           <span class="detail-value">{{ value }}</span>
                        </div>
-                       {% endif %}
-                       {% if event.details.request_details.path is defined %}
-                       <div class="detail-item">
-                           <span class="detail-label">Path:</span>
-                           <span class="detail-value">{{ event.details.request_details.path }}</span>
-                       </div>
-                       {% endif %}
-                       {% if event.details.request_details.user_agent is defined %}
-                       <div class="detail-item">
-                           <span class="detail-label">User Agent:</span>
-                           <span class="detail-value">{{ event.details.request_details.user_agent }}</span>
-                       </div>
-                       {% endif %}
-                   </div>
-               </div>
-               {% endif %}
-
-               {% if event.details.session_details is defined and event.details.session_details %}
-               <div class="event-section">
-                   <h4>Session Details</h4>
-                   <div class="details-grid">
-                       {% if event.details.session_details.session_id is defined %}
-                       <div class="detail-item">
-                           <span class="detail-label">Session ID:</span>
-                           <span class="detail-value">{{ event.details.session_details.session_id }}</span>
-                       </div>
-                       {% endif %}
-                       {% if event.details.session_details.browser is defined %}
-                       <div class="detail-item">
-                           <span class="detail-label">Browser:</span>
-                           <span class="detail-value">{{ event.details.session_details.browser }}</span>
-                       </div>
-                       {% endif %}
+                       {% endfor %}
                    </div>
                </div>
                {% endif %}
@@ -175,8 +94,9 @@
 
 <div class="pagination">
    <button class="pagination-button"
-           hx-get="/{{ mount_path }}/management/events/content?page={{ page - 1 }}"
-           hx-target="#events-content"
+           hx-get="/{{ mount_path }}/management/events/content"
+           hx-include="[name='event-type'],[name='status'],[name='start-date'],[name='end-date']"
+           hx-vals='js:{"page": "{{ page - 1 }}"}'
            {% if page <= 1 %}disabled{% endif %}>
        Previous
    </button>
@@ -186,20 +106,79 @@
    </div>
    
    <button class="pagination-button"
-           hx-get="/{{ mount_path }}/management/events/content?page={{ page + 1 }}"
-           hx-target="#events-content"
+           hx-get="/{{ mount_path }}/management/events/content"
+           hx-include="[name='event-type'],[name='status'],[name='start-date'],[name='end-date']"
+           hx-vals='js:{"page": "{{ page + 1 }}"}'
            {% if page >= total_pages %}disabled{% endif %}>
        Next
    </button>
 </div>
 
-<script>
-function toggleDetails(element) {
-    element.classList.toggle('expanded');
-    const details = element.nextElementSibling;
-    details.classList.toggle('visible');
-}
-</script>
+<style>
+    .event-card {
+        margin-bottom: 1rem;
+    }
+    
+    .header-info {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        align-items: center;
+        position: relative;
+        padding-right: 2.5rem;
+    }
+
+    .summary-item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .expand-button {
+        position: absolute;
+        right: 0;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+
+    .event-summary {
+        cursor: pointer;
+        padding: 1rem;
+        border-radius: var(--border-radius-md);
+        transition: background-color 0.2s;
+    }
+
+    .event-summary:hover {
+        background: var(--bg-secondary-light);
+    }
+
+    .dark-theme .event-summary:hover {
+        background: var(--bg-secondary-dark);
+    }
+
+    .expand-icon {
+        transition: transform 0.2s;
+    }
+
+    .event-summary.expanded .expand-icon {
+        transform: rotate(180deg);
+    }
+
+    .event-details {
+        display: none;
+        margin-top: 1rem;
+    }
+
+    .event-details.visible {
+        display: block;
+    }
+</style>
 
 {% else %}
 <div class="event-card">
