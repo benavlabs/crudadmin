@@ -15,13 +15,16 @@ class AdminSessionBase(BaseModel):
     is_active: bool = True
     session_metadata: dict = Field(default_factory=dict)
 
+
 class AdminSessionCreate(AdminSessionBase):
     pass
+
 
 class AdminSessionUpdate(BaseModel):
     last_activity: Optional[datetime] = None
     is_active: Optional[bool] = None
     metadata: Optional[dict] = None
+
 
 class AdminSessionRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)

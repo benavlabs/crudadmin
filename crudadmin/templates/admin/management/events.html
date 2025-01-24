@@ -1,0 +1,410 @@
+{% extends "base/base.html" %}
+
+{% block title %}Event Logs{% endblock %}
+
+{% set include_sidebar_and_header = True %}
+
+{% block content %}
+<style>
+    .admin-content {
+        padding: 2rem;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .event-dashboard {
+        display: grid;
+        gap: 1.5rem;
+    }
+
+    .dashboard-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid var(--border-light);
+    }
+
+    .dark-theme .dashboard-header {
+        border-color: var(--border-dark);
+    }
+
+    .filter-section {
+        background: var(--bg-primary-light);
+        border: 1px solid var(--border-light);
+        border-radius: var(--border-radius-lg);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .dark-theme .filter-section {
+        background: var(--bg-primary-dark);
+        border-color: var(--border-dark);
+    }
+
+    .filter-group {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .filter-control {
+        padding: 0.5rem;
+        border: 1px solid var(--border-light);
+        border-radius: var(--border-radius-md);
+        background: var(--bg-secondary-light);
+        color: var(--text-primary-light);
+        min-width: 150px;
+    }
+
+    .dark-theme .filter-control {
+        background: var(--bg-secondary-dark);
+        border-color: var(--border-dark);
+        color: var(--text-primary-dark);
+    }
+
+    .event-grid {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .event-card {
+        background: var(--bg-primary-light);
+        border: 1px solid var(--border-light);
+        border-radius: var(--border-radius-lg);
+        padding: 1.5rem;
+    }
+
+    .dark-theme .event-card {
+        background: var(--bg-primary-dark);
+        border-color: var(--border-dark);
+    }
+
+    .event-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid var(--border-light);
+    }
+
+    .dark-theme .event-header {
+        border-color: var(--border-dark);
+    }
+
+    .event-type {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 999px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        background: var(--primary-color);
+        color: white;
+    }
+
+    .event-timestamp {
+        font-size: 0.875rem;
+        color: var(--text-secondary-light);
+    }
+
+    .dark-theme .event-timestamp {
+        color: var(--text-secondary-dark);
+    }
+
+    .event-summary {
+        padding: 1rem 0;
+        cursor: pointer;
+        position: relative;
+        border-bottom: 1px solid var(--border-light);
+    }
+
+    .dark-theme .event-summary {
+        border-color: var(--border-dark);
+    }
+
+    .event-summary:hover {
+        background: var(--bg-secondary-light);
+    }
+
+    .dark-theme .event-summary:hover {
+        background: var(--bg-secondary-dark);
+    }
+
+    .expand-button {
+        position: absolute;
+        right: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        transition: transform 0.2s ease;
+    }
+
+    .event-summary.expanded .expand-button {
+        transform: translateY(-50%) rotate(180deg);
+    }
+
+    .hidden {
+        display: none;
+    }
+
+    .event-summary.expanded + .event-details {
+        display: block;
+        padding-top: 1rem;
+    }
+
+    .event-details {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .event-field {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+    }
+
+    .field-label {
+        color: var(--text-secondary-light);
+        font-size: 0.875rem;
+        font-weight: 500;
+        min-width: 120px;
+    }
+
+    .dark-theme .field-label {
+        color: var(--text-secondary-dark);
+    }
+
+    .field-value {
+        font-family: ui-monospace, monospace;
+        font-size: 0.875rem;
+    }
+
+    .status-success, .status-failure, .status-warning {
+        display: inline-block;
+        padding: 0.125rem 0.5rem;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .status-success {
+        background: rgba(16, 185, 129, 0.1);
+        color: #10B981;
+    }
+
+    .status-failure {
+        background: rgba(239, 68, 68, 0.1);
+        color: #EF4444;
+    }
+
+    .status-warning {
+        background: rgba(245, 158, 11, 0.1);
+        color: #F59E0B;
+    }
+
+    .event-section {
+        background: var(--bg-secondary-light);
+        border-radius: var(--border-radius-md);
+        padding: 1.25rem;
+        margin-top: 1rem;
+    }
+
+    .dark-theme .event-section {
+        background: var(--bg-secondary-dark);
+    }
+
+    .event-section h4 {
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-secondary-light);
+        margin-bottom: 1rem;
+    }
+
+    .dark-theme .event-section h4 {
+        color: var(--text-secondary-dark);
+    }
+
+    .details-grid {
+        display: grid;
+        gap: 0.75rem;
+    }
+
+    .detail-item {
+        display: grid;
+        grid-template-columns: 150px 1fr;
+        gap: 1rem;
+        align-items: baseline;
+    }
+
+    .detail-label {
+        color: var(--text-secondary-light);
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+
+    .dark-theme .detail-label {
+        color: var(--text-secondary-dark);
+    }
+
+    .detail-value {
+        font-family: ui-monospace, monospace;
+        font-size: 0.875rem;
+    }
+
+    .changes-section {
+        grid-column: 1 / -1;
+    }
+
+    .changes-section pre {
+        font-size: 0.875rem;
+        margin: 0.5rem 0;
+        padding: 1rem;
+        background: var(--bg-primary-light);
+        border: 1px solid var(--border-light);
+        border-radius: var(--border-radius-md);
+        overflow-x: auto;
+        white-space: pre-wrap;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    .dark-theme .changes-section pre {
+        background: var(--bg-primary-dark);
+        border-color: var(--border-dark);
+    }
+
+    .pagination {
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+        margin-top: 2rem;
+    }
+
+    .pagination-button {
+        padding: 0.5rem 1rem;
+        border: 1px solid var(--border-light);
+        border-radius: var(--border-radius-md);
+        background: var(--bg-primary-light);
+        color: var(--text-primary-light);
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .dark-theme .pagination-button {
+        background: var(--bg-primary-dark);
+        border-color: var(--border-dark);
+        color: var(--text-primary-dark);
+    }
+
+    .pagination-button:hover:not(:disabled) {
+        background: var(--primary-color);
+        border-color: var(--primary-color);
+        color: white;
+    }
+
+    .pagination-button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .pagination-info {
+        display: flex;
+        align-items: center;
+        color: var(--text-secondary-light);
+        font-size: 0.875rem;
+    }
+
+    .dark-theme .pagination-info {
+        color: var(--text-secondary-dark);
+    }
+
+    @media (max-width: 768px) {
+        .admin-content {
+            padding: 1rem;
+        }
+
+        .filter-group {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .filter-control {
+            width: 100%;
+        }
+
+        .detail-item {
+            grid-template-columns: 1fr;
+            gap: 0.25rem;
+        }
+    }
+</style>
+
+<div class="admin-content">
+    <div class="event-dashboard">
+        <div class="dashboard-header">
+            <h1 class="page-title">Event Logs</h1>
+        </div>
+        
+        <div class="filter-section">
+            <div class="filter-group">
+                <select name="event-type" class="filter-control" hx-get="/{{ mount_path }}/management/events/content" hx-target="#events-content">
+                    <option value="">All Event Types</option>
+                    {% for event_type in event_types %}
+                    <option value="{{ event_type }}" {% if selected_type == event_type %}selected{% endif %}>
+                        {{ event_type }}
+                    </option>
+                    {% endfor %}
+                </select>
+
+                <select name="status" class="filter-control" hx-get="/{{ mount_path }}/management/events/content" hx-target="#events-content">
+                    <option value="">All Statuses</option>
+                    {% for status in statuses %}
+                    <option value="{{ status }}" {% if selected_status == status %}selected{% endif %}>
+                        {{ status }}
+                    </option>
+                    {% endfor %}
+                </select>
+
+                <input type="date" 
+                       name="start-date" 
+                       class="filter-control" 
+                       value="{{ start_date }}"
+                       hx-get="/{{ mount_path }}/management/events/content" 
+                       hx-target="#events-content"
+                       hx-trigger="change">
+
+                <input type="date" 
+                       name="end-date" 
+                       class="filter-control" 
+                       value="{{ end_date }}"
+                       hx-get="/{{ mount_path }}/management/events/content" 
+                       hx-target="#events-content"
+                       hx-trigger="change">
+            </div>
+        </div>
+
+        <div id="events-content" 
+             hx-get="/{{ mount_path }}/management/events/content"
+             hx-trigger="load">
+            <div class="event-grid">
+                <div class="event-card">
+                    <div class="event-header">
+                        <span>Loading events...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleDetails(element) {
+    element.classList.toggle('expanded');
+    const details = element.nextElementSibling;
+    details.classList.toggle('hidden');
+}
+</script>
+{% endblock %}

@@ -9,9 +9,7 @@ from ..core.schemas.timestamp import TimestampSchema
 class AdminUserBase(BaseModel):
     username: Annotated[
         str,
-        Field(
-            min_length=2, max_length=20, pattern=r"^[a-z0-9]+$", examples=["admin"]
-        ),
+        Field(min_length=2, max_length=20, pattern=r"^[a-z0-9]+$", examples=["admin"]),
     ]
 
 

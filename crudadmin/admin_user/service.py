@@ -9,6 +9,7 @@ from .schemas import AdminUserCreate
 
 logger = logging.getLogger(__name__)
 
+
 class AdminUserService:
     def __init__(self, db_config: DatabaseConfig) -> None:
         self.db_config = db_config
@@ -23,15 +24,12 @@ class AdminUserService:
         return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
     async def authenticate_user(
-        self, 
-        username_or_email: str, 
-        password: str, 
-        db: AsyncSession
+        self, username_or_email: str, password: str, db: AsyncSession
     ) -> Union[Dict[str, Any], Literal[False]]:
         """Authenticate a user by username/email and password."""
         try:
             logger.debug(f"Attempting to authenticate user: {username_or_email}")
-            
+
             if "@" in username_or_email:
                 logger.debug("Searching by email")
                 db_user: dict | None = await self.crud_users.get(
@@ -39,9 +37,7 @@ class AdminUserService:
                 )
             else:
                 logger.debug("Searching by username")
-                db_user = await self.crud_users.get(
-                    db=db, username=username_or_email
-                )
+                db_user = await self.crud_users.get(db=db, username=username_or_email)
 
             if not db_user:
                 logger.debug("User not found in database")
@@ -66,9 +62,7 @@ class AdminUserService:
             password: str,
             db: Annotated[AsyncSession, Depends(self.db_config.get_admin_db)],
         ):
-            exists = await self.crud_users.exists(
-                db, username=username, email=email
-            )
+            exists = await self.crud_users.exists(db, username=username, email=email)
             if exists:
                 return None
 

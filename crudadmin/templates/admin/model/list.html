@@ -536,41 +536,29 @@
         const modelList = document.getElementById('model-list');
         const pkType = modelList.dataset.pkType;
         
-        // Get current page from pagination info span
+        // Get current page and rows per page
         const paginationInfo = document.querySelector('.pagination-info');
         const currentPageMatch = paginationInfo?.textContent.match(/Page (\d+) of/);
         const currentPage = currentPageMatch ? currentPageMatch[1] : '1';
         
-        // Get rows per page from select
         const rowsPerPageSelect = document.querySelector('[name="rows-per-page-select"]');
         const rowsPerPage = rowsPerPageSelect ? rowsPerPageSelect.value : '10';
         
-        // Convert checkboxes to proper typed values
-        let ids;
-        try {
-            ids = Array.from(checkedBoxes).map(box => {
-                const rawValue = box.value.trim();
-                
-                // For integers, parse and validate
-                if (pkType === 'int') {
-                    const num = parseInt(rawValue, 10);
-                    if (isNaN(num)) {
-                        throw new Error(`Invalid integer value: ${rawValue}`);
-                    }
-                    return num;
+        // Convert and validate IDs
+        const ids = Array.from(checkedBoxes).map(box => {
+            const rawValue = box.value.trim();
+            if (pkType === 'int') {
+                const num = parseInt(rawValue, 10);
+                if (isNaN(num)) {
+                    throw new Error(`Invalid integer value: ${rawValue}`);
                 }
-                return rawValue;
-            });
-        } catch (error) {
-            alert(error.message);
-            return;
-        }
+                return num;
+            }
+            return rawValue;
+        });
 
-        const requestBody = { 
-            ids,
-            page: parseInt(currentPage),
-            rows_per_page: parseInt(rowsPerPage)
-        };
+        // Log the IDs being sent for debugging
+        console.log('Sending delete request for IDs:', ids);
 
         try {
             const response = await fetch(`/{{ mount_path }}/{{ model_name }}/bulk-delete?page=${currentPage}&rows-per-page-select=${rowsPerPage}`, {
@@ -578,25 +566,22 @@
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(requestBody)
+                body: JSON.stringify({ 
+                    ids: ids,
+                    page: parseInt(currentPage),
+                    rows_per_page: parseInt(rowsPerPage)
+                })
             });
             
             if (!response.ok) {
-                // Try to parse error response as JSON
-                let errorData;
-                try {
-                    errorData = await response.json();
-                    throw new Error(errorData.detail?.[0]?.msg || 'Error deleting items');
-                } catch (parseError) {
-                    throw new Error('Error deleting items');
-                }
+                const errorData = await response.json();
+                throw new Error(errorData.detail?.[0]?.msg || 'Error deleting items');
             }
 
-            // Handle successful deletion - response is HTML content
             const htmlContent = await response.text();
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = htmlContent;
-            htmx.process(tempDiv);  // Process HTMX attributes in the new content
+            htmx.process(tempDiv);
             modelList.replaceWith(tempDiv.firstElementChild);
             updateActionButtons();
             

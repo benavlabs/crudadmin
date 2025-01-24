@@ -12,6 +12,7 @@ from sqlalchemy import inspect
 from fastcrud import FastCRUD, EndpointCreator
 
 from ..core.db import DatabaseConfig
+from ..event import log_admin_action, EventType
 from .helper import _get_form_fields_from_schema
 
 ModelType = TypeVar("ModelType", bound=DeclarativeBase)
@@ -39,7 +40,8 @@ class ModelView:
         delete_schema: Type[DeleteSchemaType] | None = None,
         select_schema: Type[SelectSchemaType] | None = None,
         admin_model: bool = False,
-        admin_site = None,
+        admin_site=None,
+        event_integration=None,
     ) -> None:
         self.db_config = database_config
         if self._model_is_admin_model(model):
@@ -58,9 +60,15 @@ class ModelView:
         self.admin_site = admin_site
         self.user_service = self.admin_site.admin_user_service
         self.allowed_actions = allowed_actions
+        self.event_integration = event_integration
 
         CRUDModel = FastCRUD[
-            model, create_schema, update_schema, update_internal_schema, delete_schema, select_schema
+            model,
+            create_schema,
+            update_schema,
+            update_internal_schema,
+            delete_schema,
+            select_schema,
         ]
         self.crud = CRUDModel(model)
 
@@ -80,25 +88,30 @@ class ModelView:
     def setup_routes(self):
         if "create" in self.allowed_actions:
             self.router.add_api_route(
-                "/form_create", 
+                "/form_create",
                 self.form_create_endpoint(template="admin/model/create.html"),
-                methods=["POST"], 
-                include_in_schema=False
+                methods=["POST"],
+                include_in_schema=False,
             )
             self.router.add_api_route(
-                "/create_page", 
-                self.get_model_create_page(template="admin/model/create.html"), 
-                methods=["GET"], 
-                include_in_schema=False
+                "/create_page",
+                self.get_model_create_page(template="admin/model/create.html"),
+                methods=["GET"],
+                include_in_schema=False,
             )
 
         if "view" in self.allowed_actions:
             self.router.add_api_route(
-                "/", self.get_model_admin_page(), methods=["GET"], include_in_schema=False
+                "/",
+                self.get_model_admin_page(),
+                methods=["GET"],
+                include_in_schema=False,
             )
             self.router.add_api_route(
                 "/get_model_list",
-                self.get_model_admin_page(template="admin/model/components/list_content.html"),
+                self.get_model_admin_page(
+                    template="admin/model/components/list_content.html"
+                ),
                 methods=["GET"],
                 include_in_schema=False,
             )
@@ -135,9 +148,15 @@ class ModelView:
         return model.__name__ in admin_models
 
     def form_create_endpoint(self, template: str):
+        @log_admin_action(EventType.CREATE, model=self.model)
         async def form_create_endpoint_inner(
             request: Request,
-            db: AsyncSession = Depends(self.session)
+            db: AsyncSession = Depends(self.session),
+            admin_db: AsyncSession = Depends(self.db_config.get_admin_db),
+            current_user: dict = Depends(
+                self.admin_site.admin_authentication.get_current_user()
+            ),
+            event_integration=Depends(lambda: self.event_integration),
         ):
             form_fields = _get_form_fields_from_schema(self.create_schema)
             error_message = None
@@ -154,7 +173,9 @@ class ModelView:
                         raw_value = form_data_raw.getlist(key)
                         if len(raw_value) == 1:
                             value = raw_value[0]
-                            form_data[key] = value if value else field.get("default", None)
+                            form_data[key] = (
+                                value if value else field.get("default", None)
+                            )
                             field_values[key] = value
                         elif len(raw_value) > 1:
                             form_data[key] = raw_value
@@ -165,34 +186,41 @@ class ModelView:
                     try:
                         if self.model.__name__ == "AdminUser":
                             item_data = self.create_schema(**form_data)
-                            
+
                             hashed_password = self.admin_user_service.get_password_hash(
                                 item_data.password
                             )
-                            
+
                             from ..admin_user.schemas import AdminUserCreateInternal
+
                             internal_data = AdminUserCreateInternal(
                                 username=item_data.username,
-                                hashed_password=hashed_password
+                                hashed_password=hashed_password,
                             )
                             result = await self.crud.create(db=db, object=internal_data)
                         else:
                             item_data = self.create_schema(**form_data)
                             result = await self.crud.create(db=db, object=item_data)
+                            await db.commit()
 
                         if result:
+                            request.state.crud_result = result
                             if "HX-Request" in request.headers:
                                 return RedirectResponse(
                                     url=f"/{self.admin_site.mount_path}/{self.model.__name__}/",
-                                    headers={"HX-Redirect": f"/{self.admin_site.mount_path}/{self.model.__name__}/"}
+                                    headers={
+                                        "HX-Redirect": f"/{self.admin_site.mount_path}/{self.model.__name__}/"
+                                    },
                                 )
                             return RedirectResponse(
                                 url=f"/{self.admin_site.mount_path}/{self.model.__name__}/",
-                                status_code=303
+                                status_code=303,
                             )
 
                     except ValidationError as e:
-                        field_errors = {error["loc"][0]: error["msg"] for error in e.errors()}
+                        field_errors = {
+                            error["loc"][0]: error["msg"] for error in e.errors()
+                        }
                         error_message = "Please correct the errors below."
                     except Exception as e:
                         error_message = str(e)
@@ -211,29 +239,37 @@ class ModelView:
             }
 
             return self.templates.TemplateResponse(
-                template,
-                context,
-                status_code=422 if error_message else 200
+                template, context, status_code=422 if error_message else 200
             )
 
         return form_create_endpoint_inner
-    
+
     def bulk_delete_endpoint(self):
+        @log_admin_action(EventType.DELETE, model=self.model)
         async def bulk_delete_endpoint_inner(
             request: Request,
-            db: AsyncSession = Depends(self.session)
+            db: AsyncSession = Depends(self.session),
+            admin_db: AsyncSession = Depends(self.db_config.get_admin_db),
+            current_user: dict = Depends(
+                self.admin_site.admin_authentication.get_current_user()
+            ),
+            event_integration=Depends(lambda: self.event_integration),
         ):
             try:
                 body = await request.json()
-                
-                page = int(request.query_params.get('page', '1'))
-                rows_per_page = int(request.query_params.get('rows-per-page-select', '10'))
-                
-                ids = body.get('ids', [])
+
+                page = int(request.query_params.get("page", "1"))
+                rows_per_page = int(
+                    request.query_params.get("rows-per-page-select", "10")
+                )
+
+                ids = body.get("ids", [])
                 if not ids:
                     return JSONResponse(
                         status_code=400,
-                        content={"detail": [{"message": "No IDs provided for deletion"}]}
+                        content={
+                            "detail": [{"message": "No IDs provided for deletion"}]
+                        },
                     )
 
                 inspector = inspect(self.model)
@@ -256,8 +292,17 @@ class ModelView:
                     except (ValueError, TypeError):
                         return JSONResponse(
                             status_code=422,
-                            content={"detail": [{"message": f"Invalid ID value: {id_value}"}]}
+                            content={
+                                "detail": [{"message": f"Invalid ID value: {id_value}"}]
+                            },
                         )
+
+                filter_criteria = {f"{pk_name}__in": valid_ids}
+                records_to_delete = await self.crud.get_multi(
+                    db=db, limit=len(valid_ids), **filter_criteria
+                )
+
+                request.state.deleted_records = records_to_delete.get("data", [])
 
                 try:
                     for id_value in valid_ids:
@@ -267,19 +312,19 @@ class ModelView:
                     await db.rollback()
                     return JSONResponse(
                         status_code=400,
-                        content={"detail": [{"message": f"Error during deletion: {str(e)}"}]}
+                        content={
+                            "detail": [{"message": f"Error during deletion: {str(e)}"}]
+                        },
                     )
 
                 total_count = await self.crud.count(db=db)
                 max_page = (total_count + rows_per_page - 1) // rows_per_page
                 adjusted_page = min(page, max(1, max_page))
 
-                filter_criteria = {}
                 items = await self.crud.get_multi(
                     db=db,
                     offset=(adjusted_page - 1) * rows_per_page,
                     limit=rows_per_page,
-                    **filter_criteria
                 )
 
                 table_columns = [column.key for column in self.model.__table__.columns]
@@ -298,37 +343,40 @@ class ModelView:
                 }
 
                 return self.templates.TemplateResponse(
-                    "admin/model/components/list_content.html",
-                    context
+                    "admin/model/components/list_content.html", context
                 )
 
             except ValueError as e:
                 return JSONResponse(
-                    status_code=422,
-                    content={"detail": [{"message": str(e)}]}
+                    status_code=422, content={"detail": [{"message": str(e)}]}
                 )
             except Exception as e:
                 return JSONResponse(
                     status_code=422,
-                    content={"detail": [{"message": f"Error processing request: {str(e)}"}]}
+                    content={
+                        "detail": [{"message": f"Error processing request: {str(e)}"}]
+                    },
                 )
 
         return bulk_delete_endpoint_inner
 
     def get_model_admin_page(self, template: str = "admin/model/list.html"):
         async def get_model_admin_page_inner(
-            request: Request, 
-            db: AsyncSession = Depends(self.session)
+            request: Request, db: AsyncSession = Depends(self.session)
         ):
-            if template == "admin/model/list.html" and not request.url.path.endswith('/'):
-                redirect_url = request.url.path + '/'
+            if template == "admin/model/list.html" and not request.url.path.endswith(
+                "/"
+            ):
+                redirect_url = request.url.path + "/"
                 if request.url.query:
-                    redirect_url += '?' + request.url.query
+                    redirect_url += "?" + request.url.query
                 return RedirectResponse(redirect_url, status_code=307)
 
             try:
                 page = max(1, int(request.query_params.get("page", 1)))
-                rows_per_page = int(request.query_params.get("rows-per-page-select", 10))
+                rows_per_page = int(
+                    request.query_params.get("rows-per-page-select", 10)
+                )
             except ValueError:
                 page = 1
                 rows_per_page = 10
@@ -336,8 +384,12 @@ class ModelView:
             sort_column = request.query_params.get("sort_by")
             sort_order = request.query_params.get("sort_order", "asc")
 
-            sort_columns = [sort_column] if sort_column and sort_column != "None" else None
-            sort_orders = [sort_order] if sort_column and sort_column != "None" else None
+            sort_columns = (
+                [sort_column] if sort_column and sort_column != "None" else None
+            )
+            sort_orders = (
+                [sort_order] if sort_column and sort_column != "None" else None
+            )
 
             search_column = request.query_params.get("column-to-search")
             search_value = request.query_params.get("search-input", "").strip()
@@ -357,9 +409,9 @@ class ModelView:
                             pass
                     elif python_type == bool:
                         lower_search = search_value.lower()
-                        if lower_search in ('true', 'yes', '1', 't', 'y'):
+                        if lower_search in ("true", "yes", "1", "t", "y"):
                             filter_criteria[search_column] = True
-                        elif lower_search in ('false', 'no', '0', 'f', 'n'):
+                        elif lower_search in ("false", "no", "0", "f", "n"):
                             filter_criteria[search_column] = False
                     elif python_type == str:
                         filter_criteria[f"{search_column}__ilike"] = f"%{search_value}%"
@@ -373,12 +425,12 @@ class ModelView:
                 offset = (page - 1) * rows_per_page
 
                 items = await self.crud.get_multi(
-                    db=db, 
+                    db=db,
                     offset=offset,
                     limit=rows_per_page,
                     sort_columns=sort_columns,
                     sort_orders=sort_orders,
-                    **filter_criteria
+                    **filter_criteria,
                 )
             except Exception as e:
                 items = {"data": [], "total_count": 0}
@@ -406,8 +458,7 @@ class ModelView:
 
             if "HX-Request" in request.headers:
                 return self.templates.TemplateResponse(
-                    "admin/model/components/list_content.html",
-                    context
+                    "admin/model/components/list_content.html", context
                 )
 
             context.update(await self.admin_site.get_base_context(db))
@@ -415,7 +466,7 @@ class ModelView:
             return self.templates.TemplateResponse(template, context)
 
         return get_model_admin_page_inner
-    
+
     def get_model_create_page(self, template: str = "admin/model/create.html"):
         async def model_create_page(request: Request):
             form_fields = _get_form_fields_from_schema(self.create_schema)
@@ -428,28 +479,26 @@ class ModelView:
                     "mount_path": self.admin_site.mount_path,
                 },
             )
+
         return model_create_page
-    
+
     def get_model_update_page(self, template: str):
         async def get_model_update_page_inner(
-            request: Request,
-            id: int,
-            db: AsyncSession = Depends(self.session)
+            request: Request, id: int, db: AsyncSession = Depends(self.session)
         ):
             item = await self.crud.get(db=db, id=id)
             if not item:
                 return JSONResponse(
-                    status_code=404,
-                    content={"message": f"Item with id {id} not found"}
+                    status_code=404, content={"message": f"Item with id {id} not found"}
                 )
-            
+
             form_fields = _get_form_fields_from_schema(self.update_schema)
-            
+
             for field in form_fields:
                 field_name = field["name"]
                 if field_name in item:
                     field["value"] = item[field_name]
-            
+
             return self.templates.TemplateResponse(
                 template,
                 {
@@ -457,35 +506,40 @@ class ModelView:
                     "model_name": self.model_key,
                     "form_fields": form_fields,
                     "mount_path": self.admin_site.mount_path,
-                    "id": id
+                    "id": id,
                 },
             )
-        
+
         return get_model_update_page_inner
-    
+
     def form_update_endpoint(self):
+        @log_admin_action(EventType.UPDATE, model=self.model)
         async def form_update_endpoint_inner(
             request: Request,
-            id: int,
-            db: AsyncSession = Depends(self.session)
+            db: AsyncSession = Depends(self.session),
+            admin_db: AsyncSession = Depends(self.db_config.get_admin_db),
+            current_user: dict = Depends(
+                self.admin_site.admin_authentication.get_current_user()
+            ),
+            event_integration=Depends(lambda: self.event_integration),
+            id: int = None,
         ):
             item = await self.crud.get(db=db, id=id)
             if not item:
                 return JSONResponse(
-                    status_code=404,
-                    content={"message": f"Item with id {id} not found"}
+                    status_code=404, content={"message": f"Item with id {id} not found"}
                 )
-            
+
             form_fields = _get_form_fields_from_schema(self.update_schema)
             error_message = None
             field_errors = {}
             field_values = {}
-            
+
             try:
                 form_data = await request.form()
                 update_data = {}
                 has_updates = False
-                
+
                 for key, value in form_data.items():
                     if value and value.strip():
                         update_data[key] = value.strip()
@@ -497,42 +551,53 @@ class ModelView:
                 else:
                     if hasattr(self.update_internal_schema, "updated_at"):
                         update_data["updated_at"] = datetime.now(timezone.utc)
-                    
+
                     try:
                         if self.model.__name__ == "AdminUser":
                             update_schema_instance = self.update_schema(**update_data)
-                            internal_update_data = {"updated_at": datetime.now(timezone.utc)}
-                            
+                            internal_update_data = {
+                                "updated_at": datetime.now(timezone.utc)
+                            }
+
                             if update_schema_instance.username is not None:
-                                internal_update_data["username"] = update_schema_instance.username
-                                
+                                internal_update_data[
+                                    "username"
+                                ] = update_schema_instance.username
+
                             if update_schema_instance.password is not None:
-                                internal_update_data["hashed_password"] = self.admin_user_service.get_password_hash(
+                                internal_update_data[
+                                    "hashed_password"
+                                ] = self.admin_user_service.get_password_hash(
                                     update_schema_instance.password
                                 )
-                            
+
                             from ..admin_user.schemas import AdminUserUpdateInternal
-                            internal_update_schema = AdminUserUpdateInternal(**internal_update_data)
-                            await self.crud.update(db=db, id=id, object=internal_update_schema)
+
+                            internal_update_schema = AdminUserUpdateInternal(
+                                **internal_update_data
+                            )
+                            await self.crud.update(
+                                db=db, id=id, object=internal_update_schema
+                            )
                         else:
                             update_schema_instance = self.update_schema(**update_data)
                             await self.crud.update(
-                                db=db,
-                                id=id,
-                                object=update_schema_instance
+                                db=db, id=id, object=update_schema_instance
                             )
-                        
+
                         return RedirectResponse(
                             url=f"/{self.admin_site.mount_path}/{self.model.__name__}/",
-                            status_code=303
+                            status_code=303,
                         )
-                        
+
                     except ValidationError as e:
-                        field_errors = {error["loc"][0]: error["msg"] for error in e.errors()}
+                        field_errors = {
+                            error["loc"][0]: error["msg"] for error in e.errors()
+                        }
                         error_message = "Please correct the errors below."
                     except Exception as e:
                         error_message = str(e)
-                
+
             except Exception as e:
                 error_message = str(e)
 
@@ -541,7 +606,7 @@ class ModelView:
                 if field_name not in field_values:
                     if field_name in item:
                         field_values[field_name] = item[field_name]
-            
+
             context = {
                 "request": request,
                 "model_name": self.model_key,
@@ -551,15 +616,15 @@ class ModelView:
                 "field_values": field_values,
                 "mount_path": self.admin_site.mount_path,
                 "id": id,
-                "include_sidebar_and_header": False
+                "include_sidebar_and_header": False,
             }
-            
+
             return self.templates.TemplateResponse(
                 "admin/model/update.html",
                 context,
-                status_code=400 if error_message else 200
+                status_code=400 if error_message else 200,
             )
-        
+
         return form_update_endpoint_inner
 
     def table_body_content(self):
@@ -575,7 +640,9 @@ class ModelView:
 
             if search_column and search_value:
                 filter_criteria = {f"{search_column}__ilike": f"%{search_value}%"}
-                items = await self.crud.get_multi(db=db, offset=offset, limit=limit, **filter_criteria)
+                items = await self.crud.get_multi(
+                    db=db, offset=offset, limit=limit, **filter_criteria
+                )
             else:
                 items = await self.crud.get_multi(db=db, offset=offset, limit=limit)
 

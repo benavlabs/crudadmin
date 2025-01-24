@@ -306,6 +306,7 @@
                         </ul>
                     </div>
 
+                    <!-- Management Section -->
                     <div class="sidebar-section">
                         <div class="sidebar-section-header" onclick="this.parentElement.classList.toggle('collapsed')">
                             <h3 class="sidebar-section-title">Management</h3>
@@ -318,6 +319,14 @@
                                     <span class="badge badge-primary">System</span>
                                 </a>
                             </li>
+                            {% if track_events %}
+                            <li>
+                                <a href="/{{ mount_path }}/management/events" class="sidebar-link">
+                                    Event Logs
+                                    <span class="badge badge-primary">System</span>
+                                </a>
+                            </li>
+                            {% endif %}
                         </ul>
                     </div>
 

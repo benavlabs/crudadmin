@@ -2,23 +2,17 @@ from datetime import datetime, timezone
 from sqlalchemy import String, DateTime, JSON, Boolean
 from sqlalchemy.orm import Mapped, mapped_column
 
+
 def create_admin_session_model(base):
     class AdminSession(base):
         __tablename__ = "admin_session"
 
         id: Mapped[int] = mapped_column(
-            "id",
-            autoincrement=True,
-            nullable=False,
-            unique=True,
-            primary_key=True
+            "id", autoincrement=True, nullable=False, unique=True, primary_key=True
         )
         user_id: Mapped[int] = mapped_column(index=True)
         session_id: Mapped[str] = mapped_column(
-            String(36), 
-            unique=True, 
-            index=True,
-            nullable=False
+            String(36), unique=True, index=True, nullable=False
         )
         ip_address: Mapped[str] = mapped_column(String(45), nullable=False)
         user_agent: Mapped[str] = mapped_column(String(512), nullable=False)
@@ -26,22 +20,16 @@ def create_admin_session_model(base):
         created_at: Mapped[datetime] = mapped_column(
             DateTime(timezone=True),
             default=lambda: datetime.now(timezone.utc),
-            nullable=False
+            nullable=False,
         )
         last_activity: Mapped[datetime] = mapped_column(
             DateTime(timezone=True),
             default=lambda: datetime.now(timezone.utc),
-            nullable=False
+            nullable=False,
         )
-        is_active: Mapped[bool] = mapped_column(
-            Boolean,
-            default=True,
-            nullable=False
-        )
+        is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
         session_metadata: Mapped[dict] = mapped_column(
-            JSON,
-            default=dict,
-            nullable=False
+            JSON, default=dict, nullable=False
         )
 
         def __repr__(self):
