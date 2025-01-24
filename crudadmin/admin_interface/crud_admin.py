@@ -8,7 +8,7 @@ from fastapi import APIRouter, FastAPI, Depends, Request
 from fastapi.templating import Jinja2Templates
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import TemplateResponse
+from starlette.templating import _TemplateResponse
 from fastcrud import FastCRUD
 from pydantic import BaseModel
 from sqlalchemy import text
@@ -322,7 +322,7 @@ class CRUDAdmin:
 
         async def event_log_page_inner(
             request: Request, db: AsyncSession = Depends(self.db_config.get_admin_db)
-        ) -> TemplateResponse:
+        ) -> _TemplateResponse:
             from ..event import EventType, EventStatus
 
             users = await self.db_config.crud_users.get_multi(db=db)
@@ -358,7 +358,7 @@ class CRUDAdmin:
             db: AsyncSession = Depends(self.db_config.get_admin_db),
             page: int = 1,
             limit: int = 10,
-        ) -> TemplateResponse:
+        ) -> _TemplateResponse:
             try:
                 crud_events = FastCRUD(self.db_config.AdminEventLog)
 
@@ -685,7 +685,7 @@ class CRUDAdmin:
 
     def health_check_page(
         self,
-    ) -> Callable[[Request, AsyncSession], Awaitable[TemplateResponse]]:
+    ) -> Callable[[Request, AsyncSession], Awaitable[_TemplateResponse]]:
         """
         Create endpoint for system health check page.
 
@@ -694,7 +694,7 @@ class CRUDAdmin:
 
         async def health_check_page_inner(
             request: Request, db: AsyncSession = Depends(self.db_config.session)
-        ) -> TemplateResponse:
+        ) -> _TemplateResponse:
             context = await self.admin_site.get_base_context(db)
             context.update({"request": request, "include_sidebar_and_header": True})
 
@@ -706,7 +706,7 @@ class CRUDAdmin:
 
     def health_check_content(
         self,
-    ) -> Callable[[Request, AsyncSession], Awaitable[TemplateResponse]]:
+    ) -> Callable[[Request, AsyncSession], Awaitable[_TemplateResponse]]:
         """
         Create endpoint for health check data.
 
@@ -718,7 +718,7 @@ class CRUDAdmin:
 
         async def health_check_content_inner(
             request: Request, db: AsyncSession = Depends(self.db_config.session)
-        ) -> TemplateResponse:
+        ) -> _TemplateResponse:
             health_checks = {}
 
             start_time = time.time()
