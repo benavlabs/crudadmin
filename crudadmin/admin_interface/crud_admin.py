@@ -70,7 +70,7 @@ class CRUDAdmin:
             theme: UI theme ('dark-theme' or 'light-theme')
             ALGORITHM: JWT encryption algorithm
             ACCESS_TOKEN_EXPIRE_MINUTES: Access token expiry in minutes
-            REFRESH_TOKEN_EXPIRE_DAYS: Refresh token expiry in days  
+            REFRESH_TOKEN_EXPIRE_DAYS: Refresh token expiry in days
             admin_db_url: SQLite database URL for admin data
             admin_db_path: File path for SQLite admin database
             db_config: Optional pre-configured DatabaseConfig
@@ -117,7 +117,7 @@ class CRUDAdmin:
             # Create admin interface
             admin = CRUDAdmin(
                 base=Base,
-                session=session, 
+                session=session,
                 SECRET_KEY="your-secret-key",
                 initial_admin={
                     "username": "admin",
@@ -133,7 +133,7 @@ class CRUDAdmin:
                 id = Column(Integer, primary_key=True)
                 name = Column(String)
                 price = Column(Float)
-                
+
             class Order(Base):
                 __tablename__ = "orders"
                 id = Column(Integer, primary_key=True)
@@ -266,7 +266,7 @@ class CRUDAdmin:
 
         Creates required tables:
         - AdminUser for user management
-        - AdminTokenBlacklist for revoked tokens 
+        - AdminTokenBlacklist for revoked tokens
         - AdminSession for session tracking
         - AdminEventLog and AdminAuditLog if event tracking enabled
 
@@ -291,7 +291,7 @@ class CRUDAdmin:
     def setup_event_routes(self) -> None:
         """
         Set up routes for event log management.
-        
+
         Creates endpoints:
         - GET /management/events - Event log page
         - GET /management/events/content - Event log data
@@ -319,6 +319,7 @@ class CRUDAdmin:
         Returns FastAPI route handler that renders event log template
         with filtering options.
         """
+
         async def event_log_page_inner(
             request: Request, db: AsyncSession = Depends(self.db_config.get_admin_db)
         ) -> TemplateResponse:
@@ -351,6 +352,7 @@ class CRUDAdmin:
         Returns FastAPI route handler that provides filtered event data
         with user and audit details.
         """
+
         async def event_log_content_inner(
             request: Request,
             db: AsyncSession = Depends(self.db_config.get_admin_db),
@@ -558,7 +560,7 @@ class CRUDAdmin:
             create_schema: Pydantic schema for create operations
             update_schema: Pydantic schema for update operations
             update_internal_schema: Internal update schema
-            delete_schema: Schema for delete operations 
+            delete_schema: Schema for delete operations
             include_in_models: Add to models list
             allowed_actions: Set of allowed operations
 
@@ -575,12 +577,12 @@ class CRUDAdmin:
             Basic user management:
             ```python
             from pydantic import BaseModel, EmailStr
-            
+
             class UserCreate(BaseModel):
                 username: str
                 email: EmailStr
                 role: str = "user"
-            
+
             class UserUpdate(BaseModel):
                 email: EmailStr | None = None
                 role: str | None = None
@@ -601,7 +603,7 @@ class CRUDAdmin:
                 name: str
                 price: float
                 description: str | None = None
-                
+
             class ProductUpdate(BaseModel):
                 price: float | None = None
                 description: str | None = None
@@ -622,10 +624,10 @@ class CRUDAdmin:
                 user_id: int
                 total: float
                 status: str = "pending"
-                
+
             class OrderUpdate(BaseModel):
                 status: str
-                
+
             class OrderDelete(BaseModel):
                 archive: bool = False
 
@@ -681,12 +683,15 @@ class CRUDAdmin:
             **router_info,
         )
 
-    def health_check_page(self) -> Callable[[Request, AsyncSession], Awaitable[TemplateResponse]]:
+    def health_check_page(
+        self,
+    ) -> Callable[[Request, AsyncSession], Awaitable[TemplateResponse]]:
         """
         Create endpoint for system health check page.
 
         Returns FastAPI route handler that renders health check template.
         """
+
         async def health_check_page_inner(
             request: Request, db: AsyncSession = Depends(self.db_config.session)
         ) -> TemplateResponse:
@@ -699,7 +704,9 @@ class CRUDAdmin:
 
         return health_check_page_inner
 
-    def health_check_content(self) -> Callable[[Request, AsyncSession], Awaitable[TemplateResponse]]:
+    def health_check_content(
+        self,
+    ) -> Callable[[Request, AsyncSession], Awaitable[TemplateResponse]]:
         """
         Create endpoint for health check data.
 
@@ -708,6 +715,7 @@ class CRUDAdmin:
         - Session management
         - Token service
         """
+
         async def health_check_content_inner(
             request: Request, db: AsyncSession = Depends(self.db_config.session)
         ) -> TemplateResponse:
@@ -764,7 +772,9 @@ class CRUDAdmin:
 
         return health_check_content_inner
 
-    async def _create_initial_admin(self, admin_data: Union[dict, BaseModel]) -> Awaitable[None]:
+    async def _create_initial_admin(
+        self, admin_data: Union[dict, BaseModel]
+    ) -> Awaitable[None]:
         """
         Create initial admin user if none exists.
 
