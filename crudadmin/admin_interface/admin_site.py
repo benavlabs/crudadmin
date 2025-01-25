@@ -328,6 +328,7 @@ class AdminSite:
             "model_counts": model_counts,
             "mount_path": self.mount_path,
             "track_events": self.event_integration is not None,
+            "theme": self.theme,
         }
 
     def dashboard_page(self):
