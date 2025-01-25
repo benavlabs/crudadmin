@@ -93,26 +93,28 @@
 </div>
 
 <div class="pagination">
-   <button class="pagination-button"
-           hx-get="/{{ mount_path }}/management/events/content"
-           hx-include="[name='event-type'],[name='status'],[name='start-date'],[name='end-date']"
-           hx-vals='js:{"page": "{{ page - 1 }}"}'
-           {% if page <= 1 %}disabled{% endif %}>
-       Previous
-   </button>
-   
-   <div class="pagination-info">
-       Page {{ page }} of {{ total_pages }}
-   </div>
-   
-   <button class="pagination-button"
-           hx-get="/{{ mount_path }}/management/events/content"
-           hx-include="[name='event-type'],[name='status'],[name='start-date'],[name='end-date']"
-           hx-vals='js:{"page": "{{ page + 1 }}"}'
-           {% if page >= total_pages %}disabled{% endif %}>
-       Next
-   </button>
-</div>
+    <button class="pagination-button"
+            hx-get="/{{ mount_path }}/management/events/content"
+            hx-target="#events-content"
+            hx-include="[name='event-type'],[name='status'],[name='start-date'],[name='end-date']"
+            hx-vals='js:{"page": "{{ page - 1 }}"}'
+            {% if page <= 1 %}disabled{% endif %}>
+        Previous
+    </button>
+    
+    <div class="pagination-info">
+        Page {{ page }} of {{ total_pages }}
+    </div>
+    
+    <button class="pagination-button"
+            hx-get="/{{ mount_path }}/management/events/content"
+            hx-target="#events-content" 
+            hx-include="[name='event-type'],[name='status'],[name='start-date'],[name='end-date']"
+            hx-vals='js:{"page": "{{ page + 1 }}"}'
+            {% if page >= total_pages %}disabled{% endif %}>
+        Next
+    </button>
+ </div>
 
 <style>
     .event-card {

@@ -23,7 +23,7 @@ from ..admin_interface.middleware.ip_restriction import IPRestrictionMiddleware
 from ..session import create_admin_session_model, SessionManager
 from ..admin_token.service import TokenService
 from ..admin_user.service import AdminUserService
-from ..core.db import DatabaseConfig
+from ..core.db import DatabaseConfig, AdminBase
 from ..admin_user.schemas import AdminUserCreate, AdminUserCreateInternal
 
 logger = logging.getLogger("crudadmin")
@@ -32,7 +32,6 @@ logger = logging.getLogger("crudadmin")
 class CRUDAdmin:
     def __init__(
         self,
-        base: DeclarativeBase,
         session: AsyncSession,
         SECRET_KEY: str,
         mount_path: str | None = "/admin",
@@ -63,9 +62,24 @@ class CRUDAdmin:
         - IP restriction and HTTPS enforcement
 
         Args:
-            base: SQLAlchemy declarative base class
+            SECRET_KEY: Required secret key for JWT token generation. Generate securely using one of:
+
+                # Python one-liner (recommended)
+                python -c "import secrets; print(secrets.token_urlsafe(32))"
+
+                # OpenSSL
+                openssl rand -base64 32
+
+                # /dev/urandom (Unix/Linux)
+                head -c 32 /dev/urandom | base64
+
+                The secret key must be:
+                - At least 32 bytes (256 bits) long
+                - Stored securely (e.g., in environment variables)
+                - Different for each environment
+                - Not committed to version control
+
             session: Async SQLAlchemy session
-            SECRET_KEY: Secret key for JWT token generation
             mount_path: URL path where admin interface is mounted
             theme: UI theme ('dark-theme' or 'light-theme')
             ALGORITHM: JWT encryption algorithm
@@ -116,7 +130,6 @@ class CRUDAdmin:
 
             # Create admin interface
             admin = CRUDAdmin(
-                base=Base,
                 session=session,
                 SECRET_KEY="your-secret-key",
                 initial_admin={
@@ -142,7 +155,6 @@ class CRUDAdmin:
                 status = Column(String)
 
             admin = CRUDAdmin(
-                base=Base,
                 session=session,
                 SECRET_KEY="your-secret-key",
                 track_events=True  # Enable audit logging
@@ -152,7 +164,6 @@ class CRUDAdmin:
             Advanced security configuration:
             ```python
             admin = CRUDAdmin(
-                base=Base,
                 session=session,
                 SECRET_KEY="your-secret-key",
                 mount_path="/admin",  # Custom mount path
@@ -189,15 +200,15 @@ class CRUDAdmin:
         event_log_model = None
         audit_log_model = None
         if self.track_events:
-            event_log_model = create_admin_event_log(base)
-            audit_log_model = create_admin_audit_log(base)
+            event_log_model = create_admin_event_log(AdminBase)
+            audit_log_model = create_admin_audit_log(AdminBase)
 
         self.db_config = db_config or DatabaseConfig(
-            base=base,
+            base=AdminBase,
             session=session,
             admin_db_url=admin_db_url,
             admin_db_path=admin_db_path,
-            admin_session=create_admin_session_model(base),
+            admin_session=create_admin_session_model(AdminBase),
             admin_event_log=event_log_model,
             admin_audit_log=audit_log_model,
         )

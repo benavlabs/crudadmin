@@ -18,6 +18,10 @@ def get_default_db_path() -> str:
     return os.path.join(data_dir, "admin.db")
 
 
+class AdminBase(DeclarativeBase):
+    pass
+
+
 class DatabaseConfig:
     def __init__(
         self,
