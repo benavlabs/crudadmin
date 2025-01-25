@@ -78,7 +78,6 @@ app = FastAPI()
 
 # Initialize admin interface
 admin = CRUDAdmin(
-    base=Base,
     session=session,
     SECRET_KEY="your-secret-key",
     initial_admin={
@@ -153,36 +152,38 @@ Available when `track_events=True`:
 
 ## Advanced Configuration
 
-### Security Settings
+### Configuration Parameters
 
 ```python
 admin = CRUDAdmin(
-    base=Base,
-    session=session,
-    SECRET_KEY="your-secret-key",
+    # Required parameters
+    session=session,                 # AsyncSession instance
+    SECRET_KEY="your-secret-key",    # Min 32 bytes, generate using:
+        # python -c "import secrets; print(secrets.token_urlsafe(32))"
+        # openssl rand -base64 32
+        # head -c 32 /dev/urandom | base64
+
+    # Security (all optional)
+    allowed_ips=["10.0.0.1", "10.0.0.2"],        # Restrict access to IPs
+    allowed_networks=["192.168.1.0/24"],         # Restrict access to networks
+    secure_cookies=True,                         # Enable secure cookie flags
+    enforce_https=True,                          # Force HTTPS connections
+    https_port=443,                              # HTTPS port if enforced
     
-    # Security
-    allowed_ips=["10.0.0.1", "10.0.0.2"],
-    allowed_networks=["192.168.1.0/24"],
-    secure_cookies=True,
-    enforce_https=True,
-    https_port=443,
+    # Authentication (all optional, shown with defaults)
+    ACCESS_TOKEN_EXPIRE_MINUTES=30,              # Minutes until access token expires
+    REFRESH_TOKEN_EXPIRE_DAYS=1,                 # Days until refresh token expires
+    ALGORITHM="HS256",                           # JWT signing algorithm
     
-    # Authentication
-    ACCESS_TOKEN_EXPIRE_MINUTES=15,
-    REFRESH_TOKEN_EXPIRE_DAYS=7,
-    ALGORITHM="HS256",
-    
-    # Database
+    # Admin Database (optional, pick one if custom location needed)
     admin_db_url="postgresql+asyncpg://user:pass@localhost/admin",
-    # OR
-    admin_db_path="/custom/path/admin.db",
+    admin_db_path="/custom/path/admin.db",        # SQLite path
     
-    # Features
-    track_events=True,
-    theme="dark-theme",  # or "light-theme"
-    mount_path="/admin",
-    setup_on_initialization=True,
+    # Features (all optional, shown with defaults)
+    track_events=False,                          # Enable event/audit logging
+    theme="dark-theme",                          # "dark-theme" or "light-theme"
+    mount_path="/admin",                         # URL path prefix
+    setup_on_initialization=True,                # Auto-initialize on startup
 )
 ```
 
