@@ -25,6 +25,7 @@ class AdminBase(DeclarativeBase):
 
 class _EmptySchema(BaseModel):
     """A placeholder schema for FastCRUD when no schema is needed."""
+
     pass
 
 
@@ -80,13 +81,17 @@ class DatabaseConfig:
             admin_db_url = f"sqlite+aiosqlite:///{admin_db_path}"
 
         self.admin_engine: AsyncEngine = create_async_engine(admin_db_url)
-        self.admin_session: AsyncSession = AsyncSession(self.admin_engine, expire_on_commit=False)
+        self.admin_session: AsyncSession = AsyncSession(
+            self.admin_engine, expire_on_commit=False
+        )
 
         async def get_admin_db() -> AsyncGenerator[AsyncSession, None]:
             yield self.admin_session
             await self.admin_session.commit()
 
-        self.get_admin_db: Callable[[], AsyncGenerator[AsyncSession, None]] = get_admin_db
+        self.get_admin_db: Callable[
+            [], AsyncGenerator[AsyncSession, None]
+        ] = get_admin_db
 
         if admin_user is None:
             from ..admin_user.models import create_admin_user
@@ -194,7 +199,9 @@ class DatabaseConfig:
         primary_key_columns = inspector.primary_key
         return primary_key_columns[0].name if primary_key_columns else None
 
-    def get_primary_key_info(self, model: Type[DeclarativeBase]) -> Optional[Dict[str, Any]]:
+    def get_primary_key_info(
+        self, model: Type[DeclarativeBase]
+    ) -> Optional[Dict[str, Any]]:
         """Get the primary key information of a SQLAlchemy model."""
         inspector = inspect(model)
         primary_key_columns = inspector.primary_key

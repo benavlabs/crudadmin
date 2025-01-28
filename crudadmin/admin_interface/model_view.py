@@ -176,9 +176,7 @@ class ModelView:
             db: AsyncSession = Depends(self.session),
             admin_db: AsyncSession = Depends(self.db_config.get_admin_db),
             current_user: dict = Depends(
-                cast(
-                    Any, self.admin_site
-                ).admin_authentication.get_current_user()
+                cast(Any, self.admin_site).admin_authentication.get_current_user()
             ),
             event_integration=Depends(lambda: self.event_integration),
         ) -> Response:
@@ -287,9 +285,7 @@ class ModelView:
             db: AsyncSession = Depends(self.session),
             admin_db: AsyncSession = Depends(self.db_config.get_admin_db),
             current_user: dict = Depends(
-                cast(
-                    Any, self.admin_site
-                ).admin_authentication.get_current_user()
+                cast(Any, self.admin_site).admin_authentication.get_current_user()
             ),
             event_integration=Depends(lambda: self.event_integration),
         ) -> Response:
@@ -572,9 +568,7 @@ class ModelView:
             db: AsyncSession = Depends(self.session),
             admin_db: AsyncSession = Depends(self.db_config.get_admin_db),
             current_user: dict = Depends(
-                cast(
-                    Any, self.admin_site
-                ).admin_authentication.get_current_user()
+                cast(Any, self.admin_site).admin_authentication.get_current_user()
             ),
             event_integration=Depends(lambda: self.event_integration),
             id: Optional[int] = None,

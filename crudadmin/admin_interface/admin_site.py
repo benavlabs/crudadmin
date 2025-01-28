@@ -258,7 +258,9 @@ class AdminSite:
                 await self.token_service.blacklist_token(token, db)
 
             if session_id:
-                await self.session_manager.terminate_session(db=db, session_id=session_id)
+                await self.session_manager.terminate_session(
+                    db=db, session_id=session_id
+                )
 
             response = RedirectResponse(
                 url=f"/{self.mount_path}/login", status_code=303
@@ -408,7 +410,9 @@ class AdminSite:
 
             table_columns = []
             if hasattr(sqlalchemy_model, "__table__"):
-                table_columns = [column.key for column in sqlalchemy_model.__table__.columns]
+                table_columns = [
+                    column.key for column in sqlalchemy_model.__table__.columns
+                ]
 
             page_str = request.query_params.get("page", "1")
             limit_str = request.query_params.get("rows-per-page-select", "10")
@@ -435,10 +439,18 @@ class AdminSite:
                     data = items["data"]
                     for item in data:
                         if not isinstance(item, dict):
-                            item = {k: v for k, v in vars(item).items() if not k.startswith("_")}
-                        if "device_info" in item and isinstance(item["device_info"], dict):
+                            item = {
+                                k: v
+                                for k, v in vars(item).items()
+                                if not k.startswith("_")
+                            }
+                        if "device_info" in item and isinstance(
+                            item["device_info"], dict
+                        ):
                             item["device_info"] = str(item["device_info"])
-                        if "session_metadata" in item and isinstance(item["session_metadata"], dict):
+                        if "session_metadata" in item and isinstance(
+                            item["session_metadata"], dict
+                        ):
                             item["session_metadata"] = str(item["session_metadata"])
                         formatted_items.append(item)
                     items["data"] = formatted_items
