@@ -1,8 +1,9 @@
 import os
 import logging
-from typing import Type, Optional, AsyncGenerator, Any, Dict
+from typing import Type, Optional, AsyncGenerator, Any, Dict, Callable
 
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, AsyncEngine
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy import inspect
 from fastcrud import FastCRUD
@@ -22,10 +23,15 @@ class AdminBase(DeclarativeBase):
     pass
 
 
+class _EmptySchema(BaseModel):
+    """A placeholder schema for FastCRUD when no schema is needed."""
+    pass
+
+
 class DatabaseConfig:
     def __init__(
         self,
-        base: DeclarativeBase,
+        base: Type[DeclarativeBase],
         session: AsyncSession,
         admin_db_url: Optional[str] = None,
         admin_db_path: Optional[str] = None,
@@ -34,100 +40,128 @@ class DatabaseConfig:
         admin_session: Optional[Type[DeclarativeBase]] = None,
         admin_event_log: Optional[Type[DeclarativeBase]] = None,
         admin_audit_log: Optional[Type[DeclarativeBase]] = None,
-        crud_admin_user: Optional[FastCRUD] = None,
-        crud_admin_token_blacklist: Optional[FastCRUD] = None,
-        crud_admin_session: Optional[FastCRUD] = None,
+        crud_admin_user: Optional[
+            FastCRUD[
+                Type[DeclarativeBase],
+                BaseModel,
+                BaseModel,
+                BaseModel,
+                _EmptySchema,
+                BaseModel,
+            ]
+        ] = None,
+        crud_admin_token_blacklist: Optional[
+            FastCRUD[
+                Type[DeclarativeBase],
+                BaseModel,
+                BaseModel,
+                BaseModel,
+                _EmptySchema,
+                BaseModel,
+            ]
+        ] = None,
+        crud_admin_session: Optional[
+            FastCRUD[
+                Type[DeclarativeBase],
+                BaseModel,
+                BaseModel,
+                BaseModel,
+                _EmptySchema,
+                _EmptySchema,
+            ]
+        ] = None,
     ) -> None:
-        self.base = base
-        self.session = session
+        self.base: Type[DeclarativeBase] = base
+        self.session: AsyncSession = session
 
         if admin_db_url is None:
             if admin_db_path is None:
                 admin_db_path = get_default_db_path()
             admin_db_url = f"sqlite+aiosqlite:///{admin_db_path}"
 
-        self.admin_engine = create_async_engine(admin_db_url)
-        self.admin_session = AsyncSession(self.admin_engine, expire_on_commit=False)
+        self.admin_engine: AsyncEngine = create_async_engine(admin_db_url)
+        self.admin_session: AsyncSession = AsyncSession(self.admin_engine, expire_on_commit=False)
 
         async def get_admin_db() -> AsyncGenerator[AsyncSession, None]:
             yield self.admin_session
             await self.admin_session.commit()
 
-        self.get_admin_db = get_admin_db
+        self.get_admin_db: Callable[[], AsyncGenerator[AsyncSession, None]] = get_admin_db
 
         if admin_user is None:
             from ..admin_user.models import create_admin_user
 
             admin_user = create_admin_user(base)
-        self.AdminUser = admin_user
+        self.AdminUser: Type[DeclarativeBase] = admin_user
 
         if admin_token_blacklist is None:
             from ..admin_token.models import create_admin_token_blacklist
 
             admin_token_blacklist = create_admin_token_blacklist(base)
-        self.AdminTokenBlacklist = admin_token_blacklist
+        self.AdminTokenBlacklist: Type[DeclarativeBase] = admin_token_blacklist
 
         if admin_session is None:
             from ..session import create_admin_session_model
 
             admin_session = create_admin_session_model(base)
-        self.AdminSession = admin_session
+        self.AdminSession: Type[DeclarativeBase] = admin_session
 
-        self.AdminEventLog = admin_event_log
-        self.AdminAuditLog = admin_audit_log
+        self.AdminEventLog: Optional[Type[DeclarativeBase]] = admin_event_log
+        self.AdminAuditLog: Optional[Type[DeclarativeBase]] = admin_audit_log
 
         if crud_admin_user is None:
             from ..admin_user.schemas import (
                 AdminUserCreate,
                 AdminUserUpdate,
                 AdminUserUpdateInternal,
-                AdminUser,
+                AdminUserRead,
             )
 
             CRUDUser = FastCRUD[
-                admin_user,
+                Type[DeclarativeBase],
                 AdminUserCreate,
                 AdminUserUpdate,
                 AdminUserUpdateInternal,
-                None,
-                AdminUser,
+                _EmptySchema,
+                AdminUserRead,
             ]
             crud_admin_user = CRUDUser(admin_user)
-        self.crud_users = crud_admin_user
+        self.crud_users: FastCRUD = crud_admin_user
 
         if crud_admin_token_blacklist is None:
             from ..admin_token.schemas import (
                 AdminTokenBlacklistCreate,
                 AdminTokenBlacklistUpdate,
                 AdminTokenBlacklistBase,
+                AdminTokenBlacklistBase,
             )
 
             CRUDAdminTokenBlacklist = FastCRUD[
-                admin_token_blacklist,
+                Type[DeclarativeBase],
                 AdminTokenBlacklistCreate,
                 AdminTokenBlacklistUpdate,
                 AdminTokenBlacklistUpdate,
-                None,
+                _EmptySchema,
                 AdminTokenBlacklistBase,
             ]
             crud_admin_token_blacklist = CRUDAdminTokenBlacklist(admin_token_blacklist)
-        self.crud_token_blacklist = crud_admin_token_blacklist
+        self.crud_token_blacklist: FastCRUD = crud_admin_token_blacklist
 
         if crud_admin_session is None:
             from ..session import AdminSessionCreate, AdminSessionUpdate
 
             CRUDSession = FastCRUD[
-                admin_session,
+                Type[DeclarativeBase],
                 AdminSessionCreate,
                 AdminSessionUpdate,
                 AdminSessionUpdate,
-                None,
-                None,
+                _EmptySchema,
+                _EmptySchema,
             ]
             crud_admin_session = CRUDSession(admin_session)
-        self.crud_sessions = crud_admin_session
+        self.crud_sessions: FastCRUD = crud_admin_session
 
-    async def initialize_admin_db(self):
+    async def initialize_admin_db(self) -> None:
         """Initialize the admin database with required tables."""
         logger.info("Initializing admin database tables...")
         try:
@@ -138,12 +172,8 @@ class DatabaseConfig:
                     self.AdminSession,
                 ]:
                     logger.info(f"Creating table: {table.__tablename__}")
-                    await conn.run_sync(
-                        lambda metadata: table.__table__.create(
-                            metadata.bind, checkfirst=True
-                        )
-                    )
-                logger.info("Admin database tables created successfully")
+                    await conn.run_sync(table.__table__.create, checkfirst=True)
+            logger.info("Admin database tables created successfully")
         except Exception as e:
             logger.error(
                 f"Error creating admin database tables: {str(e)}", exc_info=True
@@ -152,19 +182,19 @@ class DatabaseConfig:
 
     def get_admin_session(self) -> AsyncSession:
         """Get a session for the admin database."""
-        return self.admin_session()
+        return self.admin_session
 
     def get_app_session(self) -> AsyncSession:
         """Get a session for the main application database."""
-        return self.session()
+        return self.session
 
-    def get_primary_key(self, model: DeclarativeBase) -> str:
+    def get_primary_key(self, model: Type[DeclarativeBase]) -> Optional[str]:
         """Get the primary key of a SQLAlchemy model."""
         inspector = inspect(model)
         primary_key_columns = inspector.primary_key
         return primary_key_columns[0].name if primary_key_columns else None
 
-    def get_primary_key_info(self, model: DeclarativeBase) -> Dict[str, Any]:
+    def get_primary_key_info(self, model: Type[DeclarativeBase]) -> Optional[Dict[str, Any]]:
         """Get the primary key information of a SQLAlchemy model."""
         inspector = inspect(model)
         primary_key_columns = inspector.primary_key

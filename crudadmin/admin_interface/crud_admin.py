@@ -1,6 +1,18 @@
 import logging
 import os
-from typing import Type, Dict, Any, Union, Optional, List, Callable, Awaitable
+from typing import (
+    TypeVar,
+    Type,
+    Dict,
+    Any,
+    Union,
+    Optional,
+    List,
+    Callable,
+    Awaitable,
+    cast,
+    TypedDict,
+)
 from datetime import datetime, timezone, timedelta
 import time
 
@@ -8,15 +20,16 @@ from fastapi import APIRouter, FastAPI, Depends, Request
 from fastapi.templating import Jinja2Templates
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.staticfiles import StaticFiles
-from starlette.templating import _TemplateResponse
 from fastcrud import FastCRUD
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
+from typing_extensions import TypeAlias
 
 from .model_view import ModelView
 from .admin_site import AdminSite
+from .typing import RouteResponse
 from ..admin_interface.auth import AdminAuthentication
 from ..admin_interface.middleware.auth import AdminAuthMiddleware
 from ..admin_interface.middleware.ip_restriction import IPRestrictionMiddleware
@@ -28,20 +41,77 @@ from ..admin_user.schemas import AdminUserCreate, AdminUserCreateInternal
 
 logger = logging.getLogger("crudadmin")
 
+ModelType = TypeVar("ModelType", bound=DeclarativeBase)
+SchemaType = TypeVar("SchemaType", bound=BaseModel)
+EndpointFunction: TypeAlias = Callable[
+    [Request, AsyncSession], Awaitable[RouteResponse]
+]
+
+
+class ModelConfig(TypedDict):
+    model: Type[DeclarativeBase]
+    create_schema: Type[BaseModel]
+    update_schema: Type[BaseModel]
+    update_internal_schema: Optional[Type[BaseModel]]
+    delete_schema: Optional[Type[BaseModel]]
+    crud: FastCRUD
+
+
+class AdminModelProtocol:
+    """
+    Protocol-like class to indicate an Admin model.
+    (For simpler mypy compatibility, we avoid `Protocol` here and
+    ensure it fits `DeclarativeBase`.)
+    """
+
+    __tablename__: str
+    metadata: Any
+
 
 class CRUDAdmin:
+    """
+    FastAPI-based admin interface for managing database models and authentication.
+
+    This class provides a complete admin interface with features like:
+    - Model CRUD operations with automatic form generation
+    - User authentication and session management
+    - Event logging and audit trails
+    - Health monitoring
+    - IP restriction and HTTPS enforcement
+
+    Args:
+        SECRET_KEY: Required secret key for JWT token generation.
+        session: Async SQLAlchemy session
+        mount_path: URL path where admin interface is mounted
+        theme: UI theme ('dark-theme' or 'light-theme')
+        ALGORITHM: JWT encryption algorithm
+        ACCESS_TOKEN_EXPIRE_MINUTES: Access token expiry in minutes
+        REFRESH_TOKEN_EXPIRE_DAYS: Refresh token expiry in days
+        admin_db_url: SQLite database URL for admin data
+        admin_db_path: File path for SQLite admin database
+        db_config: Optional pre-configured DatabaseConfig
+        setup_on_initialization: Whether to run setup on init
+        initial_admin: Initial admin user credentials
+        allowed_ips: List of allowed IP addresses
+        allowed_networks: List of allowed IP networks
+        secure_cookies: Enable secure cookie flag
+        enforce_https: Redirect HTTP to HTTPS
+        https_port: HTTPS port for redirects
+        track_events: Enable event logging
+    """
+
     def __init__(
         self,
         session: AsyncSession,
         SECRET_KEY: str,
-        mount_path: str | None = "/admin",
-        theme: str | None = "dark-theme",
-        ALGORITHM: str | None = "HS256",
+        mount_path: Optional[str] = "/admin",
+        theme: Optional[str] = "dark-theme",
+        ALGORITHM: Optional[str] = "HS256",
         ACCESS_TOKEN_EXPIRE_MINUTES: int = 30,
         REFRESH_TOKEN_EXPIRE_DAYS: int = 1,
-        admin_db_url: str | None = None,
-        admin_db_path: str | None = None,
-        db_config: DatabaseConfig | None = None,
+        admin_db_url: Optional[str] = None,
+        admin_db_path: Optional[str] = None,
+        db_config: Optional[DatabaseConfig] = None,
         setup_on_initialization: bool = True,
         initial_admin: Optional[Union[dict, BaseModel]] = None,
         allowed_ips: Optional[List[str]] = None,
@@ -51,133 +121,8 @@ class CRUDAdmin:
         https_port: int = 443,
         track_events: bool = False,
     ) -> None:
-        """
-        FastAPI-based admin interface for managing database models and authentication.
-
-        This class provides a complete admin interface with features like:
-        - Model CRUD operations with automatic form generation
-        - User authentication and session management
-        - Event logging and audit trails
-        - Health monitoring
-        - IP restriction and HTTPS enforcement
-
-        Args:
-            SECRET_KEY: Required secret key for JWT token generation. Generate securely using one of:
-
-                # Python one-liner (recommended)
-                python -c "import secrets; print(secrets.token_urlsafe(32))"
-
-                # OpenSSL
-                openssl rand -base64 32
-
-                # /dev/urandom (Unix/Linux)
-                head -c 32 /dev/urandom | base64
-
-                The secret key must be:
-                - At least 32 bytes (256 bits) long
-                - Stored securely (e.g., in environment variables)
-                - Different for each environment
-                - Not committed to version control
-
-            session: Async SQLAlchemy session
-            mount_path: URL path where admin interface is mounted
-            theme: UI theme ('dark-theme' or 'light-theme')
-            ALGORITHM: JWT encryption algorithm
-            ACCESS_TOKEN_EXPIRE_MINUTES: Access token expiry in minutes
-            REFRESH_TOKEN_EXPIRE_DAYS: Refresh token expiry in days
-            admin_db_url: SQLite database URL for admin data
-            admin_db_path: File path for SQLite admin database
-            db_config: Optional pre-configured DatabaseConfig
-            setup_on_initialization: Whether to run setup on init
-            initial_admin: Initial admin user credentials
-            allowed_ips: List of allowed IP addresses
-            allowed_networks: List of allowed IP networks
-            secure_cookies: Enable secure cookie flag
-            enforce_https: Redirect HTTP to HTTPS
-            https_port: HTTPS port for redirects
-            track_events: Enable event logging
-
-        Raises:
-            ValueError: If mount_path is invalid or theme is unsupported
-            ImportError: If required dependencies are missing
-            RuntimeError: If database connection fails
-
-        Notes:
-            - Models added via add_view() automatically get CRUD endpoints
-            - Event tracking requires additional database tables
-            - Initial admin user is created only if no admin exists
-
-        Examples:
-            Basic setup with user model:
-            ```python
-            from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-            from sqlalchemy.orm import declarative_base
-            from sqlalchemy import Column, Integer, String
-
-            # Define models
-            Base = declarative_base()
-
-            class User(Base):
-                __tablename__ = "users"
-                id = Column(Integer, primary_key=True)
-                username = Column(String, unique=True)
-                email = Column(String)
-                role = Column(String)
-
-            # Setup database
-            engine = create_async_engine("sqlite+aiosqlite:///app.db")
-            session = AsyncSession(engine)
-
-            # Create admin interface
-            admin = CRUDAdmin(
-                session=session,
-                SECRET_KEY="your-secret-key",
-                initial_admin={
-                    "username": "admin",
-                    "password": "secure_pass123"
-                }
-            )
-            ```
-
-            Setup with multiple models and event tracking:
-            ```python
-            class Product(Base):
-                __tablename__ = "products"
-                id = Column(Integer, primary_key=True)
-                name = Column(String)
-                price = Column(Float)
-
-            class Order(Base):
-                __tablename__ = "orders"
-                id = Column(Integer, primary_key=True)
-                user_id = Column(Integer, ForeignKey("users.id"))
-                total = Column(Float)
-                status = Column(String)
-
-            admin = CRUDAdmin(
-                session=session,
-                SECRET_KEY="your-secret-key",
-                track_events=True  # Enable audit logging
-            )
-            ```
-
-            Advanced security configuration:
-            ```python
-            admin = CRUDAdmin(
-                session=session,
-                SECRET_KEY="your-secret-key",
-                mount_path="/admin",  # Custom mount path
-                allowed_ips=["10.0.0.1", "10.0.0.2"],
-                allowed_networks=["192.168.1.0/24"],
-                secure_cookies=True,
-                enforce_https=True,
-                ACCESS_TOKEN_EXPIRE_MINUTES=15,  # Short token lifetime
-                track_events=True
-            )
-            ```
-        """
-        self.mount_path = mount_path.strip("/")
-        self.theme = theme
+        self.mount_path = mount_path.strip("/") if mount_path else "admin"
+        self.theme = theme or "dark-theme"
         self.track_events = track_events
 
         self.templates_directory = os.path.join(
@@ -197,11 +142,16 @@ class CRUDAdmin:
 
         from ..event import create_admin_event_log, create_admin_audit_log
 
-        event_log_model = None
-        audit_log_model = None
+        event_log_model: Optional[Type[DeclarativeBase]] = None
+        audit_log_model: Optional[Type[DeclarativeBase]] = None
+
         if self.track_events:
-            event_log_model = create_admin_event_log(AdminBase)
-            audit_log_model = create_admin_audit_log(AdminBase)
+            event_log_model = cast(
+                Type[DeclarativeBase], create_admin_event_log(AdminBase)
+            )
+            audit_log_model = cast(
+                Type[DeclarativeBase], create_admin_audit_log(AdminBase)
+            )
 
         self.db_config = db_config or DatabaseConfig(
             base=AdminBase,
@@ -224,25 +174,23 @@ class CRUDAdmin:
             self.event_integration = None
 
         self.SECRET_KEY = SECRET_KEY
-        self.ALGORITHM = ALGORITHM
+        self.ALGORITHM = ALGORITHM or "HS256"
         self.ACCESS_TOKEN_EXPIRE_MINUTES = ACCESS_TOKEN_EXPIRE_MINUTES
         self.REFRESH_TOKEN_EXPIRE_DAYS = REFRESH_TOKEN_EXPIRE_DAYS
 
         self.token_service = TokenService(
             db_config=self.db_config,
             SECRET_KEY=SECRET_KEY,
-            ALGORITHM=ALGORITHM,
+            ALGORITHM=self.ALGORITHM,
             ACCESS_TOKEN_EXPIRE_MINUTES=ACCESS_TOKEN_EXPIRE_MINUTES,
             REFRESH_TOKEN_EXPIRE_DAYS=REFRESH_TOKEN_EXPIRE_DAYS,
         )
 
         self.admin_user_service = AdminUserService(db_config=self.db_config)
-
         self.initial_admin = initial_admin
-
-        self.models: Dict[str, Dict[str, Any]] = {}
+        self.models: Dict[str, ModelConfig] = {}
         self.router = APIRouter(tags=["admin"])
-        self.oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"/{mount_path}/login")
+        self.oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"/{self.mount_path}/login")
         self.secure_cookies = secure_cookies
 
         self.session_manager = SessionManager(
@@ -274,15 +222,17 @@ class CRUDAdmin:
     async def initialize(self) -> None:
         """
         Initialize admin database tables and create initial admin user.
-
-        Creates required tables:
-        - AdminUser for user management
-        - AdminTokenBlacklist for revoked tokens
-        - AdminSession for session tracking
-        - AdminEventLog and AdminAuditLog if event tracking enabled
-
-        Also creates initial admin user if credentials were provided.
         """
+        if hasattr(self.db_config, "AdminEventLog") and self.db_config.AdminEventLog:
+            assert hasattr(
+                self.db_config.AdminEventLog, "metadata"
+            ), "AdminEventLog must have metadata"
+
+        if hasattr(self.db_config, "AdminAuditLog") and self.db_config.AdminAuditLog:
+            assert hasattr(
+                self.db_config.AdminAuditLog, "metadata"
+            ), "AdminAuditLog must have metadata"
+
         async with self.db_config.admin_engine.begin() as conn:
             await conn.run_sync(self.db_config.AdminUser.metadata.create_all)
             await conn.run_sync(self.db_config.AdminTokenBlacklist.metadata.create_all)
@@ -290,22 +240,15 @@ class CRUDAdmin:
 
             if (
                 self.track_events
-                and hasattr(self.db_config, "AdminEventLog")
-                and hasattr(self.db_config, "AdminAuditLog")
+                and self.db_config.AdminEventLog
+                and self.db_config.AdminAuditLog
             ):
                 await conn.run_sync(self.db_config.AdminEventLog.metadata.create_all)
                 await conn.run_sync(self.db_config.AdminAuditLog.metadata.create_all)
 
-        if self.initial_admin:
-            await self._create_initial_admin(self.initial_admin)
-
     def setup_event_routes(self) -> None:
         """
         Set up routes for event log management.
-
-        Creates endpoints:
-        - GET /management/events - Event log page
-        - GET /management/events/content - Event log data
         """
         if self.track_events:
             self.router.add_api_route(
@@ -314,6 +257,7 @@ class CRUDAdmin:
                 methods=["GET"],
                 include_in_schema=False,
                 dependencies=[Depends(self.admin_authentication.get_current_user())],
+                response_model=None,
             )
             self.router.add_api_route(
                 "/management/events/content",
@@ -321,19 +265,21 @@ class CRUDAdmin:
                 methods=["GET"],
                 include_in_schema=False,
                 dependencies=[Depends(self.admin_authentication.get_current_user())],
+                response_model=None,
             )
 
-    def event_log_page(self) -> Callable:
+    def event_log_page(
+        self,
+    ) -> Callable[[Request, AsyncSession], Awaitable[RouteResponse]]:
         """
         Create endpoint for event log main page.
-
-        Returns FastAPI route handler that renders event log template
-        with filtering options.
         """
 
+        db_dependency = cast(Callable[..., AsyncSession], self.db_config.get_admin_db)
+
         async def event_log_page_inner(
-            request: Request, db: AsyncSession = Depends(self.db_config.get_admin_db)
-        ) -> _TemplateResponse:
+            request: Request, db: AsyncSession = Depends(db_dependency)
+        ) -> RouteResponse:
             from ..event import EventType, EventStatus
 
             users = await self.db_config.crud_users.get_multi(db=db)
@@ -356,30 +302,32 @@ class CRUDAdmin:
 
         return event_log_page_inner
 
-    def event_log_content(self) -> Callable:
+    def event_log_content(self) -> EndpointFunction:
         """
         Create endpoint for event log data with filtering and pagination.
-
-        Returns FastAPI route handler that provides filtered event data
-        with user and audit details.
         """
+
+        db_dependency = cast(Callable[..., AsyncSession], self.db_config.get_admin_db)
 
         async def event_log_content_inner(
             request: Request,
-            db: AsyncSession = Depends(self.db_config.get_admin_db),
+            db: AsyncSession = Depends(db_dependency),
             page: int = 1,
             limit: int = 10,
-        ) -> _TemplateResponse:
+        ) -> RouteResponse:
             try:
-                crud_events = FastCRUD(self.db_config.AdminEventLog)
+                if not self.db_config.AdminEventLog:
+                    raise ValueError("AdminEventLog is not configured")
 
-                event_type = request.query_params.get("event_type")
-                status = request.query_params.get("status")
-                username = request.query_params.get("username")
-                start_date = request.query_params.get("start_date")
-                end_date = request.query_params.get("end_date")
+                crud_events: FastCRUD = FastCRUD(self.db_config.AdminEventLog)
 
-                filter_criteria = {}
+                event_type = cast(Optional[str], request.query_params.get("event_type"))
+                status = cast(Optional[str], request.query_params.get("status"))
+                username = cast(Optional[str], request.query_params.get("username"))
+                start_date = cast(Optional[str], request.query_params.get("start_date"))
+                end_date = cast(Optional[str], request.query_params.get("end_date"))
+
+                filter_criteria: Dict[str, Any] = {}
                 if event_type:
                     filter_criteria["event_type"] = event_type
                 if status:
@@ -387,8 +335,8 @@ class CRUDAdmin:
 
                 if username:
                     user = await self.db_config.crud_users.get(db=db, username=username)
-                    if user:
-                        filter_criteria["user_id"] = user["id"]
+                    if user and isinstance(user, dict):
+                        filter_criteria["user_id"] = user.get("id")
 
                 if start_date:
                     start = datetime.strptime(start_date, "%Y-%m-%d").replace(
@@ -412,31 +360,39 @@ class CRUDAdmin:
                 )
 
                 enriched_events = []
-                for event in events["data"]:
-                    event_data = dict(event)
+                if isinstance(events["data"], list):
+                    for event in events["data"]:
+                        if isinstance(event, dict):
+                            event_data = dict(event)
+                            user = await self.db_config.crud_users.get(
+                                db=db, id=event.get("user_id")
+                            )
+                            if isinstance(user, dict):
+                                event_data["username"] = user.get("username", "Unknown")
 
-                    user = await self.db_config.crud_users.get(
-                        db=db, id=event["user_id"]
-                    )
-                    event_data["username"] = user["username"] if user else "Unknown"
+                            if event.get("resource_type") and event.get("resource_id"):
+                                if not self.db_config.AdminAuditLog:
+                                    raise ValueError("AdminAuditLog is not configured")
 
-                    if event["resource_type"] and event["resource_id"]:
-                        crud_audits = FastCRUD(self.db_config.AdminAuditLog)
-                        audit = await crud_audits.get(db=db, event_id=event["id"])
-                        if audit:
-                            event_data["details"] = {
-                                "resource_details": {
-                                    "model": event["resource_type"],
-                                    "id": event["resource_id"],
-                                    "changes": audit["new_state"]
-                                    if audit["new_state"]
-                                    else None,
-                                }
-                            }
+                                crud_audits: FastCRUD = FastCRUD(
+                                    self.db_config.AdminAuditLog
+                                )
+                                audit = await crud_audits.get(
+                                    db=db, event_id=event.get("id")
+                                )
+                                if audit and isinstance(audit, dict):
+                                    event_data["details"] = {
+                                        "resource_details": {
+                                            "model": event.get("resource_type"),
+                                            "id": event.get("resource_id"),
+                                            "changes": audit.get("new_state"),
+                                        }
+                                    }
 
-                    enriched_events.append(event_data)
+                            enriched_events.append(event_data)
 
-                total_pages = max(1, (events["total_count"] + limit - 1) // limit)
+                total_items: int = events.get("total_count", 0)
+                total_pages = max(1, (total_items + limit - 1) // limit)
 
                 return self.templates.TemplateResponse(
                     "admin/management/events_content.html",
@@ -474,12 +430,6 @@ class CRUDAdmin:
     ) -> None:
         """
         Set up admin interface routes and views.
-
-        Configures:
-        - Authentication routes and middleware
-        - Model CRUD views
-        - Management views (health check, events)
-        - Static files
         """
         self.admin_authentication = AdminAuthentication(
             database_config=self.db_config,
@@ -509,22 +459,35 @@ class CRUDAdmin:
                 "AdminTokenBlacklist": {"view"},
             }.get(model_name, {"view"})
 
+            model = cast(Type[DeclarativeBase], data["model"])
+            create_schema = cast(Type[BaseModel], data["create_schema"])
+            update_schema = cast(Type[BaseModel], data["update_schema"])
+            update_internal_schema = cast(
+                Optional[Type[BaseModel]], data["update_internal_schema"]
+            )
+            delete_schema = cast(Optional[Type[BaseModel]], data["delete_schema"])
+
             self.add_view(
-                model=data["model"],
-                create_schema=data["create_schema"],
-                update_schema=data["update_schema"],
-                update_internal_schema=data["update_internal_schema"],
-                delete_schema=data["delete_schema"],
+                model=model,
+                create_schema=create_schema,
+                update_schema=update_schema,
+                update_internal_schema=update_internal_schema,
+                delete_schema=delete_schema,
                 include_in_models=False,
                 allowed_actions=allowed_actions,
             )
+
+        db_dependency = cast(
+            Callable[..., AsyncSession], self.admin_authentication.get_current_user
+        )
 
         self.router.add_api_route(
             "/management/health",
             self.health_check_page(),
             methods=["GET"],
             include_in_schema=False,
-            dependencies=[Depends(self.admin_authentication.get_current_user())],
+            dependencies=[Depends(db_dependency)],
+            response_model=None,
         )
 
         self.router.add_api_route(
@@ -532,7 +495,8 @@ class CRUDAdmin:
             self.health_check_content(),
             methods=["GET"],
             include_in_schema=False,
-            dependencies=[Depends(self.admin_authentication.get_current_user())],
+            dependencies=[Depends(db_dependency)],
+            response_model=None,
         )
 
         if self.track_events:
@@ -541,14 +505,16 @@ class CRUDAdmin:
                 self.event_log_page(),
                 methods=["GET"],
                 include_in_schema=False,
-                dependencies=[Depends(self.admin_authentication.get_current_user())],
+                dependencies=[Depends(db_dependency)],
+                response_model=None,
             )
             self.router.add_api_route(
                 "/management/events/content",
                 self.event_log_content(),
                 methods=["GET"],
                 include_in_schema=False,
-                dependencies=[Depends(self.admin_authentication.get_current_user())],
+                dependencies=[Depends(db_dependency)],
+                response_model=None,
             )
 
         self.router.include_router(router=self.admin_site.router)
@@ -556,101 +522,15 @@ class CRUDAdmin:
     def add_view(
         self,
         model: Type[DeclarativeBase],
-        create_schema: Type[Any],
-        update_schema: Type[Any],
-        update_internal_schema: Type[Any],
-        delete_schema: Type[Any],
+        create_schema: Type[BaseModel],
+        update_schema: Type[BaseModel],
+        update_internal_schema: Optional[Type[BaseModel]],
+        delete_schema: Optional[Type[BaseModel]],
         include_in_models: bool = True,
         allowed_actions: Optional[set[str]] = None,
     ) -> None:
         """
         Add CRUD view for a database model.
-
-        Args:
-            model: SQLAlchemy model class
-            create_schema: Pydantic schema for create operations
-            update_schema: Pydantic schema for update operations
-            update_internal_schema: Internal update schema
-            delete_schema: Schema for delete operations
-            include_in_models: Add to models list
-            allowed_actions: Set of allowed operations
-
-        Raises:
-            ValueError: If schema doesn't match model structure
-            TypeError: If model is not a SQLAlchemy model
-
-        Notes:
-            - Available actions: view, create, update, delete
-            - Schemas must match model field names
-            - Relations are supported via foreign keys
-
-        Examples:
-            Basic user management:
-            ```python
-            from pydantic import BaseModel, EmailStr
-
-            class UserCreate(BaseModel):
-                username: str
-                email: EmailStr
-                role: str = "user"
-
-            class UserUpdate(BaseModel):
-                email: EmailStr | None = None
-                role: str | None = None
-
-            admin.add_view(
-                model=User,
-                create_schema=UserCreate,
-                update_schema=UserUpdate,
-                update_internal_schema=None,
-                delete_schema=None,
-                allowed_actions={"view", "create", "update"}
-            )
-            ```
-
-            Product catalog with restricted actions:
-            ```python
-            class ProductCreate(BaseModel):
-                name: str
-                price: float
-                description: str | None = None
-
-            class ProductUpdate(BaseModel):
-                price: float | None = None
-                description: str | None = None
-
-            admin.add_view(
-                model=Product,
-                create_schema=ProductCreate,
-                update_schema=ProductUpdate,
-                update_internal_schema=None,
-                delete_schema=None,
-                allowed_actions={"view", "update"}  # Read-only + updates
-            )
-            ```
-
-            Order management with delete capability:
-            ```python
-            class OrderCreate(BaseModel):
-                user_id: int
-                total: float
-                status: str = "pending"
-
-            class OrderUpdate(BaseModel):
-                status: str
-
-            class OrderDelete(BaseModel):
-                archive: bool = False
-
-            admin.add_view(
-                model=Order,
-                create_schema=OrderCreate,
-                update_schema=OrderUpdate,
-                update_internal_schema=None,
-                delete_schema=OrderDelete,
-                allowed_actions={"view", "create", "update", "delete"}
-            )
-            ```
         """
         model_key = model.__name__
         if include_in_models:
@@ -681,31 +561,28 @@ class CRUDAdmin:
         if self.track_events and self.event_integration:
             admin_view.event_integration = self.event_integration
 
-        router_info = {
-            "router": admin_view.router,
-            "prefix": f"/{model_key}",
-            "include_in_schema": False,
-        }
-
-        self.app.router.include_router(
-            dependencies=[
-                Depends(self.admin_site.admin_authentication.get_current_user)
-            ],
-            **router_info,
+        current_user_dep = cast(
+            Callable[..., Any], self.admin_site.admin_authentication.get_current_user
+        )
+        self.app.include_router(
+            admin_view.router,
+            prefix=f"/{model_key}",
+            dependencies=[Depends(current_user_dep)],
+            include_in_schema=False,
         )
 
     def health_check_page(
         self,
-    ) -> Callable[[Request, AsyncSession], Awaitable[_TemplateResponse]]:
+    ) -> Callable[[Request, AsyncSession], Awaitable[RouteResponse]]:
         """
         Create endpoint for system health check page.
-
-        Returns FastAPI route handler that renders health check template.
         """
 
+        db_dependency = cast(Callable[..., AsyncSession], self.db_config.session)
+
         async def health_check_page_inner(
-            request: Request, db: AsyncSession = Depends(self.db_config.session)
-        ) -> _TemplateResponse:
+            request: Request, db: AsyncSession = Depends(db_dependency)
+        ) -> RouteResponse:
             context = await self.admin_site.get_base_context(db)
             context.update({"request": request, "include_sidebar_and_header": True})
 
@@ -717,19 +594,16 @@ class CRUDAdmin:
 
     def health_check_content(
         self,
-    ) -> Callable[[Request, AsyncSession], Awaitable[_TemplateResponse]]:
+    ) -> Callable[[Request, AsyncSession], Awaitable[RouteResponse]]:
         """
         Create endpoint for health check data.
-
-        Returns FastAPI route handler that checks:
-        - Database connectivity
-        - Session management
-        - Token service
         """
 
+        db_dependency = cast(Callable[..., AsyncSession], self.db_config.session)
+
         async def health_check_content_inner(
-            request: Request, db: AsyncSession = Depends(self.db_config.session)
-        ) -> _TemplateResponse:
+            request: Request, db: AsyncSession = Depends(db_dependency)
+        ) -> RouteResponse:
             health_checks = {}
 
             start_time = time.time()
@@ -783,14 +657,9 @@ class CRUDAdmin:
 
         return health_check_content_inner
 
-    async def _create_initial_admin(
-        self, admin_data: Union[dict, BaseModel]
-    ) -> Awaitable[None]:
+    async def _create_initial_admin(self, admin_data: Union[dict, BaseModel]) -> None:
         """
         Create initial admin user if none exists.
-
-        Args:
-            admin_data: Admin credentials as dict or Pydantic model
         """
         async for admin_session in self.db_config.get_admin_db():
             try:
@@ -820,7 +689,7 @@ class CRUDAdmin:
                     )
 
                     await self.db_config.crud_users.create(
-                        admin_session, object=internal_data
+                        admin_session, object=cast(Any, internal_data)
                     )
                     await admin_session.commit()
                     logger.info(

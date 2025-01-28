@@ -1,5 +1,5 @@
 from datetime import datetime, timezone, timedelta
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 import logging
 from uuid import uuid4
 
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class SessionManager:
     def __init__(
         self,
-        db_config,
+        db_config: Any,
         max_sessions_per_user: int = 5,
         session_timeout_minutes: int = 30,
         cleanup_interval_minutes: int = 15,
@@ -26,8 +26,8 @@ class SessionManager:
         self.last_cleanup = datetime.now(timezone.utc)
 
     async def create_session(
-        self, request: Request, user_id: int, metadata: dict = None
-    ) -> AdminSessionCreate:
+        self, request: Request, user_id: int, metadata: Optional[Dict[str, Any]] = None
+    ) -> Optional[AdminSessionCreate]:
         """Create a new session for a user"""
         logger.info(f"Creating new session for user_id: {user_id}")
 

@@ -1,13 +1,37 @@
-from typing import get_origin
+from typing import get_origin, Dict, Any, Type, List, TypeVar, cast
 from datetime import date, datetime, time
 from decimal import Decimal
 from enum import Enum
+
 from pydantic import BaseModel, EmailStr, HttpUrl, AnyHttpUrl
 
+T = TypeVar("T")
+HTMLInputType = tuple[str, Dict[str, Any]]
+FormField = Dict[str, Any]
 
-def _get_html_input_type(py_type: type) -> tuple[str, dict]:
-    """Get HTML input type and any additional attributes."""
-    extra = {}
+
+def _get_html_input_type(py_type: Type[T]) -> HTMLInputType:
+    """
+    Convert Python/Pydantic type to HTML input type with extra attributes.
+
+    Maps Python types to appropriate HTML form input types and generates
+    any additional attributes needed for the input.
+
+    Args:
+        py_type: Python type to convert
+
+    Returns:
+        Tuple of (html_input_type, extra_attributes) where:
+            - html_input_type is string like "text", "number", "datetime-local"
+            - extra_attributes is dict of additional HTML attributes
+
+    Special cases:
+        - Decimal -> number input with step="0.01"
+        - Enum -> select input with options from enum values
+        - BaseModel -> json input
+        - Unknown types default to text input
+    """
+    extra: Dict[str, Any] = {}
 
     if py_type in [int, float]:
         return "number", extra
@@ -35,14 +59,41 @@ def _get_html_input_type(py_type: type) -> tuple[str, dict]:
         return "text", extra
 
 
-def _get_form_fields_from_schema(schema: BaseModel) -> list[dict]:
-    form_fields = []
-    for field_name, field_info in schema.__fields__.items():
+def _get_form_fields_from_schema(schema: Type[BaseModel]) -> List[FormField]:
+    """
+    Generate HTML form field configurations from a Pydantic model schema.
+
+    Analyzes schema fields to determine appropriate HTML input types,
+    validation rules, and defaults for form generation.
+
+    Args:
+        schema: Pydantic model class to analyze
+
+    Returns:
+        List of form field configurations, each containing:
+            - name: Field name
+            - type: HTML input type
+            - required: Whether field is required
+            - title: Display title
+            - description: Field description
+            - examples: Example values
+            - min_length/max_length: String length constraints
+            - pattern: Regex pattern
+            - min/max: Numeric constraints
+            - default: Default value
+            - Any extra type-specific attributes
+    """
+    form_fields: List[FormField] = []
+
+    fields_dict = cast(Dict[str, Any], schema.__fields__)
+
+    for field_name, field_info in fields_dict.items():
         field_type = field_info.annotation
         origin_type = get_origin(field_type)
+
         if origin_type:
             input_type = "text"
-            extra = {}
+            extra: Dict[str, Any] = {}
         else:
             input_type, extra = _get_html_input_type(field_type)
 
@@ -50,7 +101,7 @@ def _get_form_fields_from_schema(schema: BaseModel) -> list[dict]:
         if callable(field_info.default_factory):
             default = field_info.default_factory()
 
-        field_data = {
+        field_data: FormField = {
             "name": field_name,
             "type": input_type,
             "required": field_info.is_required(),
@@ -63,7 +114,7 @@ def _get_form_fields_from_schema(schema: BaseModel) -> list[dict]:
             "min": None,
             "max": None,
             "default": default if default is not Ellipsis else None,
-            **extra,  # Add any extra attributes
+            **extra,
         }
 
         form_fields.append(field_data)

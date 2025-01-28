@@ -1,11 +1,11 @@
-from typing import Optional
+from typing import Type, Optional
 from datetime import datetime, timezone
 
 from sqlalchemy import String, DateTime, Boolean
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase
 
 
-def create_admin_user(base):
+def create_admin_user(base: Type[DeclarativeBase]) -> Type[DeclarativeBase]:
     class AdminUser(base):
         __tablename__ = "admin_user"
 
@@ -16,10 +16,13 @@ def create_admin_user(base):
         hashed_password: Mapped[str] = mapped_column(String)
 
         created_at: Mapped[datetime] = mapped_column(
-            DateTime(timezone=True), default=datetime.now(timezone.utc)
+            DateTime(timezone=True),
+            default=datetime.now(timezone.utc),
         )
         updated_at: Mapped[Optional[datetime]] = mapped_column(
-            DateTime(timezone=True), onupdate=datetime.now(timezone.utc), default=None
+            DateTime(timezone=True),
+            onupdate=datetime.now(timezone.utc),
+            default=None,
         )
         is_superuser: Mapped[bool] = mapped_column(Boolean, default=True)
 
