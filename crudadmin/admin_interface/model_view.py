@@ -321,11 +321,11 @@ class ModelView:
                 valid_ids: List[Union[int, str, float]] = []
                 for id_value in ids:
                     try:
-                        if pk_type == int:
+                        if pk_type is int:
                             valid_ids.append(int(id_value))
-                        elif pk_type == str:
+                        elif pk_type is str:
                             valid_ids.append(str(id_value))
-                        elif pk_type == float:
+                        elif pk_type is float:
                             valid_ids.append(float(id_value))
                         else:
                             valid_ids.append(id_value)
@@ -448,17 +448,17 @@ class ModelView:
                 if column is not None:
                     python_type = column.type.python_type
                     try:
-                        if python_type == int:
+                        if python_type is int:
                             filter_criteria[search_column] = int(search_value)
-                        elif python_type == float:
+                        elif python_type is float:
                             filter_criteria[search_column] = float(search_value)
-                        elif python_type == bool:
+                        elif python_type is bool:
                             lower_search = search_value.lower()
                             if lower_search in ("true", "yes", "1", "t", "y"):
                                 filter_criteria[search_column] = True
                             elif lower_search in ("false", "no", "0", "f", "n"):
                                 filter_criteria[search_column] = False
-                        elif python_type == str:
+                        elif python_type is str:
                             filter_criteria[
                                 f"{search_column}__ilike"
                             ] = f"%{search_value}%"
