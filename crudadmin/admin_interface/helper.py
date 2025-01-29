@@ -35,7 +35,7 @@ def _get_html_input_type(py_type: Type[T]) -> HTMLInputType:
 
     if py_type in [int, float]:
         return "number", extra
-    elif py_type == bool:
+    elif py_type is bool:
         return "checkbox", extra
     elif py_type == EmailStr:
         return "email", extra
