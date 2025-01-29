@@ -20,4 +20,5 @@ dependencies = [
     "sqlalchemy>=2.0.36",
     "sqlalchemy-utils>=0.41.2",
     "uuid>=1.30",
+    "ruff>=0.9.3",
 ]
