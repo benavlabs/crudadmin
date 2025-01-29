@@ -28,7 +28,7 @@ def compare_states(
     old_state: Optional[Dict[str, Any]], new_state: Optional[Dict[str, Any]]
 ) -> Dict[str, Any]:
     """Compare old and new states to identify changes."""
-    changes = {}
+    changes: dict = {}
     if not old_state or not new_state:
         return changes
 
@@ -38,6 +38,22 @@ def compare_states(
         if old_val != new_val:
             changes[key] = {"old": old_val, "new": new_val}
     return changes
+
+
+def convert_user_to_dict(user: Any) -> Dict[str, Any]:
+    """Convert user object to dictionary, handling both dict and Pydantic-like objects."""
+    if isinstance(user, dict):
+        return user
+    elif hasattr(user, "dict"):
+        user_dict: dict = user.dict()
+        return user_dict
+    elif hasattr(user, "__dict__"):
+        return {k: v for k, v in user.__dict__.items() if not k.startswith("_")}
+    else:
+        return {
+            "id": getattr(user, "id", None),
+            "username": getattr(user, "username", None),
+        }
 
 
 def log_admin_action(
@@ -50,19 +66,25 @@ def log_admin_action(
             request: Request,
             db: AsyncSession,
             admin_db: AsyncSession,
-            current_user: dict,
+            current_user: Any,
             event_integration=None,
             **kwargs,
         ):
+            user_dict = convert_user_to_dict(current_user) if current_user else None
+
             previous_state = None
-            crud = None
+            crud: Optional[FastCRUD] = None
 
             if event_type in [EventType.UPDATE, EventType.DELETE]:
                 try:
-                    if not crud:
+                    if model is not None:
                         crud = FastCRUD(model)
+                    else:
+                        logger.error("Model is None. Cannot initialize FastCRUD.")
+                        raise ValueError("Model must not be None.")
 
                     if "id" in kwargs:
+                        assert crud is not None, "CRUD instance should be initialized."
                         item = await crud.get(db=db, id=kwargs["id"])
                         if item:
                             previous_state = {
@@ -70,6 +92,7 @@ def log_admin_action(
                             }
                 except Exception as e:
                     logger.error(f"Error fetching previous state: {str(e)}")
+                    raise
 
             result = await func(
                 *args,
@@ -81,7 +104,7 @@ def log_admin_action(
             )
 
             try:
-                if event_integration and current_user:
+                if event_integration and user_dict:
                     session_id = request.cookies.get("session_id", "unknown")
 
                     new_state = None
@@ -89,8 +112,11 @@ def log_admin_action(
 
                     if event_type == EventType.UPDATE:
                         try:
-                            if not crud:
+                            if model is not None:
                                 crud = FastCRUD(model)
+                            assert (
+                                crud is not None
+                            ), "CRUD instance should be initialized."
                             updated_item = await crud.get(db=db, id=kwargs["id"])
                             if updated_item:
                                 new_state = {
@@ -101,6 +127,7 @@ def log_admin_action(
                                 new_state = get_model_changes(new_state)
                         except Exception as e:
                             logger.error(f"Error fetching updated state: {str(e)}")
+
                     elif hasattr(request.state, "crud_result"):
                         crud_result = request.state.crud_result
                         if hasattr(crud_result, "__dict__"):
@@ -116,14 +143,12 @@ def log_admin_action(
                         new_state = get_model_changes(model_dict)
 
                     if event_type == EventType.DELETE:
-                        timestamp = datetime.now(timezone.utc)
-                        deleted_records = []
-
                         try:
                             body = await request.json()
                             ids = body.get("ids", [])
                             logger.info(f"Delete request received for ids: {ids}")
 
+                            deleted_records = []
                             if hasattr(request.state, "deleted_records"):
                                 deleted_records = [
                                     {
@@ -136,10 +161,10 @@ def log_admin_action(
 
                             new_state = {
                                 "action": "delete",
-                                "deleted_at": timestamp.isoformat(),
+                                "deleted_at": datetime.now(timezone.utc).isoformat(),
                                 "deleted_records": deleted_records,
                                 "deletion_details": {
-                                    "deleted_by": current_user.get("username"),
+                                    "deleted_by": user_dict.get("username"),
                                     "trigger_path": request.url.path,
                                     "deletion_type": "bulk"
                                     if "bulk-delete" in request.url.path
@@ -152,16 +177,15 @@ def log_admin_action(
                             logger.error(f"Error in bulk delete process: {str(e)}")
 
                     elif event_type == EventType.UPDATE:
-                        timestamp = datetime.now(timezone.utc)
                         changes = compare_states(previous_state, new_state)
                         new_state = {
                             "action": "update",
-                            "updated_at": timestamp.isoformat(),
+                            "updated_at": datetime.now(timezone.utc).isoformat(),
                             "previous_state": previous_state,
                             "new_state": new_state,
                             "changes": changes,
                             "update_details": {
-                                "updated_by": current_user.get("username"),
+                                "updated_by": user_dict.get("username"),
                                 "update_path": request.url.path,
                                 "modified_fields": list(changes.keys()),
                             },
@@ -186,7 +210,7 @@ def log_admin_action(
                         db=admin_db,
                         event_type=event_type,
                         model=model,
-                        user_id=current_user["id"],
+                        user_id=user_dict["id"],
                         session_id=session_id,
                         request=request,
                         resource_id=resource_id,
@@ -223,7 +247,10 @@ def log_auth_action(event_type: EventType) -> Callable:
                     success = False
 
                     if event_type == EventType.LOGIN:
-                        if hasattr(request.state, "user"):
+                        if (
+                            hasattr(request.state, "user")
+                            and request.state.user is not None
+                        ):
                             user_id = request.state.user.get("id")
                             username = request.state.user.get("username")
                             success = True
@@ -242,7 +269,10 @@ def log_auth_action(event_type: EventType) -> Callable:
                                         break
                     elif event_type == EventType.LOGOUT:
                         session_id = request.cookies.get("session_id", "unknown")
-                        if hasattr(request.state, "user"):
+                        if (
+                            hasattr(request.state, "user")
+                            and request.state.user is not None
+                        ):
                             user_id = request.state.user.get("id")
                             username = request.state.user.get("username")
                             success = True
@@ -253,16 +283,17 @@ def log_auth_action(event_type: EventType) -> Callable:
                     details = {
                         "auth_details": {
                             "event_type": event_type.value,
-                            "username": username or form_data.username
-                            if form_data
-                            else "unknown",
+                            "username": username
+                            or (form_data.username if form_data else "unknown"),
                             "success": success,
                             "timestamp": datetime.now(timezone.utc).isoformat(),
                         },
                         "request_details": {
                             "method": request.method,
                             "path": str(request.url.path),
-                            "ip_address": request.client.host,
+                            "ip_address": request.client.host
+                            if request.client
+                            else "unknown",
                             "user_agent": request.headers.get("user-agent", "Unknown"),
                         },
                         "session_details": {
@@ -280,6 +311,8 @@ def log_auth_action(event_type: EventType) -> Callable:
                         success=success,
                         details=details,
                     )
+
+                    await db.commit()
 
                     return result
 

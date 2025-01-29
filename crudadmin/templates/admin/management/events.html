@@ -326,7 +326,7 @@
                 
                 <div class="filter-group">
                     <label class="filter-label" for="event-type">Event Type</label>
-                    <select id="event-type" name="event-type" class="filter-control">
+                    <select id="event-type" name="event_type" class="filter-control">
                         <option value="">All Event Types</option>
                         {% for event_type in event_types %}
                         <option value="{{ event_type }}" {% if selected_type == event_type %}selected{% endif %}>
@@ -352,7 +352,7 @@
                     <label class="filter-label" for="start-date">Start Date</label>
                     <input type="date" 
                            id="start-date"
-                           name="start-date" 
+                           name="start_date" 
                            class="filter-control" 
                            value="{{ start_date }}">
                 </div>
@@ -361,7 +361,7 @@
                     <label class="filter-label" for="end-date">End Date</label>
                     <input type="date" 
                            id="end-date"
-                           name="end-date" 
+                           name="end_date" 
                            class="filter-control" 
                            value="{{ end_date }}">
                 </div>
@@ -394,6 +394,7 @@
 <script>
 function getFilterValues() {
     return {
+        username: document.getElementById('username').value,
         event_type: document.getElementById('event-type').value,
         status: document.getElementById('status').value,
         start_date: document.getElementById('start-date').value,
@@ -406,14 +407,20 @@ function applyFilters() {
     const queryParams = new URLSearchParams();
     
     Object.entries(filters).forEach(([key, value]) => {
-        if (value) queryParams.append(key, value);
+        if (value) {
+            queryParams.append(key, value);
+        }
     });
 
     const url = `/{{ mount_path }}/management/events/content?${queryParams.toString()}`;
-    htmx.ajax('GET', url, '#events-content');
+    htmx.ajax('GET', url, {
+        target: '#events-content',
+        swap: 'innerHTML'
+    });
 }
 
 function resetFilters() {
+    document.getElementById('username').value = '';
     document.getElementById('event-type').value = '';
     document.getElementById('status').value = '';
     document.getElementById('start-date').value = '';
@@ -421,29 +428,10 @@ function resetFilters() {
     applyFilters();
 }
 
-function updateURL() {
-    const filters = getFilterValues();
-    const queryParams = new URLSearchParams();
-    
-    Object.entries(filters).forEach(([key, value]) => {
-        if (value) queryParams.append(key, value);
-    });
-
-    const newURL = `${window.location.pathname}?${queryParams.toString()}`;
-    window.history.pushState({}, '', newURL);
-}
-
 function toggleDetails(element) {
     element.classList.toggle('expanded');
     const details = element.nextElementSibling;
     details.classList.toggle('visible');
 }
-
-document.addEventListener('DOMContentLoaded', function() {
-    const filterElements = ['event-type', 'status', 'start-date', 'end-date'];
-    filterElements.forEach(id => {
-        document.getElementById(id).addEventListener('change', updateURL);
-    });
-});
 </script>
 {% endblock %}

@@ -1,4 +1,4 @@
-from typing import Union, Any, Literal, Dict, Callable, Optional
+from typing import Union, Any, Literal, Dict, Callable, Optional, Awaitable
 import logging
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -91,7 +91,7 @@ class AdminUserService:
             logger.error(f"Authentication error: {str(e)}", exc_info=True)
             return False
 
-    async def create_first_admin(self) -> Callable[..., Optional[Dict[str, Any]]]:
+    def create_first_admin(self) -> Callable[..., Awaitable[Optional[Dict[str, Any]]]]:
         """
         Returns a function that, when called, creates the first admin user
         if none matching the given username exists. Returns a dict or None.
@@ -108,6 +108,7 @@ class AdminUserService:
             """
             exists = await self.crud_users.exists(db, username=username)
             if exists:
+                logger.debug(f"Admin user '{username}' already exists.")
                 return None
 
             hashed_password = self.get_password_hash(password)
@@ -120,6 +121,7 @@ class AdminUserService:
             created_user_raw = await self.crud_users.create(db=db, object=admin_data)
 
             created_user = _convert_user_to_dict(created_user_raw)
+            logger.debug(f"Created admin user: {created_user}")
             return created_user
 
         return create_first_admin_inner

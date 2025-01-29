@@ -9,6 +9,8 @@ from typing import (
     Set,
     cast,
     Coroutine,
+    AsyncGenerator,
+    Union,
 )
 import datetime
 from datetime import timezone
@@ -64,10 +66,14 @@ class ModelView:
         self.model_key = model.__name__
         self.router = APIRouter()
 
+        get_session: Callable[[], AsyncGenerator[AsyncSession, None]]
         if self._model_is_admin_model(model):
-            self.session = self.db_config.get_admin_db
+            get_session = self.db_config.get_admin_db
         else:
-            self.session = self.db_config.session
+            get_session = cast(
+                Callable[[], AsyncGenerator[AsyncSession, None]], self.db_config.session
+            )
+        self.session = get_session
 
         self.create_schema = create_schema
         self.update_schema = update_schema
@@ -98,6 +104,15 @@ class ModelView:
         self.router.include_router(self.endpoints_template.router, prefix="/crud")
 
         self.setup_routes()
+
+    def _model_is_admin_model(self, model: Type[DeclarativeBase]) -> bool:
+        """Check if the model is one of the known admin models."""
+        admin_models = {
+            self.db_config.AdminUser.__name__,
+            self.db_config.AdminTokenBlacklist.__name__,
+            self.db_config.AdminSession.__name__,
+        }
+        return model.__name__ in admin_models
 
     def setup_routes(self) -> None:
         """Configure FastAPI routes based on allowed actions."""
@@ -160,15 +175,6 @@ class ModelView:
                 response_model=None,
             )
 
-    def _model_is_admin_model(self, model: Type[DeclarativeBase]) -> bool:
-        """Check if the model is one of the known admin models."""
-        admin_models = {
-            self.db_config.AdminUser.__name__,
-            self.db_config.AdminTokenBlacklist.__name__,
-            self.db_config.AdminSession.__name__,
-        }
-        return model.__name__ in admin_models
-
     def form_create_endpoint(self, template: str) -> EndpointCallable:
         @log_admin_action(EventType.CREATE, model=self.model)
         async def form_create_endpoint_inner(
@@ -185,7 +191,6 @@ class ModelView:
 
             form_fields = _get_form_fields_from_schema(self.create_schema)
             error_message: Optional[str] = None
-
             field_errors: Dict[str, str] = {}
             field_values: Dict[str, Any] = {}
 
@@ -289,9 +294,7 @@ class ModelView:
             ),
             event_integration=Depends(lambda: self.event_integration),
         ) -> Response:
-            """
-            Handle bulk deletion of model instances using JSON list of IDs.
-            """
+            """Handle bulk deletion of model instances using JSON list of IDs."""
             assert self.admin_site is not None
             try:
                 body = await request.json()
@@ -315,18 +318,17 @@ class ModelView:
                 pk_name = primary_key.name
                 pk_type = primary_key.type.python_type
 
-                valid_ids: List[Any] = []
+                valid_ids: List[Union[int, str, float]] = []
                 for id_value in ids:
                     try:
                         if pk_type == int:
-                            validated_id = int(id_value)
+                            valid_ids.append(int(id_value))
                         elif pk_type == str:
-                            validated_id = str(id_value)
+                            valid_ids.append(str(id_value))
                         elif pk_type == float:
-                            validated_id = float(id_value)
+                            valid_ids.append(float(id_value))
                         else:
-                            validated_id = id_value
-                        valid_ids.append(validated_id)
+                            valid_ids.append(id_value)
                     except (ValueError, TypeError):
                         return JSONResponse(
                             status_code=422,
@@ -335,7 +337,9 @@ class ModelView:
                             },
                         )
 
-                filter_criteria: Dict[str, Any] = {f"{pk_name}__in": valid_ids}
+                filter_criteria: Dict[str, List[Union[int, str, float]]] = {
+                    f"{pk_name}__in": valid_ids
+                }
                 records_to_delete = await self.crud.get_multi(
                     db=db, limit=len(valid_ids), **cast(Any, filter_criteria)
                 )
@@ -359,14 +363,19 @@ class ModelView:
                 max_page = (total_count + rows_per_page - 1) // rows_per_page
                 adjusted_page = min(page, max(1, max_page))
 
-                items = await self.crud.get_multi(
+                items_result = await self.crud.get_multi(
                     db=db,
                     offset=(adjusted_page - 1) * rows_per_page,
                     limit=rows_per_page,
                 )
 
+                items: Dict[str, Any] = {
+                    "data": items_result.get("data", []),
+                    "total_count": items_result.get("total_count", 0),
+                }
+
                 table_columns = [column.key for column in self.model.__table__.columns]
-                primary_key_info = self.db_config.get_primary_key_info(self.model)  # type: ignore[arg-type]
+                primary_key_info = self.db_config.get_primary_key_info(self.model)
 
                 context: Dict[str, Any] = {
                     "request": request,
@@ -404,9 +413,7 @@ class ModelView:
         async def get_model_admin_page_inner(
             request: Request, db: AsyncSession = Depends(self.session)
         ) -> Response:
-            """
-            Display the model list page, allowing pagination, sorting, and searching.
-            """
+            """Display the model list page, allowing pagination, sorting, and searching."""
             if template == "admin/model/list.html" and not request.url.path.endswith(
                 "/"
             ):
@@ -440,22 +447,23 @@ class ModelView:
                 column = self.model.__table__.columns.get(search_column)
                 if column is not None:
                     python_type = column.type.python_type
-                    if python_type in (int, float):
-                        try:
-                            if python_type == int:
-                                filter_criteria[search_column] = int(search_value)
-                            else:
-                                filter_criteria[search_column] = float(search_value)
-                        except ValueError:
-                            pass
-                    elif python_type == bool:
-                        lower_search = search_value.lower()
-                        if lower_search in ("true", "yes", "1", "t", "y"):
-                            filter_criteria[search_column] = True
-                        elif lower_search in ("false", "no", "0", "f", "n"):
-                            filter_criteria[search_column] = False
-                    elif python_type == str:
-                        filter_criteria[f"{search_column}__ilike"] = f"%{search_value}%"
+                    try:
+                        if python_type == int:
+                            filter_criteria[search_column] = int(search_value)
+                        elif python_type == float:
+                            filter_criteria[search_column] = float(search_value)
+                        elif python_type == bool:
+                            lower_search = search_value.lower()
+                            if lower_search in ("true", "yes", "1", "t", "y"):
+                                filter_criteria[search_column] = True
+                            elif lower_search in ("false", "no", "0", "f", "n"):
+                                filter_criteria[search_column] = False
+                        elif python_type == str:
+                            filter_criteria[
+                                f"{search_column}__ilike"
+                            ] = f"%{search_value}%"
+                    except (ValueError, TypeError):
+                        pass
 
             try:
                 total_items = await self.crud.count(db=db, **cast(Any, filter_criteria))
@@ -463,7 +471,7 @@ class ModelView:
                 page = min(page, max_page)
                 offset = (page - 1) * rows_per_page
 
-                items = await self.crud.get_multi(
+                items_result = await self.crud.get_multi(
                     db=db,
                     offset=offset,
                     limit=rows_per_page,
@@ -471,20 +479,26 @@ class ModelView:
                     sort_orders=sort_orders,
                     **cast(Any, filter_criteria),
                 )
+
+                items: Dict[str, Any] = {
+                    "data": items_result.get("data", []),
+                    "total_count": items_result.get("total_count", 0),
+                }
+
             except Exception:
                 items = {"data": [], "total_count": 0}
                 total_items = 0
                 page = 1
 
             table_columns = [column.key for column in self.model.__table__.columns]
-            primary_key_info = self.db_config.get_primary_key_info(self.model)  # type: ignore[arg-type]
+            primary_key_info = self.db_config.get_primary_key_info(self.model)
 
             context: Dict[str, Any] = {
                 "request": request,
                 "model_items": items["data"],
                 "model_name": self.model_key,
                 "table_columns": table_columns,
-                "total_items": total_items,
+                "total_items": items["total_count"],
                 "current_page": page,
                 "rows_per_page": rows_per_page,
                 "selected_column": search_column,
@@ -722,10 +736,16 @@ class ModelView:
             if search_column and search_value:
                 filter_criteria[f"{search_column}__ilike"] = f"%{search_value}%"
 
-            items = await self.crud.get_multi(
+            items_result = await self.crud.get_multi(
                 db=db, offset=offset, limit=limit, **cast(Any, filter_criteria)
             )
-            total_items: int = items["total_count"]
+
+            items: Dict[str, Any] = {
+                "data": items_result.get("data", []),
+                "total_count": items_result.get("total_count", 0),
+            }
+
+            total_items = items["total_count"]
             total_pages = (total_items + limit - 1) // limit
 
             return self.templates.TemplateResponse(

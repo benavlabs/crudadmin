@@ -6,7 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase
 
 
 def create_admin_user(base: Type[DeclarativeBase]) -> Type[DeclarativeBase]:
-    class AdminUser(base):
+    class AdminUser(base):  # type: ignore
         __tablename__ = "admin_user"
 
         id: Mapped[int] = mapped_column(

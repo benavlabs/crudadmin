@@ -14,6 +14,7 @@ class AdminUserBase(BaseModel):
 
 
 class AdminUser(TimestampSchema, AdminUserBase):
+    id: int
     hashed_password: str
     is_superuser: bool = True
 

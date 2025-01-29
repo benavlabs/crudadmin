@@ -11,6 +11,7 @@ from ..admin_user.schemas import (
     AdminUserCreate,
     AdminUserUpdate,
     AdminUserUpdateInternal,
+    AdminUserRead,
 )
 from ..admin_token.schemas import AdminTokenBlacklistCreate, AdminTokenBlacklistUpdate
 from ..session.schemas import AdminSessionCreate, AdminSessionUpdate
@@ -67,7 +68,7 @@ class AdminAuthentication:
             request: Request,
             db: AsyncSession = Depends(self.db_config.get_admin_db),
             access_token: Optional[str] = Cookie(None),
-        ) -> Union[Dict[str, Any], None]:
+        ) -> Optional[AdminUserRead]:
             logger.debug(f"Starting get_current_user with token: {access_token}")
 
             if not access_token:
@@ -77,32 +78,35 @@ class AdminAuthentication:
             token = None
             if access_token.startswith("Bearer "):
                 token = access_token.split(" ")[1]
-                logger.debug("Extracted token from Bearer")
             else:
                 token = access_token
-                logger.debug("Using token as-is")
 
-            logger.debug("Verifying token")
             token_data = await self.token_service.verify_token(token, db)
             if token_data is None:
                 logger.debug("Token verification failed")
                 raise UnauthorizedException("Could not validate credentials")
 
-            logger.debug(f"Token data: {token_data}")
-
             if "@" in token_data.username_or_email:
-                logger.debug("Looking up user by email")
                 user = await self.db_config.crud_users.get(
                     db=db, email=token_data.username_or_email
                 )
             else:
-                logger.debug("Looking up user by username")
                 user = await self.db_config.crud_users.get(
                     db=db, username=token_data.username_or_email
                 )
 
             if user:
                 logger.debug("User found")
+                if isinstance(user, dict):
+                    try:
+                        user = AdminUserRead(**user)
+                    except Exception as e:
+                        raise UnauthorizedException("Invalid user data")
+                elif not isinstance(user, AdminUserRead):
+                    try:
+                        user = AdminUserRead.from_orm(user)
+                    except Exception as e:
+                        raise UnauthorizedException("Invalid user data")
                 return user
 
             logger.debug("User not found")
@@ -110,10 +114,8 @@ class AdminAuthentication:
 
         return get_current_user_inner
 
-    async def get_current_superuser(
-        self, current_user: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def get_current_superuser(self, current_user: AdminUserRead) -> AdminUserRead:
         """Check if current user is a superuser."""
-        if not current_user.get("is_superuser"):
+        if not current_user.is_superuser:
             raise ForbiddenException("You do not have enough privileges.")
         return current_user

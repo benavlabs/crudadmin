@@ -3,7 +3,7 @@ import logging
 from enum import Enum
 from decimal import Decimal
 from datetime import datetime, timezone, timedelta
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, cast
 
 from fastapi import Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -42,7 +42,7 @@ class EventService:
     def _serialize_dict(self, data: Optional[Dict[str, Any]]) -> Dict[str, Any]:
         if not data:
             return {}
-        return json.loads(self.json_encoder.encode(data))
+        return cast(Dict[str, Any], json.loads(self.json_encoder.encode(data)))
 
     async def log_event(
         self,
@@ -57,12 +57,14 @@ class EventService:
         details: Optional[Dict[str, Any]] = None,
     ) -> AdminEventLogRead:
         try:
+            ip_address = request.client.host if request.client else "unknown"
+
             event_data = AdminEventLogCreate(
                 event_type=event_type,
                 status=status,
                 user_id=user_id,
                 session_id=session_id,
-                ip_address=request.client.host,
+                ip_address=ip_address,
                 user_agent=request.headers.get("user-agent", ""),
                 resource_type=resource_type,
                 resource_id=resource_id,
@@ -76,7 +78,7 @@ class EventService:
                     k: v for k, v in result.__dict__.items() if not k.startswith("_")
                 }
             else:
-                result_dict = dict(result)
+                result_dict = cast(Dict[str, Any], dict(result))
 
             event_read = AdminEventLogRead(**result_dict)
 
@@ -84,8 +86,7 @@ class EventService:
             return event_read
 
         except Exception as e:
-            print(f"Error logging event: {str(e)}")
-            print(f"Error details: {str(e.__traceback__)}")
+            logger.error(f"Error logging event: {str(e)}", exc_info=True)
             raise
 
     async def create_audit_log(
@@ -110,7 +111,7 @@ class EventService:
                 changes=self._serialize_dict(
                     self._compute_changes(previous_state, new_state)
                 ),
-                audit_metadata=self._serialize_dict(metadata),
+                metadata=self._serialize_dict(metadata),
             )
 
             result = await self.crud_audits.create(db=db, object=audit_data)
@@ -120,13 +121,12 @@ class EventService:
                     k: v for k, v in result.__dict__.items() if not k.startswith("_")
                 }
             else:
-                result_dict = dict(result)
+                result_dict = cast(Dict[str, Any], dict(result))
 
             return AdminAuditLogRead(**result_dict)
 
         except Exception as e:
-            print(f"Error creating audit log: {str(e)}")
-            print(f"Error details: {str(e.__traceback__)}")
+            logger.error(f"Error creating audit log: {str(e)}", exc_info=True)
             raise
 
     def _compute_changes(
@@ -135,7 +135,7 @@ class EventService:
         new_state: Optional[Dict[str, Any]],
     ) -> Dict[str, Dict[str, Any]]:
         """Compute changes between previous and new states."""
-        changes = {}
+        changes: Dict[str, Dict[str, Any]] = {}
 
         if not previous_state or not new_state:
             return changes
@@ -161,7 +161,7 @@ class EventService:
         offset: int = 0,
     ) -> Dict[str, Any]:
         """Get user activity logs."""
-        filters = {"user_id": user_id}
+        filters: Dict[str, Any] = {"user_id": user_id}
 
         if start_time:
             filters["timestamp__gte"] = start_time
@@ -177,7 +177,7 @@ class EventService:
             **filters,
         )
 
-        return result
+        return cast(Dict[str, Any], result)
 
     async def get_resource_history(
         self,
@@ -198,13 +198,13 @@ class EventService:
             resource_id=resource_id,
         )
 
-        return result
+        return cast(Dict[str, Any], result)
 
     async def get_security_alerts(
         self, db: AsyncSession, lookback_hours: int = 24
     ) -> List[Dict[str, Any]]:
         """Get security alerts based on event patterns."""
-        alerts = []
+        alerts: List[Dict[str, Any]] = []
         lookback_time = datetime.now(timezone.utc) - timedelta(hours=lookback_hours)
 
         failed_logins = await self.crud_events.get_multi(
@@ -214,9 +214,13 @@ class EventService:
             timestamp__gte=lookback_time,
         )
 
-        failed_login_patterns = {}
-        for login in failed_logins["data"]:
-            key = (login["ip_address"], login.get("details", {}).get("username"))
+        failed_login_patterns: Dict[tuple, int] = {}
+
+        for login in failed_logins.get("data", []):
+            key = (
+                login.get("ip_address", "unknown"),
+                login.get("details", {}).get("username", "unknown"),
+            )
             failed_login_patterns[key] = failed_login_patterns.get(key, 0) + 1
 
         for (ip, username), count in failed_login_patterns.items():
@@ -243,7 +247,6 @@ class EventService:
             cutoff_date = datetime.now(timezone.utc) - timedelta(days=retention_days)
 
             await self.crud_events.delete_multi(db, timestamp__lt=cutoff_date)
-
             await self.crud_audits.delete_multi(db, timestamp__lt=cutoff_date)
 
         except Exception as e:

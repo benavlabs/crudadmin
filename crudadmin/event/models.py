@@ -1,19 +1,20 @@
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Type
 
 from sqlalchemy import String, DateTime, JSON, Enum as SQLEnum
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase
 
 from .schemas import EventStatus, EventType
 
 
-def create_admin_event_log(base):
+def create_admin_event_log(base: Type[DeclarativeBase]) -> Type[DeclarativeBase]:
     tablename = "admin_event_log"
 
     if hasattr(base, tablename):
-        return getattr(base, tablename)
+        table: Type[DeclarativeBase] = getattr(base, tablename)
+        return table
 
-    class AdminEventLog(base):
+    class AdminEventLog(base):  # type: ignore
         __tablename__ = tablename
         __table_args__ = {"extend_existing": True}
 
@@ -51,13 +52,14 @@ def create_admin_event_log(base):
     return AdminEventLog
 
 
-def create_admin_audit_log(base):
+def create_admin_audit_log(base: Type[DeclarativeBase]) -> Type[DeclarativeBase]:
     tablename = "admin_audit_log"
 
     if hasattr(base, tablename):
-        return getattr(base, tablename)
+        table: Type[DeclarativeBase] = getattr(base, tablename)
+        return table
 
-    class AdminAuditLog(base):
+    class AdminAuditLog(base):  # type: ignore
         __tablename__ = tablename
         __table_args__ = {"extend_existing": True}
 

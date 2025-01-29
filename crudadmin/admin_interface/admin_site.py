@@ -1,12 +1,13 @@
 from datetime import timedelta, timezone, datetime
-from typing import Optional, Any, Callable, Union, Dict, cast
+from typing import Optional, Any, Callable, Dict, cast
 import logging
 
+from fastcrud import FastCRUD
 from fastapi import Request, APIRouter, Depends, Response, Cookie
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.ext.asyncio.session import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from .auth import AdminAuthentication
 from .typing import RouteResponse
@@ -14,7 +15,6 @@ from ..admin_user.service import AdminUserService
 from ..core.db import DatabaseConfig
 from ..session.manager import SessionManager
 from ..event import log_auth_action, EventType
-from fastcrud import FastCRUD
 
 logger = logging.getLogger(__name__)
 
@@ -113,7 +113,7 @@ class AdminSite:
             response: Response,
             form_data: OAuth2PasswordRequestForm = Depends(),
             db: AsyncSession = Depends(self.db_config.get_admin_db),
-            event_integration=Depends(lambda: self.event_integration),
+            event_integration: Optional[Any] = Depends(lambda: self.event_integration),
         ) -> RouteResponse:
             logger.info("Processing login attempt...")
             try:
@@ -234,7 +234,7 @@ class AdminSite:
             db: AsyncSession = Depends(self.db_config.get_admin_db),
             access_token: Optional[str] = Cookie(None),
             session_id: Optional[str] = Cookie(None),
-            event_integration=Depends(lambda: self.event_integration),
+            event_integration: Optional[Any] = Depends(lambda: self.event_integration),
         ) -> RouteResponse:
             if access_token:
                 token = (
@@ -325,7 +325,7 @@ class AdminSite:
     def dashboard_content(self) -> EndpointCallable:
         async def dashboard_content_inner(
             request: Request,
-            db: AsyncSession = Depends(self.db_config.session),
+            db: AsyncSession = Depends(self.db_config.get_admin_db),
         ) -> RouteResponse:
             """
             Renders partial content for the dashboard (HTMX).
@@ -379,7 +379,7 @@ class AdminSite:
 
         async def dashboard_page_inner(
             request: Request,
-            db: AsyncSession = Depends(self.db_config.session),
+            db: AsyncSession = Depends(self.db_config.get_admin_db),
         ) -> RouteResponse:
             context = await self.get_base_context(db)
             context.update({"request": request, "include_sidebar_and_header": True})
@@ -403,7 +403,7 @@ class AdminSite:
         async def admin_auth_model_page_inner(
             request: Request,
             admin_db: AsyncSession = Depends(self.db_config.get_admin_db),
-            db: AsyncSession = Depends(self.db_config.session),
+            db: AsyncSession = Depends(self.db_config.get_admin_db),
         ) -> RouteResponse:
             auth_model = self.admin_authentication.auth_models[model_key]
             sqlalchemy_model = cast(Any, auth_model["model"])

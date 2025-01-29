@@ -16,7 +16,7 @@ def create_admin_token_blacklist(base: Type[DeclarativeBase]) -> Type[Declarativ
         The newly created AdminTokenBlacklist model class, which inherits from `base`.
     """
 
-    class AdminTokenBlacklist(base):
+    class AdminTokenBlacklist(base):  # type: ignore
         __tablename__ = "admin_token_blacklist"
 
         id: Mapped[int] = mapped_column(

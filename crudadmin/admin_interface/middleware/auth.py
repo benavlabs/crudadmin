@@ -1,6 +1,11 @@
+from typing import TYPE_CHECKING
+
 from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+
+if TYPE_CHECKING:
+    from crudadmin import CRUDAdmin
 
 
 class AdminAuthMiddleware(BaseHTTPMiddleware):

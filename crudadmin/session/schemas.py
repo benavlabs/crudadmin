@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Dict, Any
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -10,7 +10,7 @@ class AdminSessionBase(BaseModel):
     session_id: str = Field(default_factory=lambda: str(uuid4()))
     ip_address: str
     user_agent: str
-    device_info: dict
+    device_info: Dict[str, Any]
     last_activity: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     is_active: bool = True
     session_metadata: dict = Field(default_factory=dict)
@@ -23,7 +23,7 @@ class AdminSessionCreate(AdminSessionBase):
 class AdminSessionUpdate(BaseModel):
     last_activity: Optional[datetime] = None
     is_active: Optional[bool] = None
-    metadata: Optional[dict] = None
+    session_metadata: Optional[Dict[str, Any]] = None
 
 
 class AdminSessionRead(BaseModel):

@@ -6,7 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase
 
 
 def create_admin_session_model(base: Type[DeclarativeBase]) -> Type[DeclarativeBase]:
-    class AdminSession(base):
+    class AdminSession(base):  # type: ignore
         __tablename__ = "admin_session"
 
         id: Mapped[int] = mapped_column(

@@ -391,7 +391,11 @@ class CRUDAdmin:
 
                             enriched_events.append(event_data)
 
-                total_items: int = events.get("total_count", 0)
+                total_items = events.get("total_count", 0)
+                assert isinstance(
+                    total_items, int
+                ), f"'total_count' should be int, got {type(total_items)}"
+
                 total_pages = max(1, (total_items + limit - 1) // limit)
 
                 return self.templates.TemplateResponse(

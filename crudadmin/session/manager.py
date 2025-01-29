@@ -36,6 +36,11 @@ class SessionManager:
             ua_parser = parse(user_agent)
             current_time = datetime.now(timezone.utc)
 
+            client = request.client
+            if client is None:
+                logger.error("Request client is None. Cannot retrieve IP address.")
+                raise ValueError("Invalid request client.")
+
             device_info = {
                 "browser": ua_parser.browser.family,
                 "browser_version": ua_parser.browser.version_string,
@@ -50,10 +55,9 @@ class SessionManager:
             session_data = AdminSessionCreate(
                 user_id=user_id,
                 session_id=session_id,
-                ip_address=request.client.host,
+                ip_address=client.host,
                 user_agent=user_agent,
                 device_info=device_info,
-                created_at=current_time,
                 last_activity=current_time,
                 is_active=True,
                 session_metadata=metadata or {},
@@ -100,6 +104,8 @@ class SessionManager:
             logger.error(f"Session creation failed: {str(e)}", exc_info=True)
             raise
 
+        return None
+
     def make_timezone_aware(self, dt: datetime) -> datetime:
         """Convert naive datetime to UTC timezone-aware datetime"""
         if dt.tzinfo is None:
@@ -107,7 +113,7 @@ class SessionManager:
         return dt
 
     async def validate_session(
-        self, db, session_id: str, update_activity: bool = True
+        self, db: Any, session_id: str, update_activity: bool = True
     ) -> bool:
         """Validate if a session is active and not timed out"""
         logger.debug(f"Validating session: {session_id}")
@@ -172,14 +178,14 @@ class SessionManager:
             logger.error(f"Error validating session: {str(e)}", exc_info=True)
             return False
 
-    async def update_activity(self, db, session_id: str) -> None:
+    async def update_activity(self, db: Any, session_id: str) -> None:
         """Update last activity timestamp for a session"""
         update_data = AdminSessionUpdate(last_activity=datetime.now(timezone.utc))
         await self.db_config.crud_sessions.update(
             db, session_id=session_id, object=update_data
         )
 
-    async def terminate_session(self, db, session_id: str) -> None:
+    async def terminate_session(self, db: Any, session_id: str) -> None:
         """Terminate a specific session"""
         update_data = AdminSessionUpdate(
             is_active=False,
@@ -192,14 +198,23 @@ class SessionManager:
             db, session_id=session_id, object=update_data
         )
 
-    async def get_user_active_sessions(self, db, user_id: int) -> List[dict]:
+    async def get_user_active_sessions(
+        self, db: Any, user_id: int
+    ) -> List[Dict[str, Any]]:
         """Get all active sessions for a user"""
         sessions = await self.db_config.crud_sessions.get_multi(
             db, user_id=user_id, is_active=True
         )
-        return sessions["data"]
+        data = sessions.get("data", [])
 
-    async def cleanup_expired_sessions(self, db) -> None:
+        if not isinstance(data, list):
+            logger.error("Expected 'data' to be a list, got something else.")
+            return []
+
+        valid_sessions = [session for session in data if isinstance(session, dict)]
+        return valid_sessions
+
+    async def cleanup_expired_sessions(self, db: Any) -> None:
         """Cleanup expired and inactive sessions"""
         now = datetime.now(timezone.utc)
 
@@ -212,52 +227,58 @@ class SessionManager:
             db, is_active=True, last_activity__lt=timeout_threshold
         )
 
-        for session in expired_sessions["data"]:
+        for session in expired_sessions.get("data", []):
+            if not isinstance(session, dict):
+                logger.warning(f"Invalid session data format: {session}")
+                continue
+
             update_data = AdminSessionUpdate(
                 is_active=False,
-                metadata={
+                session_metadata={
                     "terminated_at": now.isoformat(),
                     "termination_reason": "session_timeout",
                 },
             )
             await self.db_config.crud_sessions.update(
-                db, session_id=session["session_id"], object=update_data
+                db, session_id=session.get("session_id", ""), object=update_data
             )
 
         self.last_cleanup = now
 
-    async def get_session_metadata(self, db, session_id: str) -> Optional[dict]:
+    async def get_session_metadata(
+        self, db: Any, session_id: str
+    ) -> Optional[Dict[str, Any]]:
         """Get complete session metadata including user agent info"""
         session = await self.db_config.crud_sessions.get(db, session_id=session_id)
         if not session:
             return None
 
         return {
-            "session_id": session["session_id"],
-            "user_id": session["user_id"],
-            "ip_address": session["ip_address"],
-            "device_info": session["device_info"],
-            "created_at": session["created_at"],
-            "last_activity": session["last_activity"],
-            "is_active": session["is_active"],
-            "metadata": session["metadata"],
+            "session_id": session.get("session_id"),
+            "user_id": session.get("user_id"),
+            "ip_address": session.get("ip_address"),
+            "device_info": session.get("device_info"),
+            "created_at": session.get("created_at"),
+            "last_activity": session.get("last_activity"),
+            "is_active": session.get("is_active"),
+            "metadata": session.get("metadata"),
         }
 
     async def handle_concurrent_login(
-        self, db, user_id: int, current_session_id: str
+        self, db: Any, user_id: int, current_session_id: str
     ) -> None:
         """Handle a new login when user has other active sessions"""
         active_sessions = await self.get_user_active_sessions(db, user_id)
 
         for session in active_sessions:
-            if session["session_id"] != current_session_id:
-                metadata = session["metadata"] or {}
+            if session.get("session_id") != current_session_id:
+                metadata = session.get("metadata", {})
                 metadata["concurrent_login"] = {
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                     "new_session_id": current_session_id,
                 }
 
-                update_data = AdminSessionUpdate(metadata=metadata)
+                update_data = AdminSessionUpdate(session_metadata=metadata)
                 await self.db_config.crud_sessions.update(
-                    db, session_id=session["session_id"], object=update_data
+                    db, session_id=session.get("session_id", ""), object=update_data
                 )
