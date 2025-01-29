@@ -145,13 +145,6 @@ class DatabaseConfig:
         self.AdminAuditLog: Optional[Type[DeclarativeBase]] = admin_audit_log
 
         if crud_admin_user is None:
-            from ..admin_user.schemas import (
-                AdminUserCreate,
-                AdminUserUpdate,
-                AdminUserUpdateInternal,
-                AdminUserRead,
-            )
-
             CRUDUser = FastCRUD[
                 DeclarativeBase,
                 "AdminUserCreate",
@@ -172,12 +165,6 @@ class DatabaseConfig:
         ] = crud_admin_user
 
         if crud_admin_token_blacklist is None:
-            from ..admin_token.schemas import (
-                AdminTokenBlacklistCreate,
-                AdminTokenBlacklistUpdate,
-                AdminTokenBlacklistBase,
-            )
-
             CRUDAdminTokenBlacklist = FastCRUD[
                 DeclarativeBase,
                 "AdminTokenBlacklistCreate",
@@ -198,8 +185,6 @@ class DatabaseConfig:
         ] = crud_admin_token_blacklist
 
         if crud_admin_session is None:
-            from ..session import AdminSessionCreate, AdminSessionUpdate
-
             CRUDSession = FastCRUD[
                 DeclarativeBase,
                 "AdminSessionCreate",

@@ -82,7 +82,7 @@ class AdminAuthMiddleware(BaseHTTPMiddleware):
                             response = await call_next(request)
                             return response
 
-                        except Exception as e:
+                        except Exception:
                             if (
                                 request.url.path.endswith("/crud")
                                 or "/crud/" in request.url.path

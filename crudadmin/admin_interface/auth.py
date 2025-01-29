@@ -1,4 +1,4 @@
-from typing import Union, Any, Optional, Dict
+from typing import Optional
 import logging
 from fastapi import Depends, Cookie, Request
 from fastapi.security import OAuth2PasswordBearer
@@ -100,12 +100,12 @@ class AdminAuthentication:
                 if isinstance(user, dict):
                     try:
                         user = AdminUserRead(**user)
-                    except Exception as e:
+                    except Exception:
                         raise UnauthorizedException("Invalid user data")
                 elif not isinstance(user, AdminUserRead):
                     try:
                         user = AdminUserRead.from_orm(user)
-                    except Exception as e:
+                    except Exception:
                         raise UnauthorizedException("Invalid user data")
                 return user
 
