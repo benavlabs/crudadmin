@@ -119,9 +119,9 @@ class DatabaseConfig:
             yield self.admin_session
             await self.admin_session.commit()
 
-        self.get_admin_db: Callable[
-            [], AsyncGenerator[AsyncSession, None]
-        ] = get_admin_db
+        self.get_admin_db: Callable[[], AsyncGenerator[AsyncSession, None]] = (
+            get_admin_db
+        )
 
         if admin_user is None:
             from ..admin_user.models import create_admin_user

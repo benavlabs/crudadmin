@@ -24,14 +24,14 @@ EndpointCallable = Callable[..., Any]
 class AdminSite:
     """
     Core admin interface site handler managing authentication, routing, and views.
-    
-    **Handles the core functionality of the admin interface including:**  
-    - Authentication and session management  
-    - Route configuration and URL handling  
-    - Template rendering and context management  
-    - Dashboard and model views  
-    - Event logging and audit trails  
-    - Security and access control  
+
+    **Handles the core functionality of the admin interface including:**
+    - Authentication and session management
+    - Route configuration and URL handling
+    - Template rendering and context management
+    - Dashboard and model views
+    - Event logging and audit trails
+    - Security and access control
 
     The AdminSite class serves as the central coordinator for all admin functionality,
     managing user sessions, handling authentication flows, and providing secure access
@@ -83,7 +83,7 @@ class AdminSite:
         ```
 
         Production configuration:
-        ```python 
+        ```python
         admin_site = AdminSite(
             database_config=db_config,
             templates_directory=templates_path,
@@ -134,15 +134,15 @@ class AdminSite:
         """
         Configure all admin interface routes including auth, dashboard and model views.
 
-        Routes Created:  
-            **Auth Routes:**  
-                - POST /login - Handle login form submission  
-                - GET /login - Display login page  
-                - GET /logout - Process user logout  
+        Routes Created:
+            **Auth Routes:**
+                - POST /login - Handle login form submission
+                - GET /login - Display login page
+                - GET /logout - Process user logout
 
-            **Dashboard Routes:**  
-                - GET / - Main dashboard view  
-                - GET /dashboard-content - HTMX dashboard updates  
+            **Dashboard Routes:**
+                - GET / - Main dashboard view
+                - GET /dashboard-content - HTMX dashboard updates
 
         Notes:
             - All routes except login require authentication
@@ -330,7 +330,7 @@ class AdminSite:
             FastAPI route handler that terminates session and clears auth cookies.
 
         Notes:
-            - Revokes access tokens 
+            - Revokes access tokens
             - Terminates active sessions
             - Cleans up auth cookies
             - Logs logout events if tracking enabled
@@ -445,10 +445,11 @@ class AdminSite:
         Returns:
             FastAPI route handler for dashboard content
         """
+
         async def dashboard_content_inner(
             request: Request,
             admin_db: AsyncSession = Depends(self.db_config.get_admin_db),
-            app_db: AsyncSession = Depends(self.db_config.session)
+            app_db: AsyncSession = Depends(self.db_config.session),
         ) -> RouteResponse:
             """
             Renders partial content for the dashboard (HTMX).
@@ -461,9 +462,8 @@ class AdminSite:
 
         return cast(EndpointCallable, dashboard_content_inner)
 
-    async def get_base_context(self,
-        admin_db: AsyncSession,
-        app_db: AsyncSession
+    async def get_base_context(
+        self, admin_db: AsyncSession, app_db: AsyncSession
     ) -> Dict[str, Any]:
         """
         Get common context data needed for base template.
@@ -484,7 +484,9 @@ class AdminSite:
             crud_obj = cast(FastCRUD, model_data["crud"])
             if model_name == "AdminSession":
                 total_count = await crud_obj.count(self.db_config.admin_session)
-                active_count = await crud_obj.count(self.db_config.admin_session, is_active=True)
+                active_count = await crud_obj.count(
+                    self.db_config.admin_session, is_active=True
+                )
                 auth_model_counts[model_name] = total_count
                 auth_model_counts[f"{model_name}_active"] = active_count
             else:
@@ -518,7 +520,7 @@ class AdminSite:
         async def dashboard_page_inner(
             request: Request,
             admin_db: AsyncSession = Depends(self.db_config.get_admin_db),
-            app_db: AsyncSession = Depends(self.db_config.session)
+            app_db: AsyncSession = Depends(self.db_config.session),
         ) -> RouteResponse:
             context = await self.get_base_context(admin_db=admin_db, app_db=app_db)
             context.update({"request": request, "include_sidebar_and_header": True})

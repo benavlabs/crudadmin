@@ -114,9 +114,9 @@ def log_admin_action(
                         try:
                             if model is not None:
                                 crud = FastCRUD(model)
-                            assert (
-                                crud is not None
-                            ), "CRUD instance should be initialized."
+                            assert crud is not None, (
+                                "CRUD instance should be initialized."
+                            )
                             updated_item = await crud.get(db=db, id=kwargs["id"])
                             if updated_item:
                                 new_state = {

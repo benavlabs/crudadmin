@@ -62,7 +62,7 @@ class ModelView:
         model: SQLAlchemy model class to manage
         allowed_actions: Set of allowed operations ('view', 'create', 'update', 'delete')
         create_schema: Pydantic schema for create operations
-        update_schema: Pydantic schema for update operations 
+        update_schema: Pydantic schema for update operations
         update_internal_schema: Optional internal schema for special update cases
         delete_schema: Optional schema for delete operations
         select_schema: Optional schema for select operations
@@ -82,24 +82,24 @@ class ModelView:
         - HTMX is used for dynamic content updates
         - Templates can be customized by overriding defaults
 
-    URLs Generated:  
-        **List View:**  
-            GET /{model_name}/ - Main list view with pagination  
-            GET /{model_name}/get_model_list - HTMX-powered list content  
+    URLs Generated:
+        **List View:**
+            GET /{model_name}/ - Main list view with pagination
+            GET /{model_name}/get_model_list - HTMX-powered list content
 
-        **Create:**  
-            GET /{model_name}/create_page - Create form  
-            POST /{model_name}/form_create - Handle create submission  
+        **Create:**
+            GET /{model_name}/create_page - Create form
+            POST /{model_name}/form_create - Handle create submission
 
-        **Update:**  
-            GET /{model_name}/update/{id} - Update form for specific record  
-            POST /{model_name}/form_update/{id} - Handle update submission  
+        **Update:**
+            GET /{model_name}/update/{id} - Update form for specific record
+            POST /{model_name}/form_update/{id} - Handle update submission
 
-        **Delete:**  
-            DELETE /{model_name}/bulk-delete - Bulk delete selected records  
+        **Delete:**
+            DELETE /{model_name}/bulk-delete - Bulk delete selected records
 
-        **API Endpoints:**  
-            All CRUD operations also exposed as REST API endpoints under /crud/  
+        **API Endpoints:**
+            All CRUD operations also exposed as REST API endpoints under /crud/
 
     Example:
         Basic model view setup:
@@ -123,7 +123,7 @@ class ModelView:
             role: str = Field(default="user")
 
         class UserUpdate(BaseModel):
-            email: Optional[str] = Field(None, pattern=r"[^@]+@[^@]+\.[^@]+") 
+            email: Optional[str] = Field(None, pattern=r"[^@]+@[^@]+\.[^@]+")
             role: Optional[str] = None
 
         # Create view
@@ -149,13 +149,13 @@ class ModelView:
             total: Decimal = Field(..., ge=0)
             status: str = Field(default="pending")
             notes: Optional[str] = None
-            
+
             @validator("total")
             def validate_total(cls, v):
                 if v > 1000000:
                     raise ValueError("Order total cannot exceed 1,000,000")
                 return v
-                
+
             @validator("status")
             def validate_status(cls, v):
                 allowed = {"pending", "paid", "shipped", "cancelled"}
@@ -166,7 +166,7 @@ class ModelView:
         class OrderUpdate(BaseModel):
             status: Optional[str] = None
             notes: Optional[str] = None
-            
+
             @validator("status")
             def validate_status(cls, v):
                 if v is not None:
@@ -177,7 +177,7 @@ class ModelView:
 
         order_view = ModelView(
             database_config=db_config,
-            templates=templates, 
+            templates=templates,
             model=Order,
             create_schema=OrderCreate,
             update_schema=OrderUpdate,
@@ -195,23 +195,23 @@ class ModelView:
             name: str
             price: float = Field(..., gt=0)
             stock: int = Field(..., ge=0)
-            
+
         class ProductUpdate(BaseModel):
             name: Optional[str] = None
             price: Optional[float] = Field(None, gt=0)
             stock: Optional[int] = Field(None, ge=0)
-            
+
         # With event logging
         product_view = ModelView(
             database_config=db_config,
             templates=templates,
             model=Product,
-            create_schema=ProductCreate, 
+            create_schema=ProductCreate,
             update_schema=ProductUpdate,
             event_integration=event_logger,  # Enable logging
             allowed_actions={"view", "create", "update", "delete"}
         )
-        
+
         # Events logged:
         # - Record creation with user info
         # - Updates with change details
@@ -222,14 +222,14 @@ class ModelView:
         Custom templates:
         ```python
         templates = Jinja2Templates(directory="custom_templates")
-        
+
         # Override default templates
         custom_templates = {
             "list": "custom/model/list.html",
             "create": "custom/model/create.html",
             "update": "custom/model/update.html"
         }
-        
+
         view = ModelView(
             database_config=db_config,
             templates=templates,  # Custom templates
@@ -255,7 +255,7 @@ class ModelView:
         # No delete view
         no_delete_view = ModelView(
             database_config=db_config,
-            templates=templates, 
+            templates=templates,
             model=Customer,
             create_schema=CustomerCreate,
             update_schema=CustomerUpdate,
@@ -263,6 +263,7 @@ class ModelView:
         )
         ```
     """
+
     def __init__(
         self,
         database_config: DatabaseConfig,
@@ -456,6 +457,7 @@ class ModelView:
             router.add_api_route("/create", endpoint, methods=["POST"])
             ```
         """
+
         @log_admin_action(EventType.CREATE, model=self.model)
         async def form_create_endpoint_inner(
             request: Request,
@@ -591,15 +593,16 @@ class ModelView:
             ```
 
         Response Formats:
-            **Success:**  
-                - Returns updated list content template  
-                - Status: 200 OK  
-                
-            **Errors:**  
-                - 400: No IDs provided  
-                - 422: Invalid ID format  
-                - 400: Database error during deletion  
+            **Success:**
+                - Returns updated list content template
+                - Status: 200 OK
+
+            **Errors:**
+                - 400: No IDs provided
+                - 422: Invalid ID format
+                - 400: Database error during deletion
         """
+
         @log_admin_action(EventType.DELETE, model=self.model)
         async def bulk_delete_endpoint_inner(
             request: Request,
@@ -746,17 +749,18 @@ class ModelView:
             )
             ```
         """
+
         async def get_model_admin_page_inner(
             request: Request,
             admin_db: AsyncSession = Depends(self.db_config.get_admin_db),
-            app_db: AsyncSession = Depends(self.db_config.session)
+            app_db: AsyncSession = Depends(self.db_config.session),
         ) -> Response:
             """Display the model list page, allowing pagination, sorting, and searching."""
             if self._model_is_admin_model(self.model):
                 db = admin_db
             else:
                 db = app_db
-            
+
             if template == "admin/model/list.html" and not request.url.path.endswith(
                 "/"
             ):
@@ -802,9 +806,9 @@ class ModelView:
                             elif lower_search in ("false", "no", "0", "f", "n"):
                                 filter_criteria[search_column] = False
                         elif python_type is str:
-                            filter_criteria[
-                                f"{search_column}__ilike"
-                            ] = f"%{search_value}%"
+                            filter_criteria[f"{search_column}__ilike"] = (
+                                f"%{search_value}%"
+                            )
                     except (ValueError, TypeError):
                         pass
 
@@ -858,7 +862,9 @@ class ModelView:
                 )
 
             if self.admin_site is not None:
-                base_context = await self.admin_site.get_base_context(admin_db=admin_db, app_db=app_db)
+                base_context = await self.admin_site.get_base_context(
+                    admin_db=admin_db, app_db=app_db
+                )
                 context.update(base_context)
                 context["include_sidebar_and_header"] = True
 
@@ -884,6 +890,7 @@ class ModelView:
             router.add_api_route("/create", endpoint, methods=["GET"])
             ```
         """
+
         async def model_create_page(request: Request) -> Response:
             """Show a blank form for creating a new record."""
             form_fields = _get_form_fields_from_schema(self.create_schema)
@@ -916,6 +923,7 @@ class ModelView:
             router.add_api_route("/update/{id}", endpoint, methods=["GET"])
             ```
         """
+
         async def get_model_update_page_inner(
             request: Request,
             id: int,
@@ -961,6 +969,7 @@ class ModelView:
             - Handles password hashing for AdminUser model
             - Supports automatic updated_at timestamp
         """
+
         @log_admin_action(EventType.UPDATE, model=self.model)
         async def form_update_endpoint_inner(
             request: Request,
@@ -1038,9 +1047,9 @@ class ModelView:
 
                             password = getattr(update_schema_instance, "password", None)
                             if password is not None:
-                                internal_update_data[
-                                    "hashed_password"
-                                ] = self.user_service.get_password_hash(password)
+                                internal_update_data["hashed_password"] = (
+                                    self.user_service.get_password_hash(password)
+                                )
 
                             from ..admin_user.schemas import AdminUserUpdateInternal
 
@@ -1105,10 +1114,10 @@ class ModelView:
             FastAPI route handler for table content partial
 
         Query Parameters:
-            - page: Page number (default: 1)  
-            - rows-per-page-select: Records per page (default: 10)  
-            - column-to-search: Column to search in  
-            - search: Search term  
+            - page: Page number (default: 1)
+            - rows-per-page-select: Records per page (default: 10)
+            - column-to-search: Column to search in
+            - search: Search term
 
         Example:
             ```python
@@ -1119,6 +1128,7 @@ class ModelView:
             )
             ```
         """
+
         async def table_body_content_inner(
             request: Request,
             db: AsyncSession = Depends(self.session),
