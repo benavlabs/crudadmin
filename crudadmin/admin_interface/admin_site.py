@@ -608,7 +608,7 @@ class AdminSite:
 
             total_pages = max(1, (total_items + limit - 1) // limit)
 
-            context = await self.get_base_context(db)
+            context = await self.get_base_context(admin_db=admin_db, app_db=db)
             context.update(
                 {
                     "request": request,

@@ -320,7 +320,7 @@ class CRUDAdmin:
             os.path.dirname(os.path.abspath(__file__)), "..", "static"
         )
 
-        self.app = FastAPI(lifespan=self._lifespan_context_manager)
+        self.app = FastAPI()
         self.app.mount(
             "/static", StaticFiles(directory=self.static_directory), name="admin_static"
         )
@@ -1173,20 +1173,3 @@ class CRUDAdmin:
                     "Error creating initial admin user: %s", str(e), exc_info=True
                 )
                 raise
-
-    @asynccontextmanager
-    async def _lifespan_context_manager(self, app: FastAPI):
-        """Handle admin interface initialization during app startup"""
-        try:
-            await self.initialize()
-
-            for model, view_params in self.views:
-                await self.add_view_async(model=model, **view_params)
-
-            self.views = []
-
-            yield
-
-        except Exception as e:
-            logger.error(f"Error during admin initialization: {str(e)}", exc_info=True)
-            raise
