@@ -320,20 +320,6 @@ class CRUDAdmin:
             os.path.dirname(os.path.abspath(__file__)), "..", "static"
         )
 
-        self._init_params = {
-            "session": session,
-            "SECRET_KEY": SECRET_KEY,
-            "ALGORITHM": ALGORITHM,
-            "ACCESS_TOKEN_EXPIRE_MINUTES": ACCESS_TOKEN_EXPIRE_MINUTES,
-            "REFRESH_TOKEN_EXPIRE_DAYS": REFRESH_TOKEN_EXPIRE_DAYS,
-            "admin_db_url": admin_db_url,
-            "admin_db_path": admin_db_path,
-            "db_config": db_config,
-            "max_sessions_per_user": max_sessions_per_user,
-            "session_timeout_minutes": session_timeout_minutes,
-            "cleanup_interval_minutes": cleanup_interval_minutes,
-        }
-
         self.app = FastAPI(lifespan=self._lifespan_context_manager)
         self.app.mount(
             "/static", StaticFiles(directory=self.static_directory), name="admin_static"
