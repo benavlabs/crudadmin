@@ -45,6 +45,224 @@ class BulkDeleteRequest(BaseModel):
 
 
 class ModelView:
+    """
+    View class for managing CRUD operations and UI for database models in FastAPI admin interface.
+
+    Features:
+        - Automatic form generation from Pydantic schemas
+        - List view with pagination, sorting, and filtering
+        - Create/update forms with validation
+        - Bulk delete operations
+        - Event logging integration
+        - HTMX-powered dynamic updates
+
+    Args:
+        database_config: DatabaseConfig instance for DB connections
+        templates: Jinja2Templates instance for rendering views
+        model: SQLAlchemy model class to manage
+        allowed_actions: Set of allowed operations ('view', 'create', 'update', 'delete')
+        create_schema: Pydantic schema for create operations
+        update_schema: Pydantic schema for update operations 
+        update_internal_schema: Optional internal schema for special update cases
+        delete_schema: Optional schema for delete operations
+        select_schema: Optional schema for select operations
+        admin_model: Whether this is an admin-specific model
+        admin_site: Reference to parent AdminSite instance
+        event_integration: Optional event logging integration
+
+    Raises:
+        ValueError: If schemas don't match model structure
+        TypeError: If model is not a SQLAlchemy model
+        RuntimeError: If required dependencies are missing
+
+    Notes:
+        - Forms are auto-generated based on Pydantic schema definitions
+        - List views support server-side pagination and filtering
+        - Changes are tracked if event logging is enabled
+        - HTMX is used for dynamic content updates
+        - Templates can be customized by overriding defaults
+
+    URLs Generated:  
+        **List View:**  
+            GET /{model_name}/ - Main list view with pagination  
+            GET /{model_name}/get_model_list - HTMX-powered list content  
+
+        **Create:**  
+            GET /{model_name}/create_page - Create form  
+            POST /{model_name}/form_create - Handle create submission  
+
+        **Update:**  
+            GET /{model_name}/update/{id} - Update form for specific record  
+            POST /{model_name}/form_update/{id} - Handle update submission  
+
+        **Delete:**  
+            DELETE /{model_name}/bulk-delete - Bulk delete selected records  
+
+        **API Endpoints:**  
+            All CRUD operations also exposed as REST API endpoints under /crud/  
+
+    Example:
+        Basic model view setup:
+        ```python
+        from pydantic import BaseModel, Field
+        from sqlalchemy import Column, Integer, String
+        from sqlalchemy.ext.declarative import DeclarativeBase
+
+        # Define model
+        class User(DeclarativeBase):
+            __tablename__ = "users"
+            id = Column(Integer, primary_key=True)
+            username = Column(String, unique=True)
+            email = Column(String)
+            role = Column(String)
+
+        # Define schemas
+        class UserCreate(BaseModel):
+            username: str = Field(..., min_length=3)
+            email: str = Field(..., pattern=r"[^@]+@[^@]+\.[^@]+")
+            role: str = Field(default="user")
+
+        class UserUpdate(BaseModel):
+            email: Optional[str] = Field(None, pattern=r"[^@]+@[^@]+\.[^@]+") 
+            role: Optional[str] = None
+
+        # Create view
+        user_view = ModelView(
+            database_config=db_config,
+            templates=templates,
+            model=User,
+            create_schema=UserCreate,
+            update_schema=UserUpdate,
+            allowed_actions={"view", "create", "update"}
+        )
+        ```
+
+        Custom form validation:
+        ```python
+        from datetime import datetime
+        from decimal import Decimal
+        from typing import Optional
+        from pydantic import BaseModel, Field, validator
+
+        class OrderCreate(BaseModel):
+            customer_id: int
+            total: Decimal = Field(..., ge=0)
+            status: str = Field(default="pending")
+            notes: Optional[str] = None
+            
+            @validator("total")
+            def validate_total(cls, v):
+                if v > 1000000:
+                    raise ValueError("Order total cannot exceed 1,000,000")
+                return v
+                
+            @validator("status")
+            def validate_status(cls, v):
+                allowed = {"pending", "paid", "shipped", "cancelled"}
+                if v not in allowed:
+                    raise ValueError(f"Status must be one of: {allowed}")
+                return v
+
+        class OrderUpdate(BaseModel):
+            status: Optional[str] = None
+            notes: Optional[str] = None
+            
+            @validator("status")
+            def validate_status(cls, v):
+                if v is not None:
+                    allowed = {"pending", "paid", "shipped", "cancelled"}
+                    if v not in allowed:
+                        raise ValueError(f"Status must be one of: {allowed}")
+                return v
+
+        order_view = ModelView(
+            database_config=db_config,
+            templates=templates, 
+            model=Order,
+            create_schema=OrderCreate,
+            update_schema=OrderUpdate,
+            allowed_actions={"view", "create", "update"}
+        )
+        ```
+
+        Event logging integration:
+        ```python
+        from typing import Optional
+        from datetime import datetime
+        from pydantic import BaseModel, Field
+
+        class ProductCreate(BaseModel):
+            name: str
+            price: float = Field(..., gt=0)
+            stock: int = Field(..., ge=0)
+            
+        class ProductUpdate(BaseModel):
+            name: Optional[str] = None
+            price: Optional[float] = Field(None, gt=0)
+            stock: Optional[int] = Field(None, ge=0)
+            
+        # With event logging
+        product_view = ModelView(
+            database_config=db_config,
+            templates=templates,
+            model=Product,
+            create_schema=ProductCreate, 
+            update_schema=ProductUpdate,
+            event_integration=event_logger,  # Enable logging
+            allowed_actions={"view", "create", "update", "delete"}
+        )
+        
+        # Events logged:
+        # - Record creation with user info
+        # - Updates with change details
+        # - Deletions with record info
+        # - View access for audit trails
+        ```
+
+        Custom templates:
+        ```python
+        templates = Jinja2Templates(directory="custom_templates")
+        
+        # Override default templates
+        custom_templates = {
+            "list": "custom/model/list.html",
+            "create": "custom/model/create.html",
+            "update": "custom/model/update.html"
+        }
+        
+        view = ModelView(
+            database_config=db_config,
+            templates=templates,  # Custom templates
+            model=User,
+            create_schema=UserCreate,
+            update_schema=UserUpdate,
+            allowed_actions={"view", "create", "update"}
+        )
+        ```
+
+        Restricted actions:
+        ```python
+        # Read-only view
+        readonly_view = ModelView(
+            database_config=db_config,
+            templates=templates,
+            model=AuditLog,
+            create_schema=AuditLogSchema,
+            update_schema=AuditLogSchema,
+            allowed_actions={"view"}  # View only
+        )
+
+        # No delete view
+        no_delete_view = ModelView(
+            database_config=db_config,
+            templates=templates, 
+            model=Customer,
+            create_schema=CustomerCreate,
+            update_schema=CustomerUpdate,
+            allowed_actions={"view", "create", "update"}  # No delete
+        )
+        ```
+    """
     def __init__(
         self,
         database_config: DatabaseConfig,
@@ -106,7 +324,20 @@ class ModelView:
         self.setup_routes()
 
     def _model_is_admin_model(self, model: Type[DeclarativeBase]) -> bool:
-        """Check if the model is one of the known admin models."""
+        """
+        Check if the model is a core admin model.
+
+        Args:
+            model: SQLAlchemy model class to check
+
+        Returns:
+            bool: True if model is one of AdminUser, AdminTokenBlacklist, or AdminSession
+
+        Example:
+            ```python
+            is_admin = view._model_is_admin_model(User)
+            ```
+        """
         admin_models = {
             self.db_config.AdminUser.__name__,
             self.db_config.AdminTokenBlacklist.__name__,
@@ -115,7 +346,28 @@ class ModelView:
         return model.__name__ in admin_models
 
     def setup_routes(self) -> None:
-        """Configure FastAPI routes based on allowed actions."""
+        """
+        Configure FastAPI routes based on allowed actions.
+
+        Sets up the following routes if allowed:
+        - Create: /form_create (POST), /create_page (GET)
+        - View: / (GET), /get_model_list (GET)
+        - Delete: /bulk-delete (DELETE)
+        - Update: /update/{id} (GET), /form_update/{id} (POST)
+
+        Routes are configured based on the allowed_actions set provided during initialization.
+        All routes use appropriate templates and include required dependencies.
+
+        Example:
+            ```python
+            # Configure with specific actions
+            view = ModelView(
+                allowed_actions={"view", "create", "update"},
+                ...
+            )
+            view.setup_routes()  # Only creates view/create/update routes
+            ```
+        """
         if "create" in self.allowed_actions:
             self.router.add_api_route(
                 "/form_create",
@@ -176,6 +428,34 @@ class ModelView:
             )
 
     def form_create_endpoint(self, template: str) -> EndpointCallable:
+        """
+        Create endpoint for handling form submissions to create new model records.
+
+        Args:
+            template: Path to Jinja2 template for rendering form
+
+        Returns:
+            FastAPI route handler for create form submission
+
+        Features:
+            - Form data validation using create_schema
+            - Special handling for AdminUser model
+            - File upload support
+            - Field error collection
+            - Event logging integration
+            - HTMX support for dynamic updates
+
+        Notes:
+            - Uses @log_admin_action decorator for event tracking
+            - Handles both single and multi-value form fields
+            - Supports password hashing for AdminUser model
+
+        Example:
+            ```python
+            endpoint = view.form_create_endpoint("admin/model/create.html")
+            router.add_api_route("/create", endpoint, methods=["POST"])
+            ```
+        """
         @log_admin_action(EventType.CREATE, model=self.model)
         async def form_create_endpoint_inner(
             request: Request,
@@ -284,6 +564,42 @@ class ModelView:
         return cast(EndpointCallable, form_create_endpoint_inner)
 
     def bulk_delete_endpoint(self) -> EndpointCallable:
+        """
+        Create endpoint for bulk deletion of model records.
+
+        Returns:
+            FastAPI route handler for bulk delete operations
+
+        Features:
+            - Handles multiple record deletion in one request
+            - Supports different primary key types (int, str, float)
+            - Validates IDs before deletion
+            - Handles pagination after deletion
+            - Event logging integration
+            - Transaction management
+
+        Notes:
+            - Expects JSON payload with "ids" list
+            - Performs type conversion based on primary key type
+            - Maintains pagination state after deletion
+            - Rolls back transaction on error
+
+        Example:
+            ```python
+            # Delete multiple records
+            await client.delete("/bulk-delete", json={"ids": [1, 2, 3]})
+            ```
+
+        Response Formats:
+            **Success:**  
+                - Returns updated list content template  
+                - Status: 200 OK  
+                
+            **Errors:**  
+                - 400: No IDs provided  
+                - 422: Invalid ID format  
+                - 400: Database error during deletion  
+        """
         @log_admin_action(EventType.DELETE, model=self.model)
         async def bulk_delete_endpoint_inner(
             request: Request,
@@ -410,10 +726,37 @@ class ModelView:
     def get_model_admin_page(
         self, template: str = "admin/model/list.html"
     ) -> EndpointCallable:
+        """
+        Create endpoint for model list view with filtering and pagination.
+
+        Args:
+            template: Path to Jinja2 template for rendering list view
+
+        Returns:
+            FastAPI route handler for model list page
+
+        Example:
+            ```python
+            # Basic list view
+            response = await client.get("/?page=1&rows-per-page-select=25")
+
+            # Sorted and filtered
+            response = await client.get(
+                "/?sort_by=username&sort_order=desc&column-to-search=email&search-input=example.com"
+            )
+            ```
+        """
         async def get_model_admin_page_inner(
-            request: Request, db: AsyncSession = Depends(self.session)
+            request: Request,
+            admin_db: AsyncSession = Depends(self.db_config.get_admin_db),
+            app_db: AsyncSession = Depends(self.db_config.session)
         ) -> Response:
             """Display the model list page, allowing pagination, sorting, and searching."""
+            if self._model_is_admin_model(self.model):
+                db = admin_db
+            else:
+                db = app_db
+            
             if template == "admin/model/list.html" and not request.url.path.endswith(
                 "/"
             ):
@@ -515,7 +858,7 @@ class ModelView:
                 )
 
             if self.admin_site is not None:
-                base_context = await self.admin_site.get_base_context(db)
+                base_context = await self.admin_site.get_base_context(admin_db=admin_db, app_db=app_db)
                 context.update(base_context)
                 context["include_sidebar_and_header"] = True
 
@@ -526,6 +869,21 @@ class ModelView:
     def get_model_create_page(
         self, template: str = "admin/model/create.html"
     ) -> EndpointCallable:
+        """
+        Create endpoint for displaying new record creation form.
+
+        Args:
+            template: Path to Jinja2 template for rendering create form
+
+        Returns:
+            FastAPI route handler for create form page
+
+        Example:
+            ```python
+            endpoint = view.get_model_create_page("admin/model/create.html")
+            router.add_api_route("/create", endpoint, methods=["GET"])
+            ```
+        """
         async def model_create_page(request: Request) -> Response:
             """Show a blank form for creating a new record."""
             form_fields = _get_form_fields_from_schema(self.create_schema)
@@ -543,6 +901,21 @@ class ModelView:
         return cast(EndpointCallable, model_create_page)
 
     def get_model_update_page(self, template: str) -> EndpointCallable:
+        """
+        Create endpoint for displaying record update form.
+
+        Args:
+            template: Path to Jinja2 template for rendering update form
+
+        Returns:
+            FastAPI route handler for update form page
+
+        Example:
+            ```python
+            endpoint = view.get_model_update_page("admin/model/update.html")
+            router.add_api_route("/update/{id}", endpoint, methods=["GET"])
+            ```
+        """
         async def get_model_update_page_inner(
             request: Request,
             id: int,
@@ -576,6 +949,18 @@ class ModelView:
         return cast(EndpointCallable, get_model_update_page_inner)
 
     def form_update_endpoint(self) -> EndpointCallable:
+        """
+        Create endpoint for handling form submissions to update existing records.
+
+        Returns:
+            FastAPI route handler for update form submission
+
+        Notes:
+            - Uses @log_admin_action decorator for event tracking
+            - Only updates provided fields
+            - Handles password hashing for AdminUser model
+            - Supports automatic updated_at timestamp
+        """
         @log_admin_action(EventType.UPDATE, model=self.model)
         async def form_update_endpoint_inner(
             request: Request,
@@ -713,6 +1098,27 @@ class ModelView:
         return cast(EndpointCallable, form_update_endpoint_inner)
 
     def table_body_content(self) -> EndpointCallable:
+        """
+        Create endpoint for HTMX-powered table content updates.
+
+        Returns:
+            FastAPI route handler for table content partial
+
+        Query Parameters:
+            - page: Page number (default: 1)  
+            - rows-per-page-select: Records per page (default: 10)  
+            - column-to-search: Column to search in  
+            - search: Search term  
+
+        Example:
+            ```python
+            # HTMX request for filtered content
+            response = await client.get(
+                "/table-content?page=2&column-to-search=name&search=test",
+                headers={"HX-Request": "true"}
+            )
+            ```
+        """
         async def table_body_content_inner(
             request: Request,
             db: AsyncSession = Depends(self.session),

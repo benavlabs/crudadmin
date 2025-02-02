@@ -23,7 +23,78 @@ EndpointCallable = Callable[..., Any]
 
 class AdminSite:
     """
-    Core admin interface site handler managing authentication, routing and views.
+    Core admin interface site handler managing authentication, routing, and views.
+    
+    **Handles the core functionality of the admin interface including:**  
+    - Authentication and session management  
+    - Route configuration and URL handling  
+    - Template rendering and context management  
+    - Dashboard and model views  
+    - Event logging and audit trails  
+    - Security and access control  
+
+    The AdminSite class serves as the central coordinator for all admin functionality,
+    managing user sessions, handling authentication flows, and providing secure access
+    to administrative features.
+
+    Args:
+        database_config: Database configuration for admin interface
+        templates_directory: Path to template files
+        models: Dictionary of registered models and their configurations
+        admin_authentication: Authentication handler instance
+        mount_path: URL path prefix for admin interface (e.g. "/admin")
+        theme: UI theme name ("dark-theme" or "light-theme")
+        secure_cookies: Enable secure cookie flags
+        event_integration: Optional event logging integration
+
+    Attributes:
+        db_config: Database configuration instance
+        router: FastAPI router for admin endpoints
+        templates: Jinja2 template handler
+        models: Dictionary of registered models
+        admin_user_service: Service for user management
+        admin_authentication: Authentication handler
+        token_service: JWT token service
+        mount_path: URL prefix for admin routes
+        theme: Active UI theme
+        event_integration: Event logging handler
+        session_manager: Session tracking service
+        secure_cookies: Cookie security flag
+
+    Examples:
+        Basic setup with SQLite:
+        ```python
+        from fastapi.templating import Jinja2Templates
+        from .auth import AdminAuthentication
+        from .db import DatabaseConfig
+
+        admin_site = AdminSite(
+            database_config=db_config,
+            templates_directory="templates",
+            models={},  # Empty initially
+            admin_authentication=auth_handler,
+            mount_path="/admin",
+            theme="dark-theme",
+            secure_cookies=True
+        )
+
+        # Add routes
+        admin_site.setup_routes()
+        ```
+
+        Production configuration:
+        ```python 
+        admin_site = AdminSite(
+            database_config=db_config,
+            templates_directory=templates_path,
+            models=model_registry,
+            admin_authentication=auth_handler,
+            mount_path="/admin",
+            theme="dark-theme",
+            secure_cookies=True,
+            event_integration=event_logger
+        )
+        ```
     """
 
     def __init__(
@@ -60,7 +131,32 @@ class AdminSite:
         self.secure_cookies = secure_cookies
 
     def setup_routes(self) -> None:
-        """Configure all admin interface routes including auth, dashboard and model views."""
+        """
+        Configure all admin interface routes including auth, dashboard and model views.
+
+        Routes Created:  
+            **Auth Routes:**  
+                - POST /login - Handle login form submission  
+                - GET /login - Display login page  
+                - GET /logout - Process user logout  
+
+            **Dashboard Routes:**  
+                - GET / - Main dashboard view  
+                - GET /dashboard-content - HTMX dashboard updates  
+
+        Notes:
+            - All routes except login require authentication
+            - Routes use Jinja2 templates for rendering
+            - HTMX integration for dynamic updates
+            - Event logging integration if enabled
+
+        Example:
+            ```python
+            admin_site = AdminSite(...)
+            admin_site.setup_routes()
+            app.include_router(admin_site.router)
+            ```
+        """
         self.router.add_api_route(
             "/login",
             self.login_page(),
@@ -104,7 +200,13 @@ class AdminSite:
         """
         Create login form handler for admin authentication.
 
-        Returns route handler that processes login form, creates session and sets auth cookies.
+        Returns:
+            FastAPI route handler that processes login form submission.
+
+        Notes:
+            - Validates credentials and creates user session on success
+            - Sets secure cookies with tokens
+            - Logs login attempts if event tracking enabled
         """
 
         @log_auth_action(EventType.LOGIN)
@@ -224,7 +326,14 @@ class AdminSite:
         """
         Create logout handler for admin authentication.
 
-        Returns route handler that terminates session and clears auth cookies.
+        Returns:
+            FastAPI route handler that terminates session and clears auth cookies.
+
+        Notes:
+            - Revokes access tokens 
+            - Terminates active sessions
+            - Cleans up auth cookies
+            - Logs logout events if tracking enabled
         """
 
         @log_auth_action(EventType.LOGOUT)
@@ -275,9 +384,16 @@ class AdminSite:
 
     def admin_login_page(self) -> EndpointCallable:
         """
-        Create login page handler for admin interface.
+        Create login page handler for the admin interface.
 
-        Returns route handler that displays login form or redirects if already authenticated.
+        Returns:
+            FastAPI route handler for login page
+
+        Notes:
+            - Checks for existing auth cookies
+            - Validates active sessions
+            - Redirects authenticated users to dashboard
+            - Displays login form with any error messages
         """
 
         async def admin_login_page_inner(
@@ -323,14 +439,21 @@ class AdminSite:
         return cast(EndpointCallable, admin_login_page_inner)
 
     def dashboard_content(self) -> EndpointCallable:
+        """
+        Create dashboard content handler for HTMX dynamic updates.
+
+        Returns:
+            FastAPI route handler for dashboard content
+        """
         async def dashboard_content_inner(
             request: Request,
-            db: AsyncSession = Depends(self.db_config.get_admin_db),
+            admin_db: AsyncSession = Depends(self.db_config.get_admin_db),
+            app_db: AsyncSession = Depends(self.db_config.session)
         ) -> RouteResponse:
             """
             Renders partial content for the dashboard (HTMX).
             """
-            context = await self.get_base_context(db)
+            context = await self.get_base_context(admin_db=admin_db, app_db=app_db)
             context.update({"request": request})
             return self.templates.TemplateResponse(
                 "admin/dashboard/dashboard_content.html", context
@@ -338,16 +461,30 @@ class AdminSite:
 
         return cast(EndpointCallable, dashboard_content_inner)
 
-    async def get_base_context(self, db: AsyncSession) -> Dict[str, Any]:
-        """Get common context data needed for base template"""
+    async def get_base_context(self,
+        admin_db: AsyncSession,
+        app_db: AsyncSession
+    ) -> Dict[str, Any]:
+        """
+        Get common context data needed for base template.
+
+        Args:
+            db: Database session for queries
+
+        Returns:
+            Dictionary containing auth tables, model data, and config
+
+        Notes:
+            - Queries model counts asynchronously
+            - Includes auth model stats and status
+            - Required by all admin templates
+        """
         auth_model_counts: Dict[str, int] = {}
         for model_name, model_data in self.admin_authentication.auth_models.items():
             crud_obj = cast(FastCRUD, model_data["crud"])
             if model_name == "AdminSession":
                 total_count = await crud_obj.count(self.db_config.admin_session)
-                active_count = await crud_obj.count(
-                    self.db_config.admin_session, is_active=True
-                )
+                active_count = await crud_obj.count(self.db_config.admin_session, is_active=True)
                 auth_model_counts[model_name] = total_count
                 auth_model_counts[f"{model_name}_active"] = active_count
             else:
@@ -357,7 +494,7 @@ class AdminSite:
         model_counts: Dict[str, int] = {}
         for model_name, model_data in self.models.items():
             crud = cast(FastCRUD, model_data["crud"])
-            cnt = await crud.count(db)
+            cnt = await crud.count(app_db)
             model_counts[model_name] = cnt
 
         return {
@@ -372,16 +509,18 @@ class AdminSite:
 
     def dashboard_page(self) -> EndpointCallable:
         """
-        Create dashboard page handler.
+        Create main dashboard page handler.
 
-        Returns route handler that displays main admin dashboard.
+        Returns:
+            FastAPI route handler for the admin dashboard
         """
 
         async def dashboard_page_inner(
             request: Request,
-            db: AsyncSession = Depends(self.db_config.get_admin_db),
+            admin_db: AsyncSession = Depends(self.db_config.get_admin_db),
+            app_db: AsyncSession = Depends(self.db_config.session)
         ) -> RouteResponse:
-            context = await self.get_base_context(db)
+            context = await self.get_base_context(admin_db=admin_db, app_db=app_db)
             context.update({"request": request, "include_sidebar_and_header": True})
             return self.templates.TemplateResponse(
                 "admin/dashboard/dashboard.html", context
@@ -391,13 +530,18 @@ class AdminSite:
 
     def admin_auth_model_page(self, model_key: str) -> EndpointCallable:
         """
-        Create page handler for auth model views.
+        Create page handler for authentication model views.
 
         Args:
-            model_key: Name of auth model to display
+            model_key: Name of authentication model to display
 
         Returns:
-            Route handler that displays auth model list view
+            FastAPI route handler for auth model list view
+
+        Notes:
+            - Handles pagination and sorting
+            - Formats special fields like JSON
+            - Integrates with event logging if enabled
         """
 
         async def admin_auth_model_page_inner(
