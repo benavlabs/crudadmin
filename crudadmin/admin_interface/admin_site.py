@@ -1,5 +1,5 @@
 from datetime import timedelta, timezone, datetime
-from typing import Optional, Any, Callable, Dict, cast
+from typing import Optional, Any, Callable, Dict, cast, AsyncGenerator
 import logging
 
 from fastcrud import FastCRUD
@@ -449,7 +449,12 @@ class AdminSite:
         async def dashboard_content_inner(
             request: Request,
             admin_db: AsyncSession = Depends(self.db_config.get_admin_db),
-            app_db: AsyncSession = Depends(self.db_config.session),
+            app_db: AsyncSession = Depends(
+                cast(
+                    Callable[..., AsyncGenerator[AsyncSession, None]],
+                    self.db_config.session,
+                )
+            ),
         ) -> RouteResponse:
             """
             Renders partial content for the dashboard (HTMX).
@@ -520,7 +525,12 @@ class AdminSite:
         async def dashboard_page_inner(
             request: Request,
             admin_db: AsyncSession = Depends(self.db_config.get_admin_db),
-            app_db: AsyncSession = Depends(self.db_config.session),
+            app_db: AsyncSession = Depends(
+                cast(
+                    Callable[..., AsyncGenerator[AsyncSession, None]],
+                    self.db_config.session,
+                )
+            ),
         ) -> RouteResponse:
             context = await self.get_base_context(admin_db=admin_db, app_db=app_db)
             context.update({"request": request, "include_sidebar_and_header": True})

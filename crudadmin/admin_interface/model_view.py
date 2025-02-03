@@ -753,7 +753,9 @@ class ModelView:
         async def get_model_admin_page_inner(
             request: Request,
             admin_db: AsyncSession = Depends(self.db_config.get_admin_db),
-            app_db: AsyncSession = Depends(self.db_config.session),
+            app_db: AsyncSession = Depends(
+                cast(Callable[..., AsyncGenerator[AsyncSession, None]], self.session)
+            ),
         ) -> Response:
             """Display the model list page, allowing pagination, sorting, and searching."""
             if self._model_is_admin_model(self.model):
