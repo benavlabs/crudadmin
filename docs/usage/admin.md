@@ -1,3 +1,4 @@
+BEGIN RAW
 # Building Admin Interfaces with CRUDAdmin
 
 CRUDAdmin helps you create powerful admin interfaces for your FastAPI applications with minimal effort. Built on top of FastCRUD and SQLAlchemy, it supports any database that these libraries work with, including PostgreSQL, MySQL, SQLite, Oracle, and Microsoft SQL Server.
@@ -57,28 +58,63 @@ admin = CRUDAdmin(
 
 This code sets up a basic admin interface with SQLite storage and creates an initial admin user.
 
-### Mounting the Admin Interface
+### Mounting **and Initializing** the Admin Interface
 
-After creating your admin instance, you need to mount it to your FastAPI application. Here's how:
+Unlike many FastAPI components, **CRUDAdmin requires an initialization step** before your application starts serving requests. This ensures all internal tables (for admin users, sessions, event logs, etc.) are created, and that the initial admin user is set up if needed.
+
+#### 1. Using FastAPI’s Lifespan
+
+A recommended approach is using FastAPI's lifespan feature to handle both database table creation and admin initialization:
 
 ```python
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 1. Create database tables for your models if they don't exist
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    
+    # 2. Initialize the admin interface (creates internal admin tables, initial admin user, etc.)
+    await admin.initialize()
+    
+    # Your other startup logic, if any
+    yield
+    # Cleanup logic, if any
 
-# Mount the admin interface
+# Create FastAPI app with lifespan
+app = FastAPI(lifespan=lifespan)
+
+# Mount the admin interface at "/admin"
 app.mount("/admin", admin.app)
 ```
 
+With this configuration:
+
+1. Your SQLAlchemy models are created (if they don’t already exist).  
+2. `admin.initialize()` sets up all internal CRUDAdmin tables and ensures an initial admin user is present.  
+3. The admin interface is accessible at `/admin` once the app is running.
+
 !!! NOTE
-    The mount path ("/admin") should match the `mount_path` parameter you provided to CRUDAdmin. If you didn't specify a mount_path, it defaults to "/admin".
+    - If your project uses database migrations (e.g., Alembic), you can rely on those for table creation. However, it’s still necessary to call `admin.initialize()` so CRUDAdmin can create its own internal tables and apply any needed logic.  
+    - The `initial_admin` user is only created if no admin user currently exists. If you remove `initial_admin` from your code, no default admin user will be created.
 
-!!! WARNING
-    Make sure to mount the admin interface before adding any other routes or middleware to your FastAPI application to ensure proper route handling.
+#### 2. Manual Initialization (If Needed)
 
-You can now access your admin interface at `/admin`.
+If you prefer a manual initialization approach (for instance, in scripts or tests), you can do something like:
 
-### Database Configuration
+```python
+async def startup():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    await admin.initialize()
+
+# Then call startup() before running your FastAPI application
+await startup()
+```
+
+## Database Configuration
 
 You can use any supported database, but CRUDAdmin uses SQLite by default. You can configure this separately from your main application database:
 
@@ -99,13 +135,14 @@ admin = CRUDAdmin(
 ```
 
 The admin database stores:
+
 - User accounts and credentials
 - Session information
 - Token blacklist for logged-out sessions
 - Event logs and audit trails (if enabled)
 - System health metrics
 
-### Adding Models to the Admin Interface
+## Adding Models to the Admin Interface
 
 For each model you want to manage through the admin interface, you need to define Pydantic schemas that specify how the data should be validated. Let's look at a practical example:
 
@@ -158,12 +195,12 @@ The schemas define validation rules and field constraints, ensuring that data en
 
 ### Authentication and Session Management
 
-CRUDAdmin implements a dual authentication system using both JWT (JSON Web Tokens) and server-side sessions for enhanced security. 
+CRUDAdmin implements a dual authentication system using both JWT (JSON Web Tokens) and server-side sessions for enhanced security.
 
 !!! NOTE
     Using both JWTs and server-side sessions provides better security than JWTs alone. The server can invalidate sessions immediately when needed, while JWTs provide a streamlined authentication experience.
 
-Here's a detailed configuration:
+Here’s a detailed configuration:
 
 ```python
 admin = CRUDAdmin(
@@ -183,16 +220,19 @@ admin = CRUDAdmin(
 ```
 
 This configuration creates a secure authentication system where:
-- JWTs provide stateless authentication:
+
+- **JWTs** provide stateless authentication:
   - Access tokens expire after 15 minutes
   - Refresh tokens last 7 days
   - Tokens are signed with the SECRET_KEY
-- Server-side sessions add extra security:
+
+- **Server-side sessions** add extra security:
   - Sessions are stored in the admin database
   - Can be invalidated immediately if needed
   - Limited to 5 concurrent sessions per user (`max_sessions_per_user`)
   - Sessions expire after 30 minutes of inactivity (`session_timeout_minutes`)
   - Expired sessions are cleaned up every 15 minutes (`cleanup_interval_minutes`)
+
 - Additional security features:
   - Secure cookies for HTTPS-only transmission
   - Session tracking and monitoring
@@ -237,6 +277,7 @@ admin = CRUDAdmin(
 ```
 
 When enabled, CRUDAdmin automatically logs:
+
 - All login attempts (successful and failed)
 - CRUD operations on models (who changed what and when)
 - System health status changes
@@ -244,6 +285,7 @@ When enabled, CRUDAdmin automatically logs:
 - Session management events
 
 Each event includes:
+
 - Timestamp with timezone
 - User who performed the action
 - IP address of the request
@@ -253,6 +295,7 @@ Each event includes:
 - Related resource information
 
 You can view these logs through the built-in event log interface at `/admin/management/events`, which provides:
+
 - Filtering by event type, user, date range, and status
 - Detailed view of each event
 - Export capabilities for further analysis
@@ -262,6 +305,7 @@ You can view these logs through the built-in event log interface at `/admin/mana
 CRUDAdmin includes a health monitoring dashboard that helps you keep track of your system's status. Access it at `/admin/management/health` to see:
 
 ### System Status Checks
+
 - Database connectivity and response times
 - Session management status
 - Token service functionality
@@ -276,6 +320,7 @@ The health monitoring system runs regular checks and provides real-time status u
 Proper secret key management is crucial for the security of your admin interface. CRUDAdmin uses this key for JWT token generation and validation.
 
 **Key Generation**
+
 ```python
 # Option 1: Using Python's secrets module (Recommended)
 import secrets
@@ -333,7 +378,6 @@ else:
 
 !!! DANGER
     Running without HTTPS in production is extremely dangerous. Only disable `secure_cookies` and `enforce_https` in development environments.
-```
 
 **Key Storage Best Practices**
 
@@ -351,6 +395,7 @@ Configure authentication to balance security and user experience.
 
 !!! WARNING
     Keep access token expiration times short. Long-lived access tokens pose a significant security risk if compromised.
+
 ```python
 admin = CRUDAdmin(
     session=session,
@@ -372,6 +417,7 @@ admin = CRUDAdmin(
 ```
 
 **Production Security Settings**
+
 ```python
 admin = CRUDAdmin(
     session=session,
@@ -485,6 +531,7 @@ The health dashboard at `/admin/management/health` provides real-time informatio
 - System resources
 
 **Example Health Check Response:**
+
 ```python
 {
     "database": {
@@ -499,7 +546,7 @@ The health dashboard at `/admin/management/health` provides real-time informatio
     },
     "token_service": {
         "status": "healthy",
-        "last_token_generated": "2024-02-01T12:34:56Z"
+        "last_token_generated": "2025-02-01T12:34:56Z"
     }
 }
 ```
@@ -524,11 +571,13 @@ The event log interface at `/admin/management/events` lets you:
 
 3. Export events for further analysis or archival
 
-Remember to regularly review these logs for:
+Regularly review these logs for:
 
 - Failed login attempts from unexpected locations
 - Unusual patterns of database operations
 - System health issues
 - Security-related events
+
+---
 
 By following these practices and understanding CRUDAdmin's features, you can create secure, maintainable admin interfaces that make managing your application's data easier and safer.
