@@ -13,11 +13,11 @@ jobs:
       with:
         python-version: 3.11
 
-    - name: Install Poetry
+    - name: Install uv
       run: pip install uv
 
-    - name: Install dependencies
-      run: uv sync
+    - name: Install package with dev dependencies
+      run: uv pip install -e ".[dev]"
 
     - name: Run Ruff
       run: uv run ruff check crudadmin

@@ -63,6 +63,7 @@ dev = [
     "pytest-asyncio>=0.25.3",
     "testcontainers[postgresql]>=4.9.1",
     "ruff>=0.9.3",
+    "mypy>=1.9.0",
     "httptools>=0.6.4",
     "httpx>=0.28.1",
     "sqlalchemy[mypy]>=2.0.36",

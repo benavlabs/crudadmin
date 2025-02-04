@@ -14,14 +14,11 @@ jobs:
       with:
         python-version: 3.11
 
-    - name: Install Poetry
+    - name: Install uv
       run: pip install uv
 
-    - name: Install dependencies
-      run: uv sync
-
-    - name: Install mypy 1.9.0
-      run: uv add mypy==1.9.0
+    - name: Install package with dev dependencies
+      run: uv pip install -e ".[dev]"
 
     - name: Run mypy
       run: uv run mypy crudadmin --config-file mypy.ini
