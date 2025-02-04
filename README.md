@@ -1,5 +1,13 @@
+# CRUDAdmin
+
 <p align="center">
-  <i>Production-ready admin interface generator for FastAPI applications</i>
+  <a href="https://igorbenav.github.io/crudadmin/">
+    <img src="docs/assets/CRUDADmin.png" alt="CRUDAdmin logo" width="45%" height="auto">
+  </a>
+</p>
+
+<p align="center">
+  <i>Modern admin interface for FastAPI with built-in authentication, event tracking, and security features</i>
 </p>
 
 <p align="center">

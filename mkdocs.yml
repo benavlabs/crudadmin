@@ -1,7 +1,7 @@
 site_name: CRUDAdmin
 site_description: Modern admin interface for FastAPI with built-in authentication, event tracking, and security features.
 site_author: Igor Benav
-site_url: https://github.com/igorbenav/crudadminx
+site_url: https://github.com/igorbenav/crudadmin
 
 theme:
   name: material
@@ -22,7 +22,7 @@ theme:
       primary: custom
       accent: custom
       toggle:
-        icon: material/brightness-7 
+        icon: material/brightness-7
         name: Switch to dark mode
 
     - media: "(prefers-color-scheme: dark)"
