@@ -26,6 +26,9 @@
 
 <p><b>Documentation</b>: <a href="https://igorbenav.github.io/crudadmin/">https://igorbenav.github.io/crudadmin/</a></p>
 
+> [!WARNING]  
+> CRUDAdmin is still experimental.
+
 <hr>
 
 ## Features
