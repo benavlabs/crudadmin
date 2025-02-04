@@ -1,24 +1,135 @@
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
 [project]
 name = "crudadmin"
 version = "0.1.0"
-description = "Add your description here"
+description = "FastAPI-based admin interface with authentication, event logging and CRUD operations"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.9"
+authors = [
+    { name = "Igor Benav", email = "igor.magalhaes.r@gmail.com" }
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Web Environment",
+    "Framework :: FastAPI",
+    "Framework :: Pydantic",
+    "Framework :: Pydantic :: 2",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Internet :: WWW/HTTP :: HTTP Servers",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+    "Typing :: Typed",
+]
 dependencies = [
     "bcrypt>=4.2.1",
     "fastapi>=0.115.6",
     "fastcrud>=0.15.5",
-    "greenlet>=3.1.1",
-    "httptools>=0.6.4",
-    "httpx>=0.28.1",
     "jinja2>=3.1.5",
-    "pydantic-settings>=2.7.1",
     "pydantic[email]>=2.10.4",
-    "pytest>=8.3.4",
     "python-jose>=3.3.0",
     "python-multipart>=0.0.20",
     "sqlalchemy>=2.0.36",
-    "sqlalchemy-utils>=0.41.2",
-    "uuid>=1.30",
+    "user-agents>=2.2.0",
+    "aiosqlite>=0.20.0",
+    "greenlet>=3.1.1",
+]
+
+[project.urls]
+Homepage = "https://github.com/igorbenav/crudadmin"
+Documentation = "https://igorbenav.github.io/crudadmin"
+Repository = "https://github.com/igorbenav/crudadmin"
+Issues = "https://github.com/igorbenav/crudadmin/issues"
+Changelog = "https://github.com/igorbenav/crudadmin/releases"
+
+[project.optional-dependencies]
+standard = [
+    "uvicorn[standard]>=0.12.0"
+]
+
+dev = [
+    "pytest>=8.3.4",
+    "pytest-asyncio>=0.25.3",
+    "testcontainers[postgresql]>=4.9.1",
     "ruff>=0.9.3",
+    "httptools>=0.6.4",
+    "httpx>=0.28.1",
+    "sqlalchemy[mypy]>=2.0.36",
+    "sqlalchemy-utils>=0.41.2"
+]
+
+docs = [
+    "mkdocs>=1.6.1",
+    "mkdocs-meta-descriptions-plugin>=4.0.0",
+    "mkdocs-material>=9.6.1",
+    "mkdocstrings[python]>=0.27.0"
+]
+
+all = [
+    "crudadmin[standard,dev,docs]"
+]
+
+[tool.pytest.ini_options]
+addopts = [
+    "--strict-config",
+    "--strict-markers",
+]
+xfail_strict = true
+filterwarnings = [
+    "error",
+    "ignore:.*U.*mode is deprecated:DeprecationWarning",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py38"
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+]
+ignore = [
+    "E501",  # line too long, handled by black
+    "B008",  # do not perform function calls in argument defaults
+    "C901",  # too complex
+]
+
+[tool.ruff.lint.isort]
+known-third-party = ["fastapi", "pydantic", "starlette"]
+
+[tool.mypy]
+python_version = "3.8"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+
+[tool.coverage.run]
+source = ["crudadmin"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
 ]
