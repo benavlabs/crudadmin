@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://igorbenav.github.io/crudadmin/">
-    <img src="docs/assets/CRUDADmin.png" alt="CRUDAdmin logo" width="45%" height="auto">
+    <img src="docs/assets/CRUDAdmin.png" alt="CRUDAdmin logo" width="45%" height="auto">
   </a>
 </p>
 
