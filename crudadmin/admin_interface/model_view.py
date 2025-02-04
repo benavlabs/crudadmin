@@ -1,31 +1,31 @@
-from typing import (
-    TypeVar,
-    Type,
-    List,
-    Optional,
-    Any,
-    Callable,
-    Dict,
-    Set,
-    cast,
-    Coroutine,
-    AsyncGenerator,
-    Union,
-)
 import datetime
 from datetime import timezone
+from typing import (
+    Any,
+    AsyncGenerator,
+    Callable,
+    Coroutine,
+    Dict,
+    List,
+    Optional,
+    Set,
+    Type,
+    TypeVar,
+    Union,
+    cast,
+)
 
-from fastapi import APIRouter, Request, Depends, UploadFile
+from fastapi import APIRouter, Depends, Request, UploadFile
+from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import RedirectResponse, JSONResponse, Response
+from fastcrud import EndpointCreator, FastCRUD
 from pydantic import BaseModel, ValidationError
+from sqlalchemy import inspect
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy import inspect
-from fastcrud import FastCRUD, EndpointCreator
 
 from ..core.db import DatabaseConfig
-from ..event import log_admin_action, EventType
+from ..event import EventType, log_admin_action
 from .helper import _get_form_fields_from_schema
 
 EndpointCallable = Callable[..., Coroutine[Any, Any, Response]]
@@ -45,7 +45,7 @@ class BulkDeleteRequest(BaseModel):
 
 
 class ModelView:
-    """
+    r"""
     View class for managing CRUD operations and UI for database models in FastAPI admin interface.
 
     Features:

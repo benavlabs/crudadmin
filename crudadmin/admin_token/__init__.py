@@ -1,10 +1,10 @@
 from .models import create_admin_token_blacklist
 from .schemas import (
     AdminToken,
-    AdminTokenData,
     AdminTokenBlacklistBase,
     AdminTokenBlacklistCreate,
     AdminTokenBlacklistUpdate,
+    AdminTokenData,
 )
 from .service import TokenService
 

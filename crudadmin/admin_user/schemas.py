@@ -1,7 +1,7 @@
-from typing import Annotated, Optional
 from datetime import datetime
+from typing import Annotated, Optional
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from ..core.schemas.timestamp import TimestampSchema
 

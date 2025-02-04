@@ -1,34 +1,34 @@
-import os
 import logging
+import os
 from typing import (
-    Type,
-    Optional,
-    AsyncGenerator,
+    TYPE_CHECKING,
     Any,
-    Dict,
+    AsyncGenerator,
     Callable,
+    Dict,
+    Optional,
+    Type,
     TypeVar,
     cast,
-    TYPE_CHECKING,
 )
 
-from pydantic import BaseModel
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, AsyncEngine
-from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy import inspect, Table
 from fastcrud import FastCRUD
+from pydantic import BaseModel
+from sqlalchemy import Table, inspect
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
+from sqlalchemy.orm import DeclarativeBase
 
 if TYPE_CHECKING:
-    from ..admin_user.schemas import (
-        AdminUserCreate,
-        AdminUserUpdate,
-        AdminUserUpdateInternal,
-        AdminUserRead,
-    )
     from ..admin_token.schemas import (
+        AdminTokenBlacklistBase,
         AdminTokenBlacklistCreate,
         AdminTokenBlacklistUpdate,
-        AdminTokenBlacklistBase,
+    )
+    from ..admin_user.schemas import (
+        AdminUserCreate,
+        AdminUserRead,
+        AdminUserUpdate,
+        AdminUserUpdateInternal,
     )
     from ..session.schemas import (
         AdminSessionCreate,
@@ -157,11 +157,11 @@ class DatabaseConfig:
         assert crud_admin_user is not None
         self.crud_users: FastCRUD[
             DeclarativeBase,
-            "AdminUserCreate",
-            "AdminUserUpdate",
-            "AdminUserUpdateInternal",
-            "_EmptySchema",
-            "AdminUserRead",
+            AdminUserCreate,
+            AdminUserUpdate,
+            AdminUserUpdateInternal,
+            _EmptySchema,
+            AdminUserRead,
         ] = crud_admin_user
 
         if crud_admin_token_blacklist is None:
@@ -177,11 +177,11 @@ class DatabaseConfig:
         assert crud_admin_token_blacklist is not None
         self.crud_token_blacklist: FastCRUD[
             DeclarativeBase,
-            "AdminTokenBlacklistCreate",
-            "AdminTokenBlacklistUpdate",
-            "AdminTokenBlacklistUpdate",
-            "_EmptySchema",
-            "AdminTokenBlacklistBase",
+            AdminTokenBlacklistCreate,
+            AdminTokenBlacklistUpdate,
+            AdminTokenBlacklistUpdate,
+            _EmptySchema,
+            AdminTokenBlacklistBase,
         ] = crud_admin_token_blacklist
 
         if crud_admin_session is None:
@@ -197,11 +197,11 @@ class DatabaseConfig:
         assert crud_admin_session is not None
         self.crud_sessions: FastCRUD[
             DeclarativeBase,
-            "AdminSessionCreate",
-            "AdminSessionUpdate",
-            "AdminSessionUpdate",
-            "_EmptySchema",
-            "_EmptySchema",
+            AdminSessionCreate,
+            AdminSessionUpdate,
+            AdminSessionUpdate,
+            _EmptySchema,
+            _EmptySchema,
         ] = crud_admin_session
 
     async def initialize_admin_db(self) -> None:

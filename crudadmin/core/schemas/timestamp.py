@@ -1,7 +1,7 @@
-from typing import Any, Optional
 from datetime import datetime, timezone
+from typing import Any, Optional
 
-from pydantic import BaseModel, field_serializer, Field
+from pydantic import BaseModel, Field, field_serializer
 
 
 class TimestampSchema(BaseModel):

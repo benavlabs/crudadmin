@@ -1,8 +1,8 @@
-from typing import Type, Optional
 from datetime import datetime, timezone
+from typing import Optional, Type
 
-from sqlalchemy import String, DateTime, Boolean
-from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase
+from sqlalchemy import Boolean, DateTime, String
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
 def create_admin_user(base: Type[DeclarativeBase]) -> Type[DeclarativeBase]:

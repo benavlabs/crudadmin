@@ -1,21 +1,22 @@
-from typing import Optional
 import logging
-from fastapi import Depends, Cookie, Request
+from typing import Optional
+
+from fastapi import Cookie, Depends, Request
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..core.exceptions import UnauthorizedException, ForbiddenException
-from ..admin_user.service import AdminUserService
+from ..admin_token.schemas import AdminTokenBlacklistCreate, AdminTokenBlacklistUpdate
 from ..admin_token.service import TokenService
 from ..admin_user.schemas import (
     AdminUserCreate,
+    AdminUserRead,
     AdminUserUpdate,
     AdminUserUpdateInternal,
-    AdminUserRead,
 )
-from ..admin_token.schemas import AdminTokenBlacklistCreate, AdminTokenBlacklistUpdate
-from ..session.schemas import AdminSessionCreate, AdminSessionUpdate
+from ..admin_user.service import AdminUserService
 from ..core.db import DatabaseConfig
+from ..core.exceptions import ForbiddenException, UnauthorizedException
+from ..session.schemas import AdminSessionCreate, AdminSessionUpdate
 
 logger = logging.getLogger(__name__)
 
@@ -100,13 +101,13 @@ class AdminAuthentication:
                 if isinstance(user, dict):
                     try:
                         user = AdminUserRead(**user)
-                    except Exception:
-                        raise UnauthorizedException("Invalid user data")
+                    except Exception as e:
+                        raise UnauthorizedException("Invalid user data") from e
                 elif not isinstance(user, AdminUserRead):
                     try:
                         user = AdminUserRead.from_orm(user)
-                    except Exception:
-                        raise UnauthorizedException("Invalid user data")
+                    except Exception as e:
+                        raise UnauthorizedException("Invalid user data") from e
                 return user
 
             logger.debug("User not found")

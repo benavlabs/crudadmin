@@ -1,12 +1,13 @@
-from typing import Union, Any, Literal, Dict, Callable, Optional, Awaitable
 import logging
+from typing import Any, Awaitable, Callable, Dict, Literal, Optional, Union
+
+import bcrypt
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-import bcrypt
 
+from ..admin_user.schemas import AdminUser
 from ..core.db import DatabaseConfig
 from .schemas import AdminUserCreate
-from ..admin_user.schemas import AdminUser
 
 logger = logging.getLogger(__name__)
 

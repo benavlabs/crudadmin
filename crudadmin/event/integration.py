@@ -1,11 +1,11 @@
 import logging
-from typing import Optional, Dict, Any, Type
+from typing import Any, Dict, Optional, Type
 
 from fastapi import Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 
-from .models import EventType, EventStatus
+from .models import EventStatus, EventType
 from .service import EventService
 
 logger = logging.getLogger(__name__)

@@ -1,10 +1,11 @@
-from typing import List, Optional
+import logging
 from ipaddress import ip_address, ip_network
+from typing import List, Optional
+
 from fastapi import Request
+from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
-from fastapi.responses import JSONResponse
-import logging
 
 logger = logging.getLogger(__name__)
 

@@ -1,20 +1,20 @@
-from datetime import timedelta, timezone, datetime
-from typing import Optional, Any, Callable, Dict, cast, AsyncGenerator
 import logging
+from datetime import datetime, timedelta, timezone
+from typing import Any, AsyncGenerator, Callable, Dict, Optional, cast
 
-from fastcrud import FastCRUD
-from fastapi import Request, APIRouter, Depends, Response, Cookie
+from fastapi import APIRouter, Cookie, Depends, Request, Response
 from fastapi.responses import RedirectResponse
-from fastapi.templating import Jinja2Templates
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.templating import Jinja2Templates
+from fastcrud import FastCRUD
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .auth import AdminAuthentication
-from .typing import RouteResponse
 from ..admin_user.service import AdminUserService
 from ..core.db import DatabaseConfig
+from ..event import EventType, log_auth_action
 from ..session.manager import SessionManager
-from ..event import log_auth_action, EventType
+from .auth import AdminAuthentication
+from .typing import RouteResponse
 
 logger = logging.getLogger(__name__)
 

@@ -1,6 +1,6 @@
 from fastapi import Request
-from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.responses import RedirectResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 
 
 class HTTPSRedirectMiddleware(BaseHTTPMiddleware):

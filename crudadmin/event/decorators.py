@@ -1,12 +1,12 @@
-from datetime import datetime, timezone
 import functools
 import logging
-from typing import Callable, Optional, Type, Dict, Any
+from datetime import datetime, timezone
+from typing import Any, Callable, Dict, Optional, Type
 
 from fastapi import Request
+from fastcrud import FastCRUD
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
-from fastcrud import FastCRUD
 
 from .models import EventType
 

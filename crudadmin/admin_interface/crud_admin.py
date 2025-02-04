@@ -1,25 +1,25 @@
+import logging
 import os
 import time
-import logging
+from datetime import datetime, timedelta, timezone
 from typing import (
-    TypeVar,
-    Type,
-    Dict,
     Any,
-    Union,
-    Optional,
-    List,
-    Callable,
     Awaitable,
-    cast,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Type,
     TypedDict,
+    TypeVar,
+    Union,
+    cast,
 )
-from datetime import datetime, timezone, timedelta
 
-from fastapi import APIRouter, FastAPI, Depends, Request
-from fastapi.templating import Jinja2Templates
+from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from fastcrud import FastCRUD
 from pydantic import BaseModel
 from sqlalchemy import text
@@ -27,17 +27,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 from typing_extensions import TypeAlias
 
-from .model_view import ModelView
-from .admin_site import AdminSite
-from .typing import RouteResponse
 from ..admin_interface.auth import AdminAuthentication
 from ..admin_interface.middleware.auth import AdminAuthMiddleware
 from ..admin_interface.middleware.ip_restriction import IPRestrictionMiddleware
-from ..session import create_admin_session_model, SessionManager
 from ..admin_token.service import TokenService
-from ..admin_user.service import AdminUserService
-from ..core.db import DatabaseConfig, AdminBase
 from ..admin_user.schemas import AdminUserCreate, AdminUserCreateInternal
+from ..admin_user.service import AdminUserService
+from ..core.db import AdminBase, DatabaseConfig
+from ..session import SessionManager, create_admin_session_model
+from .admin_site import AdminSite
+from .model_view import ModelView
+from .typing import RouteResponse
 
 logger = logging.getLogger("crudadmin")
 
@@ -326,7 +326,7 @@ class CRUDAdmin:
 
         self.app.add_middleware(AdminAuthMiddleware, admin_instance=self)
 
-        from ..event import create_admin_event_log, create_admin_audit_log
+        from ..event import create_admin_audit_log, create_admin_event_log
 
         event_log_model: Optional[Type[DeclarativeBase]] = None
         audit_log_model: Optional[Type[DeclarativeBase]] = None
@@ -514,7 +514,7 @@ class CRUDAdmin:
             admin_db: AsyncSession = Depends(admin_db_db_dependency),
             app_db: AsyncSession = Depends(app_db_dependency),
         ) -> RouteResponse:
-            from ..event import EventType, EventStatus
+            from ..event import EventStatus, EventType
 
             users = await self.db_config.crud_users.get_multi(db=app_db)
 

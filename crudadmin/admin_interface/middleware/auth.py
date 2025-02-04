@@ -1,5 +1,5 @@
-from typing import TYPE_CHECKING
 import logging
+from typing import TYPE_CHECKING
 
 from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse

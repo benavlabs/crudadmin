@@ -1,10 +1,10 @@
 from .models import create_admin_user
 from .schemas import (
-    AdminUserBase,
     AdminUser,
-    AdminUserRead,
+    AdminUserBase,
     AdminUserCreate,
     AdminUserCreateInternal,
+    AdminUserRead,
     AdminUserUpdate,
     AdminUserUpdateInternal,
 )

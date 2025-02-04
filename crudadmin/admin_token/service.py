@@ -1,12 +1,12 @@
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-import logging
-from jose import jwt, JWTError
 
+from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.db import DatabaseConfig
-from .schemas import AdminTokenData, AdminTokenBlacklistCreate
+from .schemas import AdminTokenBlacklistCreate, AdminTokenData
 
 logger = logging.getLogger(__name__)
 

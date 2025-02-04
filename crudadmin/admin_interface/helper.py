@@ -1,9 +1,9 @@
-from typing import get_origin, Dict, Any, Type, List, TypeVar, cast
 from datetime import date, datetime, time
 from decimal import Decimal
 from enum import Enum
+from typing import Any, Dict, List, Type, TypeVar, cast, get_origin
 
-from pydantic import BaseModel, EmailStr, HttpUrl, AnyHttpUrl
+from pydantic import AnyHttpUrl, BaseModel, EmailStr, HttpUrl
 
 T = TypeVar("T")
 HTMLInputType = tuple[str, Dict[str, Any]]

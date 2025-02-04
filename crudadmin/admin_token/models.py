@@ -1,7 +1,7 @@
-from typing import Type
 from datetime import datetime
+from typing import Type
 
-from sqlalchemy import String, DateTime
+from sqlalchemy import DateTime, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 

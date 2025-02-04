@@ -1,8 +1,8 @@
-from typing import Type, Any, Dict
 from datetime import datetime, timezone
+from typing import Any, Dict, Type
 
-from sqlalchemy import String, DateTime, JSON, Boolean
-from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase
+from sqlalchemy import JSON, Boolean, DateTime, String
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
 def create_admin_session_model(base: Type[DeclarativeBase]) -> Type[DeclarativeBase]:

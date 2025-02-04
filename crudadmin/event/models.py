@@ -1,8 +1,9 @@
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any, Type
+from typing import Any, Dict, Optional, Type
 
-from sqlalchemy import String, DateTime, JSON, Enum as SQLEnum
-from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase
+from sqlalchemy import JSON, DateTime, String
+from sqlalchemy import Enum as SQLEnum
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from .schemas import EventStatus, EventType
 
