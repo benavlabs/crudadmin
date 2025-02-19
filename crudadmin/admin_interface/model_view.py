@@ -45,7 +45,7 @@ class BulkDeleteRequest(BaseModel):
 
 
 class ModelView:
-    """
+    r"""
     View class for managing CRUD operations and UI for database models in FastAPI admin interface.
 
     Features:
@@ -754,7 +754,10 @@ class ModelView:
             request: Request,
             admin_db: AsyncSession = Depends(self.db_config.get_admin_db),
             app_db: AsyncSession = Depends(
-                cast(Callable[..., AsyncGenerator[AsyncSession, None]], self.db_config.get_app_session())
+                cast(
+                    Callable[..., AsyncGenerator[AsyncSession, None]],
+                    self.db_config.get_app_session(),
+                )
             ),
         ) -> Response:
             """Display the model list page, allowing pagination, sorting, and searching."""

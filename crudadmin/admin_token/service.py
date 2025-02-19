@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Any, Dict, Optional, cast
 
 from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -81,9 +81,10 @@ class TokenService:
                     self.SECRET_KEY,
                     algorithms=[self.ALGORITHM],
                 )
-                username_or_email: str = payload.get("sub")
-                if username_or_email is None:
-                    logger.warning("No username/email found in token")
+                payload_dict = cast(Dict[str, Any], payload)
+                username_or_email = payload_dict.get("sub")
+                if not isinstance(username_or_email, str):
+                    logger.warning("No valid username/email found in token")
                     return None
 
                 logger.info("Token verified successfully")
@@ -109,7 +110,12 @@ class TokenService:
                 self.SECRET_KEY,
                 algorithms=[self.ALGORITHM],
             )
-            expires_at = datetime.fromtimestamp(payload.get("exp"))
+            payload_dict = cast(Dict[str, Any], payload)
+            exp = payload_dict.get("exp")
+            if not isinstance(exp, (int, float)):
+                logger.error("Invalid expiration in token")
+                return
+            expires_at = datetime.fromtimestamp(exp)
             await self.crud_token_blacklist.create(
                 db,
                 object=AdminTokenBlacklistCreate(token=token, expires_at=expires_at),
