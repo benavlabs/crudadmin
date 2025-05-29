@@ -1,5 +1,6 @@
 import logging
-from typing import Any, Awaitable, Callable, Dict, Literal, Optional, Union
+from collections.abc import Awaitable, Callable
+from typing import Any, Dict, Literal, Optional, Union
 
 import bcrypt
 from fastapi import Depends

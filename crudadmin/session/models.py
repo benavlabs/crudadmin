@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Dict, Type
 
 from sqlalchemy import JSON, Boolean, DateTime, String
@@ -23,12 +23,12 @@ def create_admin_session_model(base: Type[DeclarativeBase]) -> Type[DeclarativeB
 
         created_at: Mapped[datetime] = mapped_column(
             DateTime(timezone=True),
-            default=lambda: datetime.now(timezone.utc),
+            default=lambda: datetime.now(UTC),
             nullable=False,
         )
         last_activity: Mapped[datetime] = mapped_column(
             DateTime(timezone=True),
-            default=lambda: datetime.now(timezone.utc),
+            default=lambda: datetime.now(UTC),
             nullable=False,
         )
         is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
@@ -38,9 +38,6 @@ def create_admin_session_model(base: Type[DeclarativeBase]) -> Type[DeclarativeB
         )
 
         def __repr__(self) -> str:
-            return (
-                f"<AdminSession(id={self.id}, "
-                f"user_id={self.user_id}, session_id={self.session_id})>"
-            )
+            return f"<AdminSession(id={self.id}, user_id={self.user_id}, session_id={self.session_id})>"
 
     return AdminSession

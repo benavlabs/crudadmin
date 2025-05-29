@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Optional, Type
 
 from sqlalchemy import Boolean, DateTime, String
@@ -17,11 +17,11 @@ def create_admin_user(base: Type[DeclarativeBase]) -> Type[DeclarativeBase]:
 
         created_at: Mapped[datetime] = mapped_column(
             DateTime(timezone=True),
-            default=datetime.now(timezone.utc),
+            default=datetime.now(UTC),
         )
         updated_at: Mapped[Optional[datetime]] = mapped_column(
             DateTime(timezone=True),
-            onupdate=datetime.now(timezone.utc),
+            onupdate=datetime.now(UTC),
             default=None,
         )
         is_superuser: Mapped[bool] = mapped_column(Boolean, default=True)

@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
@@ -23,7 +23,7 @@ class SessionManager:
         self.max_sessions = max_sessions_per_user
         self.session_timeout = timedelta(minutes=session_timeout_minutes)
         self.cleanup_interval = timedelta(minutes=cleanup_interval_minutes)
-        self.last_cleanup = datetime.now(timezone.utc)
+        self.last_cleanup = datetime.now(UTC)
 
     async def create_session(
         self, request: Request, user_id: int, metadata: Optional[Dict[str, Any]] = None
@@ -34,7 +34,7 @@ class SessionManager:
         try:
             user_agent = request.headers.get("user-agent", "")
             ua_parser = parse(user_agent)
-            current_time = datetime.now(timezone.utc)
+            current_time = datetime.now(UTC)
 
             client = request.client
             if client is None:
@@ -109,7 +109,7 @@ class SessionManager:
     def make_timezone_aware(self, dt: datetime) -> datetime:
         """Convert naive datetime to UTC timezone-aware datetime"""
         if dt.tzinfo is None:
-            return dt.replace(tzinfo=timezone.utc)
+            return dt.replace(tzinfo=UTC)
         return dt
 
     async def validate_session(
@@ -150,9 +150,9 @@ class SessionManager:
                         last_activity_str.replace("Z", "+00:00")
                     )
                     if last_activity.tzinfo is None:
-                        last_activity = last_activity.replace(tzinfo=timezone.utc)
+                        last_activity = last_activity.replace(tzinfo=UTC)
 
-                current_time = datetime.now(timezone.utc)
+                current_time = datetime.now(UTC)
                 if current_time - last_activity > self.session_timeout:
                     logger.warning(f"Session timed out: {session_id}")
                     await self.terminate_session(db, session_id)
@@ -164,7 +164,6 @@ class SessionManager:
                     await self.db_config.crud_sessions.update(
                         db, session_id=session_id, object=update_data
                     )
-                    await db.commit()
 
                 return True
 
@@ -180,7 +179,7 @@ class SessionManager:
 
     async def update_activity(self, db: Any, session_id: str) -> None:
         """Update last activity timestamp for a session"""
-        update_data = AdminSessionUpdate(last_activity=datetime.now(timezone.utc))
+        update_data = AdminSessionUpdate(last_activity=datetime.now(UTC))
         await self.db_config.crud_sessions.update(
             db, session_id=session_id, object=update_data
         )
@@ -190,7 +189,7 @@ class SessionManager:
         update_data = AdminSessionUpdate(
             is_active=False,
             session_metadata={
-                "terminated_at": datetime.now(timezone.utc).isoformat(),
+                "terminated_at": datetime.now(UTC).isoformat(),
                 "termination_reason": "manual_termination",
             },
         )
@@ -216,7 +215,7 @@ class SessionManager:
 
     async def cleanup_expired_sessions(self, db: Any) -> None:
         """Cleanup expired and inactive sessions"""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         if now - self.last_cleanup < self.cleanup_interval:
             return
@@ -274,7 +273,7 @@ class SessionManager:
             if session.get("session_id") != current_session_id:
                 metadata = session.get("metadata", {})
                 metadata["concurrent_login"] = {
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": datetime.now(UTC).isoformat(),
                     "new_session_id": current_session_id,
                 }
 

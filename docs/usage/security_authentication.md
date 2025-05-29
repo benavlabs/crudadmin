@@ -4,18 +4,18 @@ Security is crucial for any admin interface - after all, this is where your appl
 
 ## Understanding Authentication in CRUDAdmin
 
-CRUDAdmin uses a dual-layer authentication system that combines the best of two approaches: JWT (JSON Web Tokens) and server-side sessions. Let's understand why this matters and how to set it up properly.
+CRUDAdmin uses server-side sessions for authentication. Let's understand why this matters and how to set it up properly.
 
 ### Authentication in CRUDAdmin
 
-CRUDAdmin uses JWT combined with server-side sessions for authentication, which is perfect for admin interfaces where security is more important than handling large numbers of concurrent users. This approach gives you:
+CRUDAdmin uses server-side sessions for authentication, which is perfect for admin interfaces where security is more important than handling large numbers of concurrent users. This approach gives you:
 
 1. Complete control over active sessions
 2. Ability to immediately invalidate sessions when needed
 3. Built-in protection against common authentication attacks
 4. Easy session monitoring through the admin interface
 
-Here's how to set up this dual authentication system:
+Here's how to set up this authentication system:
 
 ```python
 from contextlib import asynccontextmanager
@@ -23,10 +23,7 @@ from fastapi import FastAPI
 
 admin = CRUDAdmin(
     session=session,
-    SECRET_KEY=SECRET_KEY,
-    # JWT Configuration
-    ACCESS_TOKEN_EXPIRE_MINUTES=15,   # Short-lived access tokens
-    REFRESH_TOKEN_EXPIRE_DAYS=7,      # Longer refresh tokens
+    SECRET_KEY=SECRET_KEY, # Still needed for signing session cookies and other internal uses
     # Session Management
     max_sessions_per_user=5,          # Limit concurrent sessions
     session_timeout_minutes=30,       # Session inactivity timeout
@@ -50,9 +47,9 @@ app.mount("/admin", admin.app)
 
 Let's break down these settings:
 
-1. **Access Tokens** (15 minutes): These are the primary authentication credentials. We keep them short-lived because if one is stolen, it can only be used for 15 minutes.
-2. **Refresh Tokens** (7 days): Instead of making users log in every 15 minutes, we provide a refresh token that can obtain new access tokens. Seven days is a good balance between security and convenience.
-3. **Session Limits** (5 per user): This prevents a single user from having too many active sessions. If an attacker tries to create multiple sessions, they'll be limited.
+1. **Session Limits** (5 per user): This prevents a single user from having too many active sessions. If an attacker tries to create multiple sessions, they'll be limited.
+2. **Session Timeout** (30 minutes): Sessions automatically expire after a period of inactivity.
+3. **Cleanup Interval** (15 minutes): Determines how often expired sessions are removed from the database.
 
 ## Protecting Your Admin Interface
 
@@ -163,8 +160,6 @@ SECRET_KEY=your-secure-key-here
 ALLOWED_IPS=10.0.0.1,10.0.0.2
 ```
 
-[Rest of the documentation remains the same...]
-
 ## Implementing Access Control
 
 Not all admin users should have the same permissions. CRUDAdmin lets you implement fine-grained access control:
@@ -201,9 +196,8 @@ class User(Base):
 Before deploying to production, ensure you've covered these essential points:
 
 1. **Authentication**
-    - [ ] Generate a strong SECRET_KEY
-    - [ ] Set appropriate token expiration times
-    - [ ] Configure session limits
+    - [ ] Generate a strong SECRET_KEY (for session cookie signing)
+    - [ ] Configure session limits and timeouts
 
 2. **Network Security**
     - [ ] Enable HTTPS with valid certificates

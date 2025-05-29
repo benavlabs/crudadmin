@@ -1,15 +1,15 @@
 import logging
 import os
 import time
-from datetime import datetime, timedelta, timezone
+from collections.abc import Awaitable, Callable
+from datetime import UTC, datetime, timedelta
 from typing import (
     Any,
-    Awaitable,
-    Callable,
     Dict,
     List,
     Optional,
     Type,
+    TypeAlias,
     TypedDict,
     TypeVar,
     Union,
@@ -25,12 +25,10 @@ from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
-from typing_extensions import TypeAlias
 
 from ..admin_interface.auth import AdminAuthentication
 from ..admin_interface.middleware.auth import AdminAuthMiddleware
 from ..admin_interface.middleware.ip_restriction import IPRestrictionMiddleware
-from ..admin_token.service import TokenService
 from ..admin_user.schemas import AdminUserCreate, AdminUserCreateInternal
 from ..admin_user.service import AdminUserService
 from ..core.db import AdminBase, DatabaseConfig
@@ -100,9 +98,6 @@ class CRUDAdmin:
 
         mount_path: URL path where admin interface is mounted, default "/admin"
         theme: UI theme ('dark-theme' or 'light-theme'), default "dark-theme"
-        ALGORITHM: JWT encryption algorithm, default "HS256"
-        ACCESS_TOKEN_EXPIRE_MINUTES: Access token expiry in minutes, default 30
-        REFRESH_TOKEN_EXPIRE_DAYS: Refresh token expiry in days, default 1
         admin_db_url: SQLite/PostgreSQL database URL for admin data
         admin_db_path: File path for SQLite admin database
         db_config: Optional pre-configured DatabaseConfig
@@ -289,9 +284,6 @@ class CRUDAdmin:
         SECRET_KEY: str,
         mount_path: Optional[str] = "/admin",
         theme: Optional[str] = "dark-theme",
-        ALGORITHM: Optional[str] = "HS256",
-        ACCESS_TOKEN_EXPIRE_MINUTES: int = 30,
-        REFRESH_TOKEN_EXPIRE_DAYS: int = 1,
         admin_db_url: Optional[str] = None,
         admin_db_path: Optional[str] = None,
         db_config: Optional[DatabaseConfig] = None,
@@ -360,17 +352,6 @@ class CRUDAdmin:
             self.event_integration = None
 
         self.SECRET_KEY = SECRET_KEY
-        self.ALGORITHM = ALGORITHM or "HS256"
-        self.ACCESS_TOKEN_EXPIRE_MINUTES = ACCESS_TOKEN_EXPIRE_MINUTES
-        self.REFRESH_TOKEN_EXPIRE_DAYS = REFRESH_TOKEN_EXPIRE_DAYS
-
-        self.token_service = TokenService(
-            db_config=self.db_config,
-            SECRET_KEY=SECRET_KEY,
-            ALGORITHM=self.ALGORITHM,
-            ACCESS_TOKEN_EXPIRE_MINUTES=ACCESS_TOKEN_EXPIRE_MINUTES,
-            REFRESH_TOKEN_EXPIRE_DAYS=REFRESH_TOKEN_EXPIRE_DAYS,
-        )
 
         self.admin_user_service = AdminUserService(db_config=self.db_config)
         self.initial_admin = initial_admin
@@ -384,6 +365,14 @@ class CRUDAdmin:
             max_sessions_per_user=max_sessions_per_user,
             session_timeout_minutes=session_timeout_minutes,
             cleanup_interval_minutes=cleanup_interval_minutes,
+        )
+
+        self.admin_authentication = AdminAuthentication(
+            database_config=self.db_config,
+            user_service=self.admin_user_service,
+            session_manager=self.session_manager,
+            oauth2_scheme=self.oauth2_scheme,
+            event_integration=self.event_integration,
         )
 
         self.templates = Jinja2Templates(directory=self.templates_directory)
@@ -449,7 +438,6 @@ class CRUDAdmin:
 
         async with self.db_config.admin_engine.begin() as conn:
             await conn.run_sync(self.db_config.AdminUser.metadata.create_all)
-            await conn.run_sync(self.db_config.AdminTokenBlacklist.metadata.create_all)
             await conn.run_sync(self.db_config.AdminSession.metadata.create_all)
 
             if (
@@ -603,14 +591,14 @@ class CRUDAdmin:
 
                 if start_date:
                     start = datetime.strptime(start_date, "%Y-%m-%d").replace(
-                        tzinfo=timezone.utc
+                        tzinfo=UTC
                     )
                     filter_criteria["timestamp__gte"] = start
 
                 if end_date:
                     end = (
                         datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
-                    ).replace(tzinfo=timezone.utc)
+                    ).replace(tzinfo=UTC)
                     filter_criteria["timestamp__lt"] = end
 
                 events = await crud_events.get_multi(
@@ -709,14 +697,6 @@ class CRUDAdmin:
             - Can be called manually after initialization
             - Respects allowed_actions configuration
         """
-        self.admin_authentication = AdminAuthentication(
-            database_config=self.db_config,
-            user_service=self.admin_user_service,
-            token_service=self.token_service,
-            oauth2_scheme=self.oauth2_scheme,
-            event_integration=self.event_integration if self.track_events else None,
-        )
-
         self.admin_site = AdminSite(
             database_config=self.db_config,
             templates_directory=self.templates_directory,
@@ -899,7 +879,8 @@ class CRUDAdmin:
                 create_schema=ProductCreate,
                 update_schema=ProductUpdate,
                 update_internal_schema=None,
-                delete_schema=None
+                delete_schema=None,
+                allowed_actions={"view", "create", "update"}
             )
             ```
 
@@ -1088,25 +1069,10 @@ class CRUDAdmin:
                     "message": str(e),
                 }
 
-            try:
-                test_token = await self.token_service.create_access_token(
-                    {"test": "data"}
-                )
-                if test_token:
-                    health_checks["token_service"] = {
-                        "status": "healthy",
-                        "message": "Token generation working",
-                    }
-            except Exception as e:
-                health_checks["token_service"] = {
-                    "status": "unhealthy",
-                    "message": str(e),
-                }
-
             context = {
                 "request": request,
                 "health_checks": health_checks,
-                "last_checked": datetime.now(timezone.utc),
+                "last_checked": datetime.now(UTC),
             }
 
             return self.templates.TemplateResponse(

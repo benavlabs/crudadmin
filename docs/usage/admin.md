@@ -62,7 +62,7 @@ This code sets up a basic admin interface with SQLite storage and creates an ini
 
 Unlike many FastAPI components, **CRUDAdmin requires an initialization step** before your application starts serving requests. This ensures all internal tables (for admin users, sessions, event logs, etc.) are created, and that the initial admin user is set up if needed.
 
-#### 1. Using FastAPI’s Lifespan
+#### 1. Using FastAPI's Lifespan
 
 A recommended approach is using FastAPI's lifespan feature to handle both database table creation and admin initialization:
 
@@ -92,12 +92,12 @@ app.mount("/admin", admin.app)
 
 With this configuration:
 
-1. Your SQLAlchemy models are created (if they don’t already exist).  
+1. Your SQLAlchemy models are created (if they don't already exist).  
 2. `admin.initialize()` sets up all internal CRUDAdmin tables and ensures an initial admin user is present.  
 3. The admin interface is accessible at `/admin` once the app is running.
 
 !!! NOTE
-    - If your project uses database migrations (e.g., Alembic), you can rely on those for table creation. However, it’s still necessary to call `admin.initialize()` so CRUDAdmin can create its own internal tables and apply any needed logic.  
+    - If your project uses database migrations (e.g., Alembic), you can rely on those for table creation. However, it's still necessary to call `admin.initialize()` so CRUDAdmin can create its own internal tables and apply any needed logic.  
     - The `initial_admin` user is only created if no admin user currently exists. If you remove `initial_admin` from your code, no default admin user will be created.
 
 #### 2. Manual Initialization (If Needed)
@@ -195,20 +195,17 @@ The schemas define validation rules and field constraints, ensuring that data en
 
 ### Authentication and Session Management
 
-CRUDAdmin implements a dual authentication system using both JWT (JSON Web Tokens) and server-side sessions for enhanced security.
+CRUDAdmin implements server-side sessions for robust and secure authentication.
 
 !!! NOTE
-    Using both JWTs and server-side sessions provides better security than JWTs alone. The server can invalidate sessions immediately when needed, while JWTs provide a streamlined authentication experience.
+    Server-side sessions provide excellent security for admin interfaces, allowing for immediate session invalidation and detailed control over active users.
 
-Here’s a detailed configuration:
+Here's a detailed configuration:
 
 ```python
 admin = CRUDAdmin(
     session=session,
-    SECRET_KEY=SECRET_KEY,
-    # JWT settings
-    ACCESS_TOKEN_EXPIRE_MINUTES=15,   # Short-lived access tokens
-    REFRESH_TOKEN_EXPIRE_DAYS=7,      # Longer refresh tokens
+    SECRET_KEY=SECRET_KEY, # Still needed for signing session cookies
     # Session management
     max_sessions_per_user=5,          # Limit concurrent sessions
     session_timeout_minutes=30,       # Session inactivity timeout
@@ -221,29 +218,23 @@ admin = CRUDAdmin(
 
 This configuration creates a secure authentication system where:
 
-- **JWTs** provide stateless authentication:
-  - Access tokens expire after 15 minutes
-  - Refresh tokens last 7 days
-  - Tokens are signed with the SECRET_KEY
-
-- **Server-side sessions** add extra security:
-  - Sessions are stored in the admin database
-  - Can be invalidated immediately if needed
-  - Limited to 5 concurrent sessions per user (`max_sessions_per_user`)
-  - Sessions expire after 30 minutes of inactivity (`session_timeout_minutes`)
-  - Expired sessions are cleaned up every 15 minutes (`cleanup_interval_minutes`)
+- **Server-side sessions** provide stateful, secure authentication:
+  - Sessions are stored in the admin database.
+  - Can be invalidated immediately if needed (e.g., on logout or if a security issue is detected).
+  - Limited to 5 concurrent sessions per user (`max_sessions_per_user`).
+  - Sessions expire after 30 minutes of inactivity (`session_timeout_minutes`).
+  - Expired sessions are cleaned up every 15 minutes (`cleanup_interval_minutes`).
 
 - Additional security features:
-  - Secure cookies for HTTPS-only transmission
-  - Session tracking and monitoring
-  - Failed login attempt tracking
-  - Token blacklisting for logged-out sessions
+  - Secure cookies for HTTPS-only transmission of the session ID.
+  - Session tracking and monitoring available through the admin interface.
+  - Failed login attempt tracking (if event logging is enabled).
 
 !!! TIP
     Configure shorter session timeouts (`session_timeout_minutes`) for sensitive admin interfaces.
 
 !!! WARNING
-    Remember to call `session_manager.cleanup_expired_sessions()` periodically to prevent session table bloat.
+    Ensure `session_manager.cleanup_expired_sessions()` is called periodically (handled internally by CRUDAdmin's middleware) to prevent session table bloat.
 
 ### IP Restrictions and HTTPS
 
@@ -308,7 +299,6 @@ CRUDAdmin includes a health monitoring dashboard that helps you keep track of yo
 
 - Database connectivity and response times
 - Session management status
-- Token service functionality
 - Recent errors or issues
 
 The health monitoring system runs regular checks and provides real-time status updates, making it easier to identify and troubleshoot issues before they become problems.
@@ -317,7 +307,7 @@ The health monitoring system runs regular checks and provides real-time status u
 
 ### 1. Secret Management
 
-Proper secret key management is crucial for the security of your admin interface. CRUDAdmin uses this key for JWT token generation and validation.
+Proper secret key management is crucial for the security of your admin interface. CRUDAdmin uses this key for signing session cookies.
 
 **Key Generation**
 
@@ -374,7 +364,7 @@ else:
 ```
 
 !!! NOTE
-    The `SECRET_KEY` should be at least 32 bytes long for secure token generation. Use a cryptographically secure method to generate it.
+    The `SECRET_KEY` should be at least 32 bytes long for secure cookie signing. Use a cryptographically secure method to generate it.
 
 !!! DANGER
     Running without HTTPS in production is extremely dangerous. Only disable `secure_cookies` and `enforce_https` in development environments.

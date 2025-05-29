@@ -1,6 +1,6 @@
 import json
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from enum import Enum
 from typing import Any, Dict, List, Optional, cast
@@ -205,7 +205,7 @@ class EventService:
     ) -> List[Dict[str, Any]]:
         """Get security alerts based on event patterns."""
         alerts: List[Dict[str, Any]] = []
-        lookback_time = datetime.now(timezone.utc) - timedelta(hours=lookback_hours)
+        lookback_time = datetime.now(UTC) - timedelta(hours=lookback_hours)
 
         failed_logins = await self.crud_events.get_multi(
             db,
@@ -244,7 +244,7 @@ class EventService:
     ) -> None:
         """Clean up old logs based on retention policy."""
         try:
-            cutoff_date = datetime.now(timezone.utc) - timedelta(days=retention_days)
+            cutoff_date = datetime.now(UTC) - timedelta(days=retention_days)
 
             await self.crud_events.delete_multi(db, timestamp__lt=cutoff_date)
             await self.crud_audits.delete_multi(db, timestamp__lt=cutoff_date)
