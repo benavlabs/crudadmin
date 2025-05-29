@@ -90,10 +90,6 @@ Here's what a typical health check looks like:
         "status": "healthy",
         "active_sessions": 8,
         "cleanup_status": "ok"
-    },
-    "token_service": {
-        "status": "healthy",
-        "last_token_generated": "2024-02-01T12:34:56Z"
     }
 }
 ```
@@ -107,10 +103,6 @@ Let's break down what to look for:
 2. **Session Management**
     - `active_sessions`: Unusual spikes might indicate issues
     - `cleanup_status`: Should always be "ok"
-
-3. **Token Service**
-    - Ensures authentication is working properly
-    - Check `last_token_generated` to ensure recent activity
 
 ## Working with Event Logs
 

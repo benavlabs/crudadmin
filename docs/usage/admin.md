@@ -137,8 +137,7 @@ admin = CRUDAdmin(
 The admin database stores:
 
 - User accounts and credentials
-- Session information
-- Token blacklist for logged-out sessions
+- Session information and tracking
 - Event logs and audit trails (if enabled)
 - System health metrics
 
@@ -381,28 +380,23 @@ else:
 
 Configure authentication to balance security and user experience.
 
-**Token Lifecycle Management**
+**Session Management Configuration**
 
 !!! WARNING
-    Keep access token expiration times short. Long-lived access tokens pose a significant security risk if compromised.
+    Keep session timeout values appropriate for your security needs. Shorter timeouts provide better security but may impact user experience.
 
 ```python
 admin = CRUDAdmin(
     session=session,
     SECRET_KEY=SECRET_KEY,
-    # Short-lived access tokens require more frequent authentication
-    # but reduce the impact of token theft
-    ACCESS_TOKEN_EXPIRE_MINUTES=15,
+    # Session management settings
+    max_sessions_per_user=5,          # Limit concurrent sessions
+    session_timeout_minutes=30,       # Session inactivity timeout
+    cleanup_interval_minutes=15,      # How often to remove expired sessions
     
-    # Longer refresh tokens mean users don't need to log in as frequently
-    REFRESH_TOKEN_EXPIRE_DAYS=7,
-    
-    # Session limits prevent too many concurrent logins
-    session_manager=SessionManager(
-        max_sessions_per_user=5,
-        session_timeout_minutes=30,
-        cleanup_interval_minutes=15
-    )
+    # Security settings
+    secure_cookies=True,              # Enable secure cookie flags
+    enforce_https=True,               # Force HTTPS in production
 )
 ```
 
@@ -533,10 +527,6 @@ The health dashboard at `/admin/management/health` provides real-time informatio
         "status": "healthy",
         "active_sessions": 8,
         "cleanup_status": "ok"
-    },
-    "token_service": {
-        "status": "healthy",
-        "last_token_generated": "2025-02-01T12:34:56Z"
     }
 }
 ```

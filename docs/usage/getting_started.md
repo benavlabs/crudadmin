@@ -75,7 +75,7 @@ admin = CRUDAdmin(
 
 Let's break down what's happening here:
 
-- The `SECRET_KEY` is used for securing sessions and tokens. In production, you'll want to set this through environment variables
+- The `SECRET_KEY` is used for securing sessions and signing cookies. In production, you'll want to set this through environment variables
 - `session` connects CRUDAdmin to your database
 - `initial_admin` creates your first admin user - you'll use these credentials to log in
 

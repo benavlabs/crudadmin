@@ -1,5 +1,3 @@
-
-
 {% set include_sidebar_and_header = False %}
 
 {% block content %}
@@ -117,18 +115,6 @@
                         <span class="stats-badge" title="Total / Active">
                             {{ auth_model_counts["AdminSession_active"]|default(0) }}
                         </span>
-                    </div>
-                </div>
-            </div>
-        {% endif %}
-
-        {% if "AdminTokenBlacklist" in auth_table_names %}
-            <div class="module">
-                <div class="module-info">
-                    <a href="/{{ mount_path }}/AdminTokenBlacklist" class="module-title">Token Blacklist</a>
-                    <div class="module-stats">
-                        <span>Blacklisted Tokens:</span>
-                        <span class="stats-badge">{{ auth_model_counts["AdminTokenBlacklist"]|default(0) }}</span>
                     </div>
                 </div>
             </div>

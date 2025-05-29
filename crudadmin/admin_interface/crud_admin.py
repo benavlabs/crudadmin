@@ -80,7 +80,7 @@ class CRUDAdmin:
 
     Args:
         session: Async SQLAlchemy session for database operations
-        SECRET_KEY: Secret key for JWT token generation. Generate securely using:
+        SECRET_KEY: Secret key for session management and cookie signing. Generate securely using:
             **Python one-liner (recommended)**
             python -c "import secrets; print(secrets.token_urlsafe(32))"
 
@@ -170,11 +170,31 @@ class CRUDAdmin:
             enforce_https=True,
             # Custom PostgreSQL admin database
             admin_db_url="postgresql+asyncpg://user:pass@localhost/admin",
-            # Auth configuration
-            ACCESS_TOKEN_EXPIRE_MINUTES=15,
-            REFRESH_TOKEN_EXPIRE_DAYS=7,
+            # Session configuration
+            max_sessions_per_user=3,
+            session_timeout_minutes=15,
             # Enable audit logging
             track_events=True
+        )
+        ```
+
+        Session management configuration:
+        ```python
+        admin = CRUDAdmin(
+            session=session,
+            SECRET_KEY=SECRET_KEY,
+            # Session management settings
+            max_sessions_per_user=5,
+            session_timeout_minutes=30,
+            cleanup_interval_minutes=15,
+            # Secure cookie settings
+            secure_cookies=True,
+            # Initial admin user
+            initial_admin={
+                "username": "admin",
+                "password": "very_secure_password_123",
+                "is_superuser": True
+            }
         )
         ```
 
@@ -237,26 +257,6 @@ class CRUDAdmin:
             update_internal_schema=None,
             delete_schema=None,
             allowed_actions={"view", "update"}  # View and update only
-        )
-        ```
-
-        Custom authentication configuration:
-        ```python
-        admin = CRUDAdmin(
-            session=session,
-            SECRET_KEY=SECRET_KEY,
-            # Short-lived access tokens
-            ACCESS_TOKEN_EXPIRE_MINUTES=15,
-            # Longer refresh tokens
-            REFRESH_TOKEN_EXPIRE_DAYS=7,
-            # Secure cookie settings
-            secure_cookies=True,
-            # Initial admin user
-            initial_admin={
-                "username": "admin",
-                "password": "very_secure_password_123",
-                "is_superuser": True
-            }
         )
         ```
 
@@ -400,7 +400,6 @@ class CRUDAdmin:
 
         Creates required tables:
         - AdminUser for user management
-        - AdminTokenBlacklist for revoked tokens
         - AdminSession for session tracking
         - AdminEventLog and AdminAuditLog if event tracking enabled
 
@@ -714,7 +713,6 @@ class CRUDAdmin:
             allowed_actions = {
                 "AdminUser": {"view", "create", "update"},
                 "AdminSession": {"view", "delete"},
-                "AdminTokenBlacklist": {"view"},
             }.get(model_name, {"view"})
 
             model = cast(Type[DeclarativeBase], data["model"])

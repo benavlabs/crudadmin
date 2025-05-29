@@ -41,10 +41,10 @@ class AdminSite:
     Args:
         database_config: Database configuration for admin interface
         templates_directory: Path to template files
-        models: Dictionary of registered models and their configurations
-        admin_authentication: Authentication handler instance
-        mount_path: URL path prefix for admin interface (e.g. "/admin")
-        theme: UI theme name ("dark-theme" or "light-theme")
+        models: Dictionary of registered models
+        admin_authentication: Authentication handler
+        mount_path: URL prefix for admin routes
+        theme: Active UI theme
         secure_cookies: Enable secure cookie flags
         event_integration: Optional event logging integration
 
@@ -55,7 +55,6 @@ class AdminSite:
         models: Dictionary of registered models
         admin_user_service: Service for user management
         admin_authentication: Authentication handler
-        token_service: JWT token service
         mount_path: URL prefix for admin routes
         theme: Active UI theme
         event_integration: Event logging handler
@@ -207,7 +206,7 @@ class AdminSite:
 
         Notes:
             - Validates credentials and creates user session on success
-            - Sets secure cookies with tokens
+            - Sets secure cookies with session ID
             - Logs login attempts if event tracking enabled
         """
 
@@ -329,7 +328,6 @@ class AdminSite:
             request: Request,
             response: Response,
             db: AsyncSession = Depends(self.db_config.get_admin_db),
-            access_token: Optional[str] = Cookie(None),
             session_id: Optional[str] = Cookie(None),
             event_integration: Optional[Any] = Depends(lambda: self.event_integration),
         ) -> RouteResponse:
@@ -342,7 +340,6 @@ class AdminSite:
                 url=f"/{self.mount_path}/login", status_code=303
             )
 
-            response.delete_cookie(key="access_token", path=f"/{self.mount_path}")
             response.delete_cookie(key="session_id", path=f"/{self.mount_path}")
 
             return response
