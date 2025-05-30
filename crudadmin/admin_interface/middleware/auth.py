@@ -1,9 +1,10 @@
 import logging
 from typing import TYPE_CHECKING
 
-from fastapi import FastAPI, Request
+from fastapi import Request
 from fastapi.responses import RedirectResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.types import ASGIApp
 
 if TYPE_CHECKING:
     from crudadmin import CRUDAdmin
@@ -12,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class AdminAuthMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app: FastAPI, admin_instance: "CRUDAdmin"):
+    def __init__(self, app: ASGIApp, admin_instance: "CRUDAdmin"):
         super().__init__(app)
         self.admin_instance = admin_instance
 

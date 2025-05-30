@@ -655,7 +655,12 @@ class ModelView:
 
                 try:
                     for id_value in valid_ids:
-                        await self.crud.delete(db=db, **{pk_name: id_value})
+                        await self.crud.delete(
+                            db=db,
+                            commit=False,
+                            allow_multiple=False,
+                            **{pk_name: id_value},
+                        )
                     await db.commit()
                 except Exception as e:
                     await db.rollback()
