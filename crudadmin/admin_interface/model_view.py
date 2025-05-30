@@ -657,6 +657,7 @@ class ModelView:
                     for id_value in valid_ids:
                         await self.crud.delete(
                             db=db,
+                            db_row=None,
                             commit=False,
                             allow_multiple=False,
                             **{pk_name: id_value},
