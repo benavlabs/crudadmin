@@ -82,15 +82,17 @@ all = [
 ]
 
 [tool.pytest.ini_options]
-addopts = [
-    "--strict-config",
-    "--strict-markers",
+minversion = "6.0"
+addopts = "-ra -q --strict-markers --strict-config"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+    "dialect: marks tests to run with specific database dialect",
 ]
-xfail_strict = true
-filterwarnings = [
-    "error",
-    "ignore:.*U.*mode is deprecated:DeprecationWarning",
-]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 
 [tool.ruff]
 line-length = 88
