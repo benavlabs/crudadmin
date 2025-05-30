@@ -1,9 +1,10 @@
 import logging
 from typing import TYPE_CHECKING
 
-from fastapi import FastAPI, Request
+from fastapi import Request
 from fastapi.responses import RedirectResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.types import ASGIApp
 
 if TYPE_CHECKING:
     from crudadmin import CRUDAdmin
@@ -12,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class AdminAuthMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app: FastAPI, admin_instance: "CRUDAdmin"):
+    def __init__(self, app: ASGIApp, admin_instance: "CRUDAdmin"):
         super().__init__(app)
         self.admin_instance = admin_instance
 
@@ -30,37 +31,18 @@ class AdminAuthMiddleware(BaseHTTPMiddleware):
 
         async for db in self.admin_instance.db_config.get_admin_db():
             try:
-                access_token = request.cookies.get("access_token")
                 session_id = request.cookies.get("session_id")
 
-                logger.debug(
-                    f"Found tokens - Access: {bool(access_token)}, Session: {bool(session_id)}"
-                )
+                logger.debug(f"Found session_id: {bool(session_id)}")
 
-                if not access_token or not session_id:
-                    logger.debug("Missing required tokens")
+                if not session_id:
+                    logger.debug("Missing session_id")
                     return RedirectResponse(
                         url=f"/{self.admin_instance.mount_path}/login?error=Please+log+in+to+access+this+page",
                         status_code=303,
                     )
 
-                token = (
-                    access_token.replace("Bearer ", "")
-                    if access_token.startswith("Bearer ")
-                    else access_token
-                )
-
                 try:
-                    token_data = await self.admin_instance.token_service.verify_token(
-                        token, db
-                    )
-                    if not token_data:
-                        logger.debug("Token verification failed")
-                        return RedirectResponse(
-                            url=f"/{self.admin_instance.mount_path}/login?error=Session+expired",
-                            status_code=303,
-                        )
-
                     is_valid_session = (
                         await self.admin_instance.session_manager.validate_session(
                             db=db, session_id=session_id, update_activity=True
@@ -73,17 +55,26 @@ class AdminAuthMiddleware(BaseHTTPMiddleware):
                             status_code=303,
                         )
 
-                    if "@" in token_data.username_or_email:
-                        user = await self.admin_instance.db_config.crud_users.get(
-                            db=db, email=token_data.username_or_email
+                    # Retrieve user_id from session data
+                    session_data = (
+                        await self.admin_instance.session_manager.get_session_metadata(
+                            db, session_id
                         )
-                    else:
-                        user = await self.admin_instance.db_config.crud_users.get(
-                            db=db, username=token_data.username_or_email
+                    )
+                    if not session_data or "user_id" not in session_data:
+                        logger.debug("User ID not found in session data")
+                        return RedirectResponse(
+                            url=f"/{self.admin_instance.mount_path}/login?error=Session+corrupted",  # Or some other error
+                            status_code=303,
                         )
 
+                    user_id = session_data["user_id"]
+                    user = await self.admin_instance.db_config.crud_users.get(
+                        db=db, id=user_id
+                    )
+
                     if not user:
-                        logger.debug("User not found")
+                        logger.debug("User not found for session")
                         return RedirectResponse(
                             url=f"/{self.admin_instance.mount_path}/login?error=User+not+found",
                             status_code=303,

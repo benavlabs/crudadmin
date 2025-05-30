@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Dict, Optional
 from uuid import uuid4
 
@@ -11,7 +11,7 @@ class AdminSessionBase(BaseModel):
     ip_address: str
     user_agent: str
     device_info: Dict[str, Any]
-    last_activity: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    last_activity: datetime = Field(default_factory=lambda: datetime.now(UTC))
     is_active: bool = True
     session_metadata: dict = Field(default_factory=dict)
 

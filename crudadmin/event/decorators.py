@@ -1,7 +1,8 @@
 import functools
 import logging
-from datetime import datetime, timezone
-from typing import Any, Callable, Dict, Optional, Type
+from collections.abc import Callable
+from datetime import UTC, datetime
+from typing import Any, Dict, Optional, Type
 
 from fastapi import Request
 from fastcrud import FastCRUD
@@ -161,7 +162,7 @@ def log_admin_action(
 
                             new_state = {
                                 "action": "delete",
-                                "deleted_at": datetime.now(timezone.utc).isoformat(),
+                                "deleted_at": datetime.now(UTC).isoformat(),
                                 "deleted_records": deleted_records,
                                 "deletion_details": {
                                     "deleted_by": user_dict.get("username"),
@@ -180,7 +181,7 @@ def log_admin_action(
                         changes = compare_states(previous_state, new_state)
                         new_state = {
                             "action": "update",
-                            "updated_at": datetime.now(timezone.utc).isoformat(),
+                            "updated_at": datetime.now(UTC).isoformat(),
                             "previous_state": previous_state,
                             "new_state": new_state,
                             "changes": changes,
@@ -286,7 +287,7 @@ def log_auth_action(event_type: EventType) -> Callable:
                             "username": username
                             or (form_data.username if form_data else "unknown"),
                             "success": success,
-                            "timestamp": datetime.now(timezone.utc).isoformat(),
+                            "timestamp": datetime.now(UTC).isoformat(),
                         },
                         "request_details": {
                             "method": request.method,

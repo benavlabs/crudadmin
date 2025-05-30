@@ -166,9 +166,7 @@ cython_debug/
 
 .ruff_cache
 
-/tests/local
-
-/crudadmin/_templates
-
 uv.lock
 .python-version
+
+local_test

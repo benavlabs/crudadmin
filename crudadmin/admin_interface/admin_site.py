@@ -1,6 +1,7 @@
 import logging
-from datetime import datetime, timedelta, timezone
-from typing import Any, AsyncGenerator, Callable, Dict, Optional, cast
+from collections.abc import AsyncGenerator, Callable
+from datetime import UTC, datetime
+from typing import Any, Dict, Optional, cast
 
 from fastapi import APIRouter, Cookie, Depends, Request, Response
 from fastapi.responses import RedirectResponse
@@ -40,10 +41,10 @@ class AdminSite:
     Args:
         database_config: Database configuration for admin interface
         templates_directory: Path to template files
-        models: Dictionary of registered models and their configurations
-        admin_authentication: Authentication handler instance
-        mount_path: URL path prefix for admin interface (e.g. "/admin")
-        theme: UI theme name ("dark-theme" or "light-theme")
+        models: Dictionary of registered models
+        admin_authentication: Authentication handler
+        mount_path: URL prefix for admin routes
+        theme: Active UI theme
         secure_cookies: Enable secure cookie flags
         event_integration: Optional event logging integration
 
@@ -54,7 +55,6 @@ class AdminSite:
         models: Dictionary of registered models
         admin_user_service: Service for user management
         admin_authentication: Authentication handler
-        token_service: JWT token service
         mount_path: URL prefix for admin routes
         theme: Active UI theme
         event_integration: Event logging handler
@@ -108,27 +108,28 @@ class AdminSite:
         secure_cookies: bool,
         event_integration: Optional[Any] = None,
     ) -> None:
-        self.db_config = database_config
-        self.router = APIRouter()
-        self.templates = Jinja2Templates(directory=templates_directory)
-        self.models = models
-        self.admin_user_service = AdminUserService(db_config=database_config)
-        self.admin_authentication = admin_authentication
+        self.db_config: DatabaseConfig = database_config
+        self.router: APIRouter = APIRouter()
+        self.templates: Jinja2Templates = Jinja2Templates(directory=templates_directory)
+        self.models: Dict[str, Any] = models
+        self.admin_user_service: AdminUserService = AdminUserService(
+            db_config=database_config
+        )
+        self.admin_authentication: AdminAuthentication = admin_authentication
         self.admin_user_service = admin_authentication.user_service
-        self.token_service = admin_authentication.token_service
 
-        self.mount_path = mount_path
-        self.theme = theme
-        self.event_integration = event_integration
+        self.mount_path: str = mount_path
+        self.theme: str = theme
+        self.event_integration: Optional[Any] = event_integration
 
-        self.session_manager = SessionManager(
+        self.session_manager: SessionManager = SessionManager(
             self.db_config,
             max_sessions_per_user=5,
             session_timeout_minutes=30,
             cleanup_interval_minutes=15,
         )
 
-        self.secure_cookies = secure_cookies
+        self.secure_cookies: bool = secure_cookies
 
     def setup_routes(self) -> None:
         """
@@ -205,7 +206,7 @@ class AdminSite:
 
         Notes:
             - Validates credentials and creates user session on success
-            - Sets secure cookies with tokens
+            - Sets secure cookies with session ID
             - Logs login attempts if event tracking enabled
         """
 
@@ -237,13 +238,7 @@ class AdminSite:
                     )
 
                 request.state.user = user
-                logger.info("User authenticated successfully, creating token")
-                access_token_expires = timedelta(
-                    minutes=self.token_service.ACCESS_TOKEN_EXPIRE_MINUTES
-                )
-                access_token = await self.token_service.create_access_token(
-                    data={"sub": user["username"]}, expires_delta=access_token_expires
-                )
+                logger.info("User authenticated successfully, creating session")
 
                 try:
                     logger.info("Creating user session...")
@@ -253,7 +248,7 @@ class AdminSite:
                         metadata={
                             "login_type": "password",
                             "username": user["username"],
-                            "creation_time": datetime.now(timezone.utc).isoformat(),
+                            "creation_time": datetime.now(UTC).isoformat(),
                         },
                     )
 
@@ -267,16 +262,8 @@ class AdminSite:
                         url=f"/{self.mount_path}/", status_code=303
                     )
 
-                    max_age_int = int(access_token_expires.total_seconds())
-
-                    response.set_cookie(
-                        key="access_token",
-                        value=f"Bearer {access_token}",
-                        httponly=True,
-                        secure=self.secure_cookies,
-                        max_age=max_age_int,
-                        path=f"/{self.mount_path}",
-                        samesite="lax",
+                    session_timeout_seconds = int(
+                        self.session_manager.session_timeout.total_seconds()
                     )
 
                     response.set_cookie(
@@ -284,7 +271,7 @@ class AdminSite:
                         value=session.session_id,
                         httponly=True,
                         secure=self.secure_cookies,
-                        max_age=max_age_int,
+                        max_age=session_timeout_seconds,
                         path=f"/{self.mount_path}",
                         samesite="lax",
                     )
@@ -341,31 +328,9 @@ class AdminSite:
             request: Request,
             response: Response,
             db: AsyncSession = Depends(self.db_config.get_admin_db),
-            access_token: Optional[str] = Cookie(None),
             session_id: Optional[str] = Cookie(None),
             event_integration: Optional[Any] = Depends(lambda: self.event_integration),
         ) -> RouteResponse:
-            if access_token:
-                token = (
-                    access_token.replace("Bearer ", "")
-                    if access_token.startswith("Bearer ")
-                    else access_token
-                )
-                token_data = await self.token_service.verify_token(token, db)
-                if token_data:
-                    if "@" in token_data.username_or_email:
-                        user = await self.db_config.crud_users.get(
-                            db=db, email=token_data.username_or_email
-                        )
-                    else:
-                        user = await self.db_config.crud_users.get(
-                            db=db, username=token_data.username_or_email
-                        )
-                    if user:
-                        request.state.user = user
-
-                await self.token_service.blacklist_token(token, db)
-
             if session_id:
                 await self.session_manager.terminate_session(
                     db=db, session_id=session_id
@@ -375,7 +340,6 @@ class AdminSite:
                 url=f"/{self.mount_path}/login", status_code=303
             )
 
-            response.delete_cookie(key="access_token", path=f"/{self.mount_path}")
             response.delete_cookie(key="session_id", path=f"/{self.mount_path}")
 
             return response
@@ -401,26 +365,17 @@ class AdminSite:
             db: AsyncSession = Depends(self.db_config.get_admin_db),
         ) -> RouteResponse:
             try:
-                access_token = request.cookies.get("access_token")
                 session_id = request.cookies.get("session_id")
 
-                if access_token and session_id:
-                    token = (
-                        access_token.split(" ")[1]
-                        if access_token.startswith("Bearer ")
-                        else access_token
+                if session_id:
+                    is_valid_session = await self.session_manager.validate_session(
+                        db=db, session_id=session_id
                     )
-                    token_data = await self.token_service.verify_token(token, db)
 
-                    if token_data:
-                        is_valid_session = await self.session_manager.validate_session(
-                            db=db, session_id=session_id
+                    if is_valid_session:
+                        return RedirectResponse(
+                            url=f"/{self.mount_path}/", status_code=303
                         )
-
-                        if is_valid_session:
-                            return RedirectResponse(
-                                url=f"/{self.mount_path}/", status_code=303
-                            )
 
             except Exception:
                 pass

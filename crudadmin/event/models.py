@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Dict, Optional, Type
 
 from sqlalchemy import JSON, DateTime, String
@@ -28,7 +28,7 @@ def create_admin_event_log(base: Type[DeclarativeBase]) -> Type[DeclarativeBase]
         )
         timestamp: Mapped[datetime] = mapped_column(
             DateTime(timezone=True),
-            default=lambda: datetime.now(timezone.utc),
+            default=lambda: datetime.now(UTC),
             nullable=False,
         )
         event_type: Mapped[EventType] = mapped_column(
@@ -74,7 +74,7 @@ def create_admin_audit_log(base: Type[DeclarativeBase]) -> Type[DeclarativeBase]
         event_id: Mapped[int] = mapped_column(index=True)
         timestamp: Mapped[datetime] = mapped_column(
             DateTime(timezone=True),
-            default=lambda: datetime.now(timezone.utc),
+            default=lambda: datetime.now(UTC),
             nullable=False,
         )
         resource_type: Mapped[str] = mapped_column(String(128))

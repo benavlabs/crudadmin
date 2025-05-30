@@ -1,10 +1,7 @@
 import datetime
-from datetime import timezone
+from collections.abc import AsyncGenerator, Callable, Coroutine
 from typing import (
     Any,
-    AsyncGenerator,
-    Callable,
-    Coroutine,
     Dict,
     List,
     Optional,
@@ -325,26 +322,17 @@ class ModelView:
         self.setup_routes()
 
     def _model_is_admin_model(self, model: Type[DeclarativeBase]) -> bool:
-        """
-        Check if the model is a core admin model.
-
-        Args:
-            model: SQLAlchemy model class to check
-
-        Returns:
-            bool: True if model is one of AdminUser, AdminTokenBlacklist, or AdminSession
-
-        Example:
-            ```python
-            is_admin = view._model_is_admin_model(User)
-            ```
-        """
-        admin_models = {
+        """Check if the given model is one of the admin-specific models."""
+        admin_model_names = [
             self.db_config.AdminUser.__name__,
-            self.db_config.AdminTokenBlacklist.__name__,
             self.db_config.AdminSession.__name__,
-        }
-        return model.__name__ in admin_models
+        ]
+        if self.db_config.AdminEventLog:
+            admin_model_names.append(self.db_config.AdminEventLog.__name__)
+        if self.db_config.AdminAuditLog:
+            admin_model_names.append(self.db_config.AdminAuditLog.__name__)
+
+        return model.__name__ in admin_model_names
 
     def setup_routes(self) -> None:
         """
@@ -667,7 +655,13 @@ class ModelView:
 
                 try:
                     for id_value in valid_ids:
-                        await self.crud.delete(db=db, **{pk_name: id_value})
+                        await self.crud.delete(
+                            db=db,
+                            db_row=None,
+                            commit=False,
+                            allow_multiple=False,
+                            **{pk_name: id_value},
+                        )
                     await db.commit()
                 except Exception as e:
                     await db.rollback()
@@ -1033,7 +1027,7 @@ class ModelView:
                         )
                         if "updated_at" in fields_dict:
                             update_data["updated_at"] = datetime.datetime.now(
-                                timezone.utc
+                                datetime.UTC
                             )
 
                     try:
@@ -1044,7 +1038,7 @@ class ModelView:
                             update_schema_instance = self.update_schema(**update_data)
 
                             internal_update_data: Dict[str, Any] = {
-                                "updated_at": datetime.datetime.now(timezone.utc)
+                                "updated_at": datetime.datetime.now(datetime.UTC)
                             }
                             username = getattr(update_schema_instance, "username", None)
                             if username is not None:

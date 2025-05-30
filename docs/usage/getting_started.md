@@ -75,7 +75,7 @@ admin = CRUDAdmin(
 
 Let's break down what's happening here:
 
-- The `SECRET_KEY` is used for securing sessions and tokens. In production, you'll want to set this through environment variables
+- The `SECRET_KEY` is used for securing sessions and signing cookies. In production, you'll want to set this through environment variables
 - `session` connects CRUDAdmin to your database
 - `initial_admin` creates your first admin user - you'll use these credentials to log in
 
@@ -123,7 +123,6 @@ What `initialize()` does:
 
 1. Creates necessary admin database tables:
     - AdminUser table for managing admin users
-    - AdminTokenBlacklist table for handling revoked tokens
     - AdminSession table for session management
     - If event tracking is enabled, creates AdminEventLog and AdminAuditLog tables
 
@@ -156,9 +155,6 @@ admin = CRUDAdmin(
     session=session,
     SECRET_KEY=SECRET_KEY,
     theme="dark-theme",  # UI theme
-    ALGORITHM="HS256",  # JWT algorithm
-    ACCESS_TOKEN_EXPIRE_MINUTES=30,
-    REFRESH_TOKEN_EXPIRE_DAYS=7,
     initial_admin={
         "username": "admin",
         "password": "secure_pass123"
