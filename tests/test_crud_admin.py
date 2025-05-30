@@ -366,9 +366,7 @@ async def test_crud_admin_setup(async_session):
 
         with patch("crudadmin.admin_interface.crud_admin.AdminSite") as mock_admin_site:
             mock_site_instance = Mock()
-            mock_site_instance.router = (
-                APIRouter()
-            )
+            mock_site_instance.router = APIRouter()
             mock_admin_site.return_value = mock_site_instance
 
             admin.setup()
