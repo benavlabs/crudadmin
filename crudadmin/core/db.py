@@ -166,10 +166,17 @@ class DatabaseConfig:
         logger.info("Initializing admin database tables...")
         try:
             async with self.admin_engine.begin() as conn:
-                for table in [
+                tables_to_create = [
                     self.AdminUser,
                     self.AdminSession,
-                ]:
+                ]
+
+                if self.AdminEventLog is not None:
+                    tables_to_create.append(self.AdminEventLog)
+                if self.AdminAuditLog is not None:
+                    tables_to_create.append(self.AdminAuditLog)
+
+                for table in tables_to_create:
                     logger.info(f"Creating table: {table.__tablename__}")
                     table_obj = cast(Table, table.__table__)
                     await conn.run_sync(table_obj.create, checkfirst=True)
