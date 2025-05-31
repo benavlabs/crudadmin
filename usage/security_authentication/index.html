@@ -1067,50 +1067,47 @@
 <h1 id="securing-your-admin-interface">Securing Your Admin Interface<a class="headerlink" href="#securing-your-admin-interface" title="Permanent link">&para;</a></h1>
 <p>Security is crucial for any admin interface - after all, this is where your application's most sensitive operations happen. This guide will walk you through securing your CRUDAdmin interface, from basic authentication to production-ready security measures.</p>
 <h2 id="understanding-authentication-in-crudadmin">Understanding Authentication in CRUDAdmin<a class="headerlink" href="#understanding-authentication-in-crudadmin" title="Permanent link">&para;</a></h2>
-<p>CRUDAdmin uses a dual-layer authentication system that combines the best of two approaches: JWT (JSON Web Tokens) and server-side sessions. Let's understand why this matters and how to set it up properly.</p>
+<p>CRUDAdmin uses server-side sessions for authentication. Let's understand why this matters and how to set it up properly.</p>
 <h3 id="authentication-in-crudadmin">Authentication in CRUDAdmin<a class="headerlink" href="#authentication-in-crudadmin" title="Permanent link">&para;</a></h3>
-<p>CRUDAdmin uses JWT combined with server-side sessions for authentication, which is perfect for admin interfaces where security is more important than handling large numbers of concurrent users. This approach gives you:</p>
+<p>CRUDAdmin uses server-side sessions for authentication, which is perfect for admin interfaces where security is more important than handling large numbers of concurrent users. This approach gives you:</p>
 <ol>
 <li>Complete control over active sessions</li>
 <li>Ability to immediately invalidate sessions when needed</li>
 <li>Built-in protection against common authentication attacks</li>
 <li>Easy session monitoring through the admin interface</li>
 </ol>
-<p>Here's how to set up this dual authentication system:</p>
+<p>Here's how to set up this authentication system:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">contextlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">asynccontextmanager</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">fastapi</span><span class="w"> </span><span class="kn">import</span> <span class="n">FastAPI</span>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">admin</span> <span class="o">=</span> <span class="n">CRUDAdmin</span><span class="p">(</span>
 </span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">session</span><span class="o">=</span><span class="n">session</span><span class="p">,</span>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">SECRET_KEY</span><span class="o">=</span><span class="n">SECRET_KEY</span><span class="p">,</span>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="c1"># JWT Configuration</span>
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">ACCESS_TOKEN_EXPIRE_MINUTES</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span>   <span class="c1"># Short-lived access tokens</span>
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">REFRESH_TOKEN_EXPIRE_DAYS</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span>      <span class="c1"># Longer refresh tokens</span>
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="c1"># Session Management</span>
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="n">max_sessions_per_user</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>          <span class="c1"># Limit concurrent sessions</span>
-</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="n">session_timeout_minutes</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>       <span class="c1"># Session inactivity timeout</span>
-</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="n">cleanup_interval_minutes</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span>      <span class="c1"># Cleanup schedule</span>
-</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="p">)</span>
-</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>
-</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="c1"># Setup FastAPI lifespan for secure initialization</span>
-</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="nd">@asynccontextmanager</span>
-</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">lifespan</span><span class="p">(</span><span class="n">app</span><span class="p">:</span> <span class="n">FastAPI</span><span class="p">):</span>
-</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>    <span class="c1"># Initialize database tables</span>
-</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>    <span class="k">async</span> <span class="k">with</span> <span class="n">engine</span><span class="o">.</span><span class="n">begin</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
-</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>        <span class="k">await</span> <span class="n">conn</span><span class="o">.</span><span class="n">run_sync</span><span class="p">(</span><span class="n">Base</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">create_all</span><span class="p">)</span>
-</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>
-</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>    <span class="c1"># Initialize admin interface and security features</span>
-</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>    <span class="k">await</span> <span class="n">admin</span><span class="o">.</span><span class="n">initialize</span><span class="p">()</span>
-</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>    <span class="k">yield</span>
-</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>
-</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a><span class="n">app</span> <span class="o">=</span> <span class="n">FastAPI</span><span class="p">(</span><span class="n">lifespan</span><span class="o">=</span><span class="n">lifespan</span><span class="p">)</span>
-</span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a><span class="n">app</span><span class="o">.</span><span class="n">mount</span><span class="p">(</span><span class="s2">&quot;/admin&quot;</span><span class="p">,</span> <span class="n">admin</span><span class="o">.</span><span class="n">app</span><span class="p">)</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">SECRET_KEY</span><span class="o">=</span><span class="n">SECRET_KEY</span><span class="p">,</span> <span class="c1"># Still needed for signing session cookies and other internal uses</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="c1"># Session Management</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">max_sessions_per_user</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>          <span class="c1"># Limit concurrent sessions</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">session_timeout_minutes</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>       <span class="c1"># Session inactivity timeout</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">cleanup_interval_minutes</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span>      <span class="c1"># Cleanup schedule</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="p">)</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="c1"># Setup FastAPI lifespan for secure initialization</span>
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="nd">@asynccontextmanager</span>
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">lifespan</span><span class="p">(</span><span class="n">app</span><span class="p">:</span> <span class="n">FastAPI</span><span class="p">):</span>
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>    <span class="c1"># Initialize database tables</span>
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>    <span class="k">async</span> <span class="k">with</span> <span class="n">engine</span><span class="o">.</span><span class="n">begin</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>        <span class="k">await</span> <span class="n">conn</span><span class="o">.</span><span class="n">run_sync</span><span class="p">(</span><span class="n">Base</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">create_all</span><span class="p">)</span>
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>    <span class="c1"># Initialize admin interface and security features</span>
+</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>    <span class="k">await</span> <span class="n">admin</span><span class="o">.</span><span class="n">initialize</span><span class="p">()</span>
+</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>    <span class="k">yield</span>
+</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>
+</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a><span class="n">app</span> <span class="o">=</span> <span class="n">FastAPI</span><span class="p">(</span><span class="n">lifespan</span><span class="o">=</span><span class="n">lifespan</span><span class="p">)</span>
+</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a><span class="n">app</span><span class="o">.</span><span class="n">mount</span><span class="p">(</span><span class="s2">&quot;/admin&quot;</span><span class="p">,</span> <span class="n">admin</span><span class="o">.</span><span class="n">app</span><span class="p">)</span>
 </span></code></pre></div>
 <p>Let's break down these settings:</p>
 <ol>
-<li><strong>Access Tokens</strong> (15 minutes): These are the primary authentication credentials. We keep them short-lived because if one is stolen, it can only be used for 15 minutes.</li>
-<li><strong>Refresh Tokens</strong> (7 days): Instead of making users log in every 15 minutes, we provide a refresh token that can obtain new access tokens. Seven days is a good balance between security and convenience.</li>
 <li><strong>Session Limits</strong> (5 per user): This prevents a single user from having too many active sessions. If an attacker tries to create multiple sessions, they'll be limited.</li>
+<li><strong>Session Timeout</strong> (30 minutes): Sessions automatically expire after a period of inactivity.</li>
+<li><strong>Cleanup Interval</strong> (15 minutes): Determines how often expired sessions are removed from the database.</li>
 </ol>
 <h2 id="protecting-your-admin-interface">Protecting Your Admin Interface<a class="headerlink" href="#protecting-your-admin-interface" title="Permanent link">&para;</a></h2>
 <h3 id="ip-restrictions">IP Restrictions<a class="headerlink" href="#ip-restrictions" title="Permanent link">&para;</a></h3>
@@ -1206,7 +1203,6 @@
 </span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>SECRET_KEY=your-secure-key-here
 </span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>ALLOWED_IPS=10.0.0.1,10.0.0.2
 </span></code></pre></div></p>
-<p>[Rest of the documentation remains the same...]</p>
 <h2 id="implementing-access-control">Implementing Access Control<a class="headerlink" href="#implementing-access-control" title="Permanent link">&para;</a></h2>
 <p>Not all admin users should have the same permissions. CRUDAdmin lets you implement fine-grained access control:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Users can only be viewed and updated, not created or deleted</span>
@@ -1238,9 +1234,8 @@
 <li>
 <p><strong>Authentication</strong></p>
 <ul>
-<li>[ ] Generate a strong SECRET_KEY</li>
-<li>[ ] Set appropriate token expiration times</li>
-<li>[ ] Configure session limits</li>
+<li>[ ] Generate a strong SECRET_KEY (for session cookie signing)</li>
+<li>[ ] Configure session limits and timeouts</li>
 </ul>
 </li>
 <li>

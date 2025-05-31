@@ -866,7 +866,7 @@
           <li class="md-nav__item">
   <a href="#1-using-fastapis-lifespan" class="md-nav__link">
     <span class="md-ellipsis">
-      1. Using FastAPI’s Lifespan
+      1. Using FastAPI's Lifespan
     </span>
   </a>
   
@@ -1099,7 +1099,7 @@
 <p>This code sets up a basic admin interface with SQLite storage and creates an initial admin user.</p>
 <h3 id="mounting-and-initializing-the-admin-interface">Mounting <strong>and Initializing</strong> the Admin Interface<a class="headerlink" href="#mounting-and-initializing-the-admin-interface" title="Permanent link">&para;</a></h3>
 <p>Unlike many FastAPI components, <strong>CRUDAdmin requires an initialization step</strong> before your application starts serving requests. This ensures all internal tables (for admin users, sessions, event logs, etc.) are created, and that the initial admin user is set up if needed.</p>
-<h4 id="1-using-fastapis-lifespan">1. Using FastAPI’s Lifespan<a class="headerlink" href="#1-using-fastapis-lifespan" title="Permanent link">&para;</a></h4>
+<h4 id="1-using-fastapis-lifespan">1. Using FastAPI's Lifespan<a class="headerlink" href="#1-using-fastapis-lifespan" title="Permanent link">&para;</a></h4>
 <p>A recommended approach is using FastAPI's lifespan feature to handle both database table creation and admin initialization:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">contextlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">asynccontextmanager</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">fastapi</span><span class="w"> </span><span class="kn">import</span> <span class="n">FastAPI</span>
@@ -1125,14 +1125,14 @@
 </span></code></pre></div>
 <p>With this configuration:</p>
 <ol>
-<li>Your SQLAlchemy models are created (if they don’t already exist).  </li>
+<li>Your SQLAlchemy models are created (if they don't already exist).  </li>
 <li><code>admin.initialize()</code> sets up all internal CRUDAdmin tables and ensures an initial admin user is present.  </li>
 <li>The admin interface is accessible at <code>/admin</code> once the app is running.</li>
 </ol>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <ul>
-<li>If your project uses database migrations (e.g., Alembic), you can rely on those for table creation. However, it’s still necessary to call <code>admin.initialize()</code> so CRUDAdmin can create its own internal tables and apply any needed logic.  </li>
+<li>If your project uses database migrations (e.g., Alembic), you can rely on those for table creation. However, it's still necessary to call <code>admin.initialize()</code> so CRUDAdmin can create its own internal tables and apply any needed logic.  </li>
 <li>The <code>initial_admin</code> user is only created if no admin user currently exists. If you remove <code>initial_admin</code> from your code, no default admin user will be created.</li>
 </ul>
 </div>
@@ -1165,8 +1165,7 @@
 <p>The admin database stores:</p>
 <ul>
 <li>User accounts and credentials</li>
-<li>Session information</li>
-<li>Token blacklist for logged-out sessions</li>
+<li>Session information and tracking</li>
 <li>Event logs and audit trails (if enabled)</li>
 <li>System health metrics</li>
 </ul>
@@ -1216,52 +1215,40 @@
 <p>The schemas define validation rules and field constraints, ensuring that data entered through the admin interface is valid. The <code>allowed_actions</code> parameter lets you control which operations are available for each model.</p>
 <h2 id="security-features">Security Features<a class="headerlink" href="#security-features" title="Permanent link">&para;</a></h2>
 <h3 id="authentication-and-session-management">Authentication and Session Management<a class="headerlink" href="#authentication-and-session-management" title="Permanent link">&para;</a></h3>
-<p>CRUDAdmin implements a dual authentication system using both JWT (JSON Web Tokens) and server-side sessions for enhanced security.</p>
+<p>CRUDAdmin implements server-side sessions for robust and secure authentication.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>Using both JWTs and server-side sessions provides better security than JWTs alone. The server can invalidate sessions immediately when needed, while JWTs provide a streamlined authentication experience.</p>
+<p>Server-side sessions provide excellent security for admin interfaces, allowing for immediate session invalidation and detailed control over active users.</p>
 </div>
-<p>Here’s a detailed configuration:</p>
+<p>Here's a detailed configuration:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">admin</span> <span class="o">=</span> <span class="n">CRUDAdmin</span><span class="p">(</span>
 </span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>    <span class="n">session</span><span class="o">=</span><span class="n">session</span><span class="p">,</span>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>    <span class="n">SECRET_KEY</span><span class="o">=</span><span class="n">SECRET_KEY</span><span class="p">,</span>
-</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>    <span class="c1"># JWT settings</span>
-</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>    <span class="n">ACCESS_TOKEN_EXPIRE_MINUTES</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span>   <span class="c1"># Short-lived access tokens</span>
-</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>    <span class="n">REFRESH_TOKEN_EXPIRE_DAYS</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span>      <span class="c1"># Longer refresh tokens</span>
-</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>    <span class="c1"># Session management</span>
-</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>    <span class="n">max_sessions_per_user</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>          <span class="c1"># Limit concurrent sessions</span>
-</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>    <span class="n">session_timeout_minutes</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>       <span class="c1"># Session inactivity timeout</span>
-</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>    <span class="n">cleanup_interval_minutes</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span>      <span class="c1"># How often to remove expired sessions</span>
-</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>    <span class="c1"># Enable secure cookies and HTTPS for production</span>
-</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>    <span class="n">secure_cookies</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-</span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>    <span class="n">enforce_https</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-</span><span id="__span-5-14"><a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a><span class="p">)</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>    <span class="n">SECRET_KEY</span><span class="o">=</span><span class="n">SECRET_KEY</span><span class="p">,</span> <span class="c1"># Still needed for signing session cookies</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>    <span class="c1"># Session management</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>    <span class="n">max_sessions_per_user</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>          <span class="c1"># Limit concurrent sessions</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>    <span class="n">session_timeout_minutes</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>       <span class="c1"># Session inactivity timeout</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>    <span class="n">cleanup_interval_minutes</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span>      <span class="c1"># How often to remove expired sessions</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>    <span class="c1"># Enable secure cookies and HTTPS for production</span>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>    <span class="n">secure_cookies</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>    <span class="n">enforce_https</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="p">)</span>
 </span></code></pre></div>
 <p>This configuration creates a secure authentication system where:</p>
 <ul>
-<li><strong>JWTs</strong> provide stateless authentication:</li>
-<li>Access tokens expire after 15 minutes</li>
-<li>Refresh tokens last 7 days</li>
+<li><strong>Server-side sessions</strong> provide stateful, secure authentication:</li>
+<li>Sessions are stored in the admin database.</li>
+<li>Can be invalidated immediately if needed (e.g., on logout or if a security issue is detected).</li>
+<li>Limited to 5 concurrent sessions per user (<code>max_sessions_per_user</code>).</li>
+<li>Sessions expire after 30 minutes of inactivity (<code>session_timeout_minutes</code>).</li>
 <li>
-<p>Tokens are signed with the SECRET_KEY</p>
-</li>
-<li>
-<p><strong>Server-side sessions</strong> add extra security:</p>
-</li>
-<li>Sessions are stored in the admin database</li>
-<li>Can be invalidated immediately if needed</li>
-<li>Limited to 5 concurrent sessions per user (<code>max_sessions_per_user</code>)</li>
-<li>Sessions expire after 30 minutes of inactivity (<code>session_timeout_minutes</code>)</li>
-<li>
-<p>Expired sessions are cleaned up every 15 minutes (<code>cleanup_interval_minutes</code>)</p>
+<p>Expired sessions are cleaned up every 15 minutes (<code>cleanup_interval_minutes</code>).</p>
 </li>
 <li>
 <p>Additional security features:</p>
 </li>
-<li>Secure cookies for HTTPS-only transmission</li>
-<li>Session tracking and monitoring</li>
-<li>Failed login attempt tracking</li>
-<li>Token blacklisting for logged-out sessions</li>
+<li>Secure cookies for HTTPS-only transmission of the session ID.</li>
+<li>Session tracking and monitoring available through the admin interface.</li>
+<li>Failed login attempt tracking (if event logging is enabled).</li>
 </ul>
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
@@ -1269,7 +1256,7 @@
 </div>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p>Remember to call <code>session_manager.cleanup_expired_sessions()</code> periodically to prevent session table bloat.</p>
+<p>Ensure <code>session_manager.cleanup_expired_sessions()</code> is called periodically (handled internally by CRUDAdmin's middleware) to prevent session table bloat.</p>
 </div>
 <h3 id="ip-restrictions-and-https">IP Restrictions and HTTPS<a class="headerlink" href="#ip-restrictions-and-https" title="Permanent link">&para;</a></h3>
 <p>For production environments, you can restrict access to specific IP addresses and enforce HTTPS:</p>
@@ -1323,13 +1310,12 @@
 <ul>
 <li>Database connectivity and response times</li>
 <li>Session management status</li>
-<li>Token service functionality</li>
 <li>Recent errors or issues</li>
 </ul>
 <p>The health monitoring system runs regular checks and provides real-time status updates, making it easier to identify and troubleshoot issues before they become problems.</p>
 <h2 id="best-practices">Best Practices<a class="headerlink" href="#best-practices" title="Permanent link">&para;</a></h2>
 <h3 id="1-secret-management">1. Secret Management<a class="headerlink" href="#1-secret-management" title="Permanent link">&para;</a></h3>
-<p>Proper secret key management is crucial for the security of your admin interface. CRUDAdmin uses this key for JWT token generation and validation.</p>
+<p>Proper secret key management is crucial for the security of your admin interface. CRUDAdmin uses this key for signing session cookies.</p>
 <p><strong>Key Generation</strong></p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1"># Option 1: Using Python&#39;s secrets module (Recommended)</span>
 </span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">secrets</span>
@@ -1382,7 +1368,7 @@
 </span></code></pre></div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>The <code>SECRET_KEY</code> should be at least 32 bytes long for secure token generation. Use a cryptographically secure method to generate it.</p>
+<p>The <code>SECRET_KEY</code> should be at least 32 bytes long for secure cookie signing. Use a cryptographically secure method to generate it.</p>
 </div>
 <div class="admonition danger">
 <p class="admonition-title">Danger</p>
@@ -1398,28 +1384,23 @@
 </ul>
 <h3 id="2-authentication-settings">2. Authentication Settings<a class="headerlink" href="#2-authentication-settings" title="Permanent link">&para;</a></h3>
 <p>Configure authentication to balance security and user experience.</p>
-<p><strong>Token Lifecycle Management</strong></p>
+<p><strong>Session Management Configuration</strong></p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p>Keep access token expiration times short. Long-lived access tokens pose a significant security risk if compromised.</p>
+<p>Keep session timeout values appropriate for your security needs. Shorter timeouts provide better security but may impact user experience.</p>
 </div>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="n">admin</span> <span class="o">=</span> <span class="n">CRUDAdmin</span><span class="p">(</span>
 </span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>    <span class="n">session</span><span class="o">=</span><span class="n">session</span><span class="p">,</span>
 </span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>    <span class="n">SECRET_KEY</span><span class="o">=</span><span class="n">SECRET_KEY</span><span class="p">,</span>
-</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>    <span class="c1"># Short-lived access tokens require more frequent authentication</span>
-</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>    <span class="c1"># but reduce the impact of token theft</span>
-</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>    <span class="n">ACCESS_TOKEN_EXPIRE_MINUTES</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span>
-</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>
-</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>    <span class="c1"># Longer refresh tokens mean users don&#39;t need to log in as frequently</span>
-</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>    <span class="n">REFRESH_TOKEN_EXPIRE_DAYS</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span>
-</span><span id="__span-10-10"><a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a>
-</span><span id="__span-10-11"><a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a>    <span class="c1"># Session limits prevent too many concurrent logins</span>
-</span><span id="__span-10-12"><a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a>    <span class="n">session_manager</span><span class="o">=</span><span class="n">SessionManager</span><span class="p">(</span>
-</span><span id="__span-10-13"><a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a>        <span class="n">max_sessions_per_user</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
-</span><span id="__span-10-14"><a id="__codelineno-10-14" name="__codelineno-10-14" href="#__codelineno-10-14"></a>        <span class="n">session_timeout_minutes</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>
-</span><span id="__span-10-15"><a id="__codelineno-10-15" name="__codelineno-10-15" href="#__codelineno-10-15"></a>        <span class="n">cleanup_interval_minutes</span><span class="o">=</span><span class="mi">15</span>
-</span><span id="__span-10-16"><a id="__codelineno-10-16" name="__codelineno-10-16" href="#__codelineno-10-16"></a>    <span class="p">)</span>
-</span><span id="__span-10-17"><a id="__codelineno-10-17" name="__codelineno-10-17" href="#__codelineno-10-17"></a><span class="p">)</span>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>    <span class="c1"># Session management settings</span>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>    <span class="n">max_sessions_per_user</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>          <span class="c1"># Limit concurrent sessions</span>
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>    <span class="n">session_timeout_minutes</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>       <span class="c1"># Session inactivity timeout</span>
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>    <span class="n">cleanup_interval_minutes</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span>      <span class="c1"># How often to remove expired sessions</span>
+</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>
+</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>    <span class="c1"># Security settings</span>
+</span><span id="__span-10-10"><a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a>    <span class="n">secure_cookies</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>              <span class="c1"># Enable secure cookie flags</span>
+</span><span id="__span-10-11"><a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a>    <span class="n">enforce_https</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>               <span class="c1"># Force HTTPS in production</span>
+</span><span id="__span-10-12"><a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a><span class="p">)</span>
 </span></code></pre></div>
 <p><strong>Production Security Settings</strong></p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="n">admin</span> <span class="o">=</span> <span class="n">CRUDAdmin</span><span class="p">(</span>
@@ -1535,12 +1516,8 @@
 </span><span id="__span-15-8"><a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a>        <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;healthy&quot;</span><span class="p">,</span>
 </span><span id="__span-15-9"><a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a>        <span class="s2">&quot;active_sessions&quot;</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span>
 </span><span id="__span-15-10"><a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a>        <span class="s2">&quot;cleanup_status&quot;</span><span class="p">:</span> <span class="s2">&quot;ok&quot;</span>
-</span><span id="__span-15-11"><a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a>    <span class="p">},</span>
-</span><span id="__span-15-12"><a id="__codelineno-15-12" name="__codelineno-15-12" href="#__codelineno-15-12"></a>    <span class="s2">&quot;token_service&quot;</span><span class="p">:</span> <span class="p">{</span>
-</span><span id="__span-15-13"><a id="__codelineno-15-13" name="__codelineno-15-13" href="#__codelineno-15-13"></a>        <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;healthy&quot;</span><span class="p">,</span>
-</span><span id="__span-15-14"><a id="__codelineno-15-14" name="__codelineno-15-14" href="#__codelineno-15-14"></a>        <span class="s2">&quot;last_token_generated&quot;</span><span class="p">:</span> <span class="s2">&quot;2025-02-01T12:34:56Z&quot;</span>
-</span><span id="__span-15-15"><a id="__codelineno-15-15" name="__codelineno-15-15" href="#__codelineno-15-15"></a>    <span class="p">}</span>
-</span><span id="__span-15-16"><a id="__codelineno-15-16" name="__codelineno-15-16" href="#__codelineno-15-16"></a><span class="p">}</span>
+</span><span id="__span-15-11"><a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a>    <span class="p">}</span>
+</span><span id="__span-15-12"><a id="__codelineno-15-12" name="__codelineno-15-12" href="#__codelineno-15-12"></a><span class="p">}</span>
 </span></code></pre></div>
 <p><strong>Event Log Monitoring</strong></p>
 <p>The event log interface at <code>/admin/management/events</code> lets you:</p>
