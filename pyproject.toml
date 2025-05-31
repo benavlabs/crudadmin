@@ -1,10 +1,6 @@
-[build-system]
-requires = ["pdm-backend"]
-build-backend = "pdm.backend"
-
 [project]
 name = "crudadmin"
-version = "0.1.1"
+version = "0.2.0"
 description = "FastAPI-based admin interface with authentication, event logging and CRUD operations"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -45,6 +41,16 @@ dependencies = [
     "aiosqlite>=0.20.0",
     "greenlet>=3.1.1",
 ]
+
+[tool.hatch.build.targets.sdist]
+include = ["crudadmin/", "LICENSE"]
+
+[tool.hatch.build.targets.wheel]
+include = ["crudadmin/", "LICENSE"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project.urls]
 Homepage = "https://github.com/igorbenav/crudadmin"
