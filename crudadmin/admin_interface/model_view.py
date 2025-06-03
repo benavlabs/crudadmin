@@ -1,5 +1,6 @@
 import datetime
 from collections.abc import AsyncGenerator, Callable, Coroutine
+from datetime import datetime as dt
 from typing import (
     Any,
     Dict,
@@ -41,6 +42,94 @@ class BulkDeleteRequest(BaseModel):
     ids: List[int]
 
 
+class PasswordTransformer:
+    """
+    Configuration for transforming password fields in forms.
+
+    This allows models to have different field names and hashing methods
+    for password handling.
+    """
+
+    def __init__(
+        self,
+        password_field: str = "password",
+        hashed_field: str = "hashed_password",
+        hash_function: Optional[Callable[[str], str]] = None,
+        required_fields: Optional[List[str]] = None,
+    ):
+        """
+        Initialize password transformer.
+
+        Args:
+            password_field: Name of the password field in the form/schema
+            hashed_field: Name of the hashed password field in the internal schema/model
+            hash_function: Function to hash passwords (takes string, returns string)
+            required_fields: List of other required fields that must be present
+        """
+        self.password_field = password_field
+        self.hashed_field = hashed_field
+        self.hash_function = hash_function
+        self.required_fields = required_fields or []
+
+    def transform_create_data(
+        self, form_data: Dict[str, Any], item_data: BaseModel
+    ) -> Dict[str, Any]:
+        """
+        Transform form data for create operations.
+
+        Args:
+            form_data: Raw form data dictionary
+            item_data: Validated schema instance
+
+        Returns:
+            Dictionary with transformed data for internal schema
+        """
+        transformed_data = {}
+
+        for field_name, field_value in form_data.items():
+            if field_name != self.password_field:
+                transformed_data[field_name] = field_value
+
+        password = getattr(item_data, self.password_field, None)
+        if password is not None and self.hash_function:
+            transformed_data[self.hashed_field] = self.hash_function(password)
+        elif password is not None:
+            transformed_data[self.hashed_field] = password
+
+        return transformed_data
+
+    def transform_update_data(
+        self, form_data: Dict[str, Any], item_data: BaseModel
+    ) -> Dict[str, Any]:
+        """
+        Transform form data for update operations.
+
+        Args:
+            form_data: Raw form data dictionary
+            item_data: Validated schema instance
+
+        Returns:
+            Dictionary with transformed data for internal schema
+        """
+        transformed_data = {"updated_at": dt.now(datetime.UTC)}
+
+        for field_name, field_value in form_data.items():
+            if (
+                field_name != self.password_field
+                and field_value
+                and field_name != "updated_at"
+            ):
+                transformed_data[field_name] = field_value
+
+        password = getattr(item_data, self.password_field, None)
+        if password is not None and self.hash_function:
+            transformed_data[self.hashed_field] = self.hash_function(password)  # type: ignore[assignment]
+        elif password is not None:
+            transformed_data[self.hashed_field] = str(password)  # type: ignore[assignment]
+
+        return transformed_data
+
+
 class ModelView:
     r"""
     View class for managing CRUD operations and UI for database models in FastAPI admin interface.
@@ -66,6 +155,7 @@ class ModelView:
         admin_model: Whether this is an admin-specific model
         admin_site: Reference to parent AdminSite instance
         event_integration: Optional event logging integration
+        password_transformer: Optional password transformer for AdminUser model
 
     Raises:
         ValueError: If schemas don't match model structure
@@ -275,6 +365,7 @@ class ModelView:
         admin_model: bool = False,
         admin_site: Optional[Any] = None,
         event_integration: Optional[Any] = None,
+        password_transformer: Optional[PasswordTransformer] = None,
     ) -> None:
         self.db_config = database_config
         self.templates = templates
@@ -301,10 +392,21 @@ class ModelView:
         self.admin_site = admin_site
         self.allowed_actions = allowed_actions
         self.event_integration = event_integration
+        self.password_transformer = password_transformer
 
         self.user_service = (
             self.admin_site.admin_user_service if self.admin_site else None
         )
+
+        if self.model.__name__ == "AdminUser" and password_transformer is None:
+            from ..core.auth import get_password_hash
+
+            self.password_transformer = PasswordTransformer(
+                password_field="password",
+                hashed_field="hashed_password",
+                hash_function=get_password_hash,
+                required_fields=["username"],
+            )
 
         self.crud: FastCRUD[Any, Any, Any, Any, Any, Any] = FastCRUD(self.model)
 
@@ -483,30 +585,52 @@ class ModelView:
                             form_data[key] = field.get("default")
 
                     try:
-                        if self.model.__name__ == "AdminUser":
-                            if not self.user_service:
-                                raise ValueError("No user_service available.")
+                        if self.password_transformer is not None:
                             item_data = self.create_schema(**form_data)
 
-                            password = getattr(item_data, "password", None)
-                            if password is not None:
-                                hashed_password = self.user_service.get_password_hash(
-                                    password
+                            transformed_data = (
+                                self.password_transformer.transform_create_data(
+                                    form_data, item_data
+                                )
+                            )
+
+                            for (
+                                required_field
+                            ) in self.password_transformer.required_fields:
+                                if (
+                                    required_field not in transformed_data
+                                    or not transformed_data[required_field]
+                                ):
+                                    raise ValueError(
+                                        f"{self.model.__name__} requires a {required_field}."
+                                    )
+
+                            if self.model.__name__ == "AdminUser":
+                                from ..admin_user.schemas import AdminUserCreateInternal
+
+                                admin_internal_data: AdminUserCreateInternal = (
+                                    AdminUserCreateInternal(**transformed_data)
+                                )
+                                result = await self.crud.create(
+                                    db=db, object=admin_internal_data
                                 )
                             else:
-                                hashed_password = None
+                                if self.update_internal_schema:
+                                    generic_internal_data = self.update_internal_schema(
+                                        **transformed_data
+                                    )
+                                    result = await self.crud.create(
+                                        db=db, object=generic_internal_data
+                                    )
+                                else:
+                                    dynamic_internal_data = type(
+                                        "InternalSchema", (BaseModel,), {}
+                                    )(**transformed_data)
+                                    result = await self.crud.create(
+                                        db=db, object=dynamic_internal_data
+                                    )
 
-                            username = getattr(item_data, "username", None)
-                            if username is None:
-                                raise ValueError("AdminUser requires a username.")
-
-                            from ..admin_user.schemas import AdminUserCreateInternal
-
-                            internal_data = AdminUserCreateInternal(
-                                username=username,
-                                hashed_password=hashed_password or "",
-                            )
-                            result = await self.crud.create(db=db, object=internal_data)
+                            await db.commit()
                         else:
                             item_data = self.create_schema(**form_data)
                             result = await self.crud.create(db=db, object=item_data)
@@ -1026,43 +1150,50 @@ class ModelView:
                             Dict[str, Any], self.update_internal_schema.__fields__
                         )
                         if "updated_at" in fields_dict:
-                            update_data["updated_at"] = datetime.datetime.now(
-                                datetime.UTC
-                            )
+                            update_data["updated_at"] = dt.now(datetime.UTC)
 
                     try:
-                        if self.model.__name__ == "AdminUser":
-                            if not self.user_service:
-                                raise ValueError("No user_service available.")
-
+                        if self.password_transformer is not None:
                             update_schema_instance = self.update_schema(**update_data)
 
-                            internal_update_data: Dict[str, Any] = {
-                                "updated_at": datetime.datetime.now(datetime.UTC)
-                            }
-                            username = getattr(update_schema_instance, "username", None)
-                            if username is not None:
-                                internal_update_data["username"] = username
-
-                            password = getattr(update_schema_instance, "password", None)
-                            if password is not None:
-                                internal_update_data["hashed_password"] = (
-                                    self.user_service.get_password_hash(password)
+                            transformed_data = (
+                                self.password_transformer.transform_update_data(
+                                    update_data, update_schema_instance
                                 )
-
-                            from ..admin_user.schemas import AdminUserUpdateInternal
-
-                            internal_update_schema = AdminUserUpdateInternal(
-                                **internal_update_data
                             )
-                            await self.crud.update(
-                                db=db, id=id, object=internal_update_schema
-                            )
+
+                            if self.model.__name__ == "AdminUser":
+                                from ..admin_user.schemas import AdminUserUpdateInternal
+
+                                admin_update_schema: AdminUserUpdateInternal = (
+                                    AdminUserUpdateInternal(**transformed_data)
+                                )
+                                await self.crud.update(
+                                    db=db, id=id, object=admin_update_schema
+                                )
+                            else:
+                                if self.update_internal_schema:
+                                    generic_update_schema = self.update_internal_schema(
+                                        **transformed_data
+                                    )
+                                    await self.crud.update(
+                                        db=db, id=id, object=generic_update_schema
+                                    )
+                                else:
+                                    dynamic_update_schema = type(
+                                        "InternalSchema", (BaseModel,), {}
+                                    )(**transformed_data)
+                                    await self.crud.update(
+                                        db=db, id=id, object=dynamic_update_schema
+                                    )
+
+                            await db.commit()
                         else:
                             update_schema_instance = self.update_schema(**update_data)
                             await self.crud.update(
                                 db=db, id=id, object=update_schema_instance
                             )
+                            await db.commit()
 
                         return RedirectResponse(
                             url=f"/{self.admin_site.mount_path}/{self.model.__name__}/",

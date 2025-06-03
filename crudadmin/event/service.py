@@ -3,7 +3,7 @@ import logging
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from enum import Enum
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, Optional, cast
 
 from fastapi import Request
 from fastcrud import FastCRUD
@@ -39,10 +39,10 @@ class EventService:
         self.crud_audits = FastCRUD(db_config.AdminAuditLog)
         self.json_encoder = CustomJSONEncoder()
 
-    def _serialize_dict(self, data: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    def _serialize_dict(self, data: Optional[dict]) -> dict:
         if not data:
             return {}
-        return cast(Dict[str, Any], json.loads(self.json_encoder.encode(data)))
+        return cast(dict, json.loads(self.json_encoder.encode(data)))
 
     async def log_event(
         self,
@@ -54,7 +54,7 @@ class EventService:
         request: Request,
         resource_type: Optional[str] = None,
         resource_id: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None,
+        details: Optional[dict] = None,
     ) -> AdminEventLogRead:
         try:
             ip_address = request.client.host if request.client else "unknown"
@@ -78,7 +78,7 @@ class EventService:
                     k: v for k, v in result.__dict__.items() if not k.startswith("_")
                 }
             else:
-                result_dict = cast(Dict[str, Any], dict(result))
+                result_dict = cast(dict, dict(result))
 
             event_read = AdminEventLogRead(**result_dict)
 
@@ -96,9 +96,9 @@ class EventService:
         resource_type: str,
         resource_id: str,
         action: str,
-        previous_state: Optional[Dict[str, Any]] = None,
-        new_state: Optional[Dict[str, Any]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        previous_state: Optional[dict] = None,
+        new_state: Optional[dict] = None,
+        metadata: Optional[dict] = None,
     ) -> AdminAuditLogRead:
         try:
             audit_data = AdminAuditLogCreate(
@@ -121,7 +121,7 @@ class EventService:
                     k: v for k, v in result.__dict__.items() if not k.startswith("_")
                 }
             else:
-                result_dict = cast(Dict[str, Any], dict(result))
+                result_dict = cast(dict, dict(result))
 
             return AdminAuditLogRead(**result_dict)
 
@@ -131,11 +131,11 @@ class EventService:
 
     def _compute_changes(
         self,
-        previous_state: Optional[Dict[str, Any]],
-        new_state: Optional[Dict[str, Any]],
-    ) -> Dict[str, Dict[str, Any]]:
+        previous_state: Optional[dict],
+        new_state: Optional[dict],
+    ) -> dict:
         """Compute changes between previous and new states."""
-        changes: Dict[str, Dict[str, Any]] = {}
+        changes: dict = {}
 
         if not previous_state or not new_state:
             return changes
@@ -159,9 +159,9 @@ class EventService:
         end_time: Optional[datetime] = None,
         limit: int = 50,
         offset: int = 0,
-    ) -> Dict[str, Any]:
+    ) -> dict:
         """Get user activity logs."""
-        filters: Dict[str, Any] = {"user_id": user_id}
+        filters: dict = {"user_id": user_id}
 
         if start_time:
             filters["timestamp__gte"] = start_time
@@ -177,7 +177,7 @@ class EventService:
             **filters,
         )
 
-        return cast(Dict[str, Any], result)
+        return cast(dict, result)
 
     async def get_resource_history(
         self,
@@ -186,7 +186,7 @@ class EventService:
         resource_id: str,
         limit: int = 50,
         offset: int = 0,
-    ) -> Dict[str, Any]:
+    ) -> dict:
         """Get audit history for a specific resource."""
         result = await self.crud_audits.get_multi(
             db,
@@ -198,13 +198,13 @@ class EventService:
             resource_id=resource_id,
         )
 
-        return cast(Dict[str, Any], result)
+        return cast(dict[str, Any], result)
 
     async def get_security_alerts(
         self, db: AsyncSession, lookback_hours: int = 24
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Get security alerts based on event patterns."""
-        alerts: List[Dict[str, Any]] = []
+        alerts: list[dict[str, Any]] = []
         lookback_time = datetime.now(UTC) - timedelta(hours=lookback_hours)
 
         failed_logins = await self.crud_events.get_multi(
@@ -214,7 +214,7 @@ class EventService:
             timestamp__gte=lookback_time,
         )
 
-        failed_login_patterns: Dict[tuple, int] = {}
+        failed_login_patterns: dict[tuple, int] = {}
 
         for login in failed_logins.get("data", []):
             key = (

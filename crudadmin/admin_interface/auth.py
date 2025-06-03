@@ -15,7 +15,11 @@ from ..admin_user.service import AdminUserService
 from ..core.db import DatabaseConfig
 from ..core.exceptions import ForbiddenException, UnauthorizedException
 from ..session.manager import SessionManager
-from ..session.schemas import AdminSessionCreate, AdminSessionUpdate
+from ..session.schemas import (
+    AdminSessionCreate,
+    AdminSessionUpdate,
+    AdminSessionUpdateInternal,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +54,7 @@ class AdminAuthentication:
             "crud": self.db_config.crud_sessions,
             "create_schema": AdminSessionCreate,
             "update_schema": AdminSessionUpdate,
-            "update_internal_schema": AdminSessionUpdate,
+            "update_internal_schema": AdminSessionUpdateInternal,
             "delete_schema": None,
         }
 
@@ -60,31 +64,25 @@ class AdminAuthentication:
             db: AsyncSession = Depends(self.db_config.get_admin_db),
             session_id: Optional[str] = Cookie(None),
         ) -> Optional[AdminUserRead]:
-            logger.debug(f"Starting get_current_user with session_id: {session_id}")
-
             if not session_id:
-                logger.debug("No session_id found")
                 raise UnauthorizedException("Not authenticated")
 
             is_valid_session = await self.session_manager.validate_session(
-                db, session_id
+                session_id=session_id
             )
             if not is_valid_session:
-                logger.debug("Session validation failed")
                 raise UnauthorizedException("Could not validate credentials")
 
-            session_data = await self.session_manager.get_session_metadata(
-                db, session_id
+            session_data = await self.session_manager.validate_session(
+                session_id=session_id
             )
-            if not session_data or "user_id" not in session_data:
-                logger.debug("User ID not found in session data")
+            if not session_data or not session_data.user_id:
                 raise UnauthorizedException("Could not validate credentials")
 
-            user_id = session_data["user_id"]
+            user_id = session_data.user_id
             user = await self.db_config.crud_users.get(db=db, id=user_id)
 
             if user:
-                logger.debug("User found")
                 if isinstance(user, dict):
                     try:
                         user = AdminUserRead(**user)

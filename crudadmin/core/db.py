@@ -1,10 +1,10 @@
 import logging
 import os
-from collections.abc import AsyncGenerator, Callable
 from typing import (
     TYPE_CHECKING,
     Any,
-    Dict,
+    AsyncGenerator,
+    Callable,
     Optional,
     Type,
     TypeVar,
@@ -26,7 +26,9 @@ if TYPE_CHECKING:
     )
     from ..session.schemas import (
         AdminSessionCreate,
+        AdminSessionRead,
         AdminSessionUpdate,
+        AdminSessionUpdateInternal,
     )
 
 logger = logging.getLogger(__name__)
@@ -79,9 +81,9 @@ class DatabaseConfig:
                 DeclarativeBase,
                 "AdminSessionCreate",
                 "AdminSessionUpdate",
-                "AdminSessionUpdate",
+                "AdminSessionUpdateInternal",
                 "_EmptySchema",
-                "_EmptySchema",
+                "AdminSessionRead",
             ]
         ] = None,
     ) -> None:
@@ -112,12 +114,6 @@ class DatabaseConfig:
             admin_user = create_admin_user(base)
         self.AdminUser: Type[DeclarativeBase] = admin_user
 
-        if admin_session is None:
-            from ..session import create_admin_session_model
-
-            admin_session = create_admin_session_model(base)
-        self.AdminSession: Type[DeclarativeBase] = admin_session
-
         self.AdminEventLog: Optional[Type[DeclarativeBase]] = admin_event_log
         self.AdminAuditLog: Optional[Type[DeclarativeBase]] = admin_audit_log
 
@@ -141,14 +137,20 @@ class DatabaseConfig:
             AdminUserRead,
         ] = crud_admin_user
 
+        if admin_session is None:
+            from ..session.models import create_admin_session_model
+
+            admin_session = create_admin_session_model(base)
+        self.AdminSession: Type[DeclarativeBase] = admin_session
+
         if crud_admin_session is None:
             CRUDSession = FastCRUD[
                 DeclarativeBase,
                 "AdminSessionCreate",
                 "AdminSessionUpdate",
-                "AdminSessionUpdate",
+                "AdminSessionUpdateInternal",
                 "_EmptySchema",
-                "_EmptySchema",
+                "AdminSessionRead",
             ]
             crud_admin_session = CRUDSession(admin_session)
         assert crud_admin_session is not None
@@ -156,13 +158,17 @@ class DatabaseConfig:
             DeclarativeBase,
             AdminSessionCreate,
             AdminSessionUpdate,
-            AdminSessionUpdate,
+            AdminSessionUpdateInternal,
             _EmptySchema,
-            _EmptySchema,
+            AdminSessionRead,
         ] = crud_admin_session
 
     async def initialize_admin_db(self) -> None:
-        """Initialize the admin database with required tables."""
+        """Initialize the admin database with required tables.
+
+        Note: Session management is now handled by storage backends,
+        not database tables.
+        """
         logger.info("Initializing admin database tables...")
         try:
             async with self.admin_engine.begin() as conn:
@@ -203,7 +209,7 @@ class DatabaseConfig:
 
     def get_primary_key_info(
         self, model: Type[DeclarativeBase]
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Optional[dict[str, Any]]:
         """Get the primary key information of a SQLAlchemy model."""
         inspector = inspect(model)
         primary_key_columns = inspector.primary_key

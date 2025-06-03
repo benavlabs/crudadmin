@@ -33,13 +33,16 @@
 
 ## Features
 
-- 🔒 **Session-based Authentication**: Secure session management with inactivity timeouts and concurrent session limits
-- 🛡️ **Built-in Security**: IP restrictions, HTTPS enforcement, and secure cookie handling
-- 📝 **Event Tracking**: Comprehensive audit logs for all admin actions with user attribution
-- 🏥 **Health Monitoring**: Real-time system status dashboard with key metrics
-- 📊 **Auto-generated Interface**: Creates admin UI directly from your SQLAlchemy models
-- 🔍 **Smart Filtering**: Type-aware field filtering and efficient search
-- 🌗 **Modern UI**: Clean interface with dark/light theme support
+- 🔒 **Multi-Backend Session Management**: Flexible session storage with Memory, Redis, Memcached, Database, and Hybrid backends
+- 🛡️ **Enhanced Security**: CSRF protection, rate limiting, IP restrictions, HTTPS enforcement, and secure cookie handling
+- 📝 **Event Tracking & Audit Logs**: Comprehensive audit trails for all admin actions with user attribution
+- 🏥 **Health Monitoring**: Real-time system status dashboard with key metrics and database health checks
+- 📊 **Auto-generated Interface**: Creates admin UI directly from your SQLAlchemy models with intelligent field detection
+- 🔍 **Advanced Filtering**: Type-aware field filtering, search, and pagination with bulk operations
+- 🌗 **Modern UI**: Clean, responsive interface with dark/light theme support
+- ⚡ **Performance Optimized**: Efficient session handling, query optimization, and background cleanup
+- 🚦 **Rate Limiting**: Login attempt protection with IP and username-based tracking
+- 👤 **Device Fingerprinting**: Enhanced user agent parsing and session tracking
 
 ## Requirements
 
@@ -59,6 +62,11 @@ Or using poetry:
 
 ```sh
 poetry add crudadmin
+```
+
+For production use with Redis sessions (recommended):
+```sh
+pip install crudadmin redis
 ```
 
 ## Usage
@@ -145,8 +153,52 @@ app = FastAPI(lifespan=lifespan)
 app.mount("/admin", admin.app)
 ```
 
-### Enable Event Tracking
+### Session Management Backends
 
+**Memory Backend (Default - for development/testing):**
+```python
+admin = CRUDAdmin(
+    session=session,
+    SECRET_KEY=SECRET_KEY,
+    # Uses memory backend by default
+)
+```
+
+**Redis Backend (Recommended for production):**
+```python
+admin = CRUDAdmin(
+    session=session,
+    SECRET_KEY=SECRET_KEY,
+).use_redis_sessions(
+    redis_url="redis://localhost:6379",
+    password="your-redis-password"
+)
+```
+
+**Memcached Backend:**
+```python
+admin = CRUDAdmin(
+    session=session,
+    SECRET_KEY=SECRET_KEY,
+).use_memcached_sessions(
+    servers=["localhost:11211"]
+)
+```
+
+**Hybrid Backend (Redis + Database persistence):**
+```python
+admin = CRUDAdmin(
+    session=session,
+    SECRET_KEY=SECRET_KEY,
+    track_sessions_in_db=True,
+).use_redis_sessions(
+    redis_url="redis://localhost:6379"
+)
+```
+
+### Enable Event Tracking & Audit Logs
+
+**Basic Event Tracking:**
 ```python
 admin = CRUDAdmin(
     session=session,
@@ -163,37 +215,83 @@ async def lifespan(app: FastAPI):
     yield
 ```
 
-### Configure Security Features
-
+**Advanced Event Tracking with Session Persistence:**
 ```python
 admin = CRUDAdmin(
     session=session,
     SECRET_KEY=SECRET_KEY,
-    # Security settings
+    track_events=True,
+    track_sessions_in_db=True,
+    admin_db_url="postgresql+asyncpg://user:pass@localhost/admin_logs"
+).use_redis_sessions(
+    redis_url="redis://localhost:6379"
+)
+```
+
+### Configure Security Features
+
+**Production Security Setup:**
+```python
+admin = CRUDAdmin(
+    session=session,
+    SECRET_KEY=SECRET_KEY,
+    # IP Security
     allowed_ips=["10.0.0.1"],
     allowed_networks=["192.168.1.0/24"],
+    # Cookie Security
     secure_cookies=True,
     enforce_https=True,
-    # Session settings
-    max_sessions_per_user=5,
-    session_timeout_minutes=30
+    # Session Management
+    max_sessions_per_user=3,
+    session_timeout_minutes=15,
+    # Rate Limiting
+    cleanup_interval_minutes=10,
+    # Event Tracking
+    track_events=True,
+    track_sessions_in_db=True
+).use_redis_sessions(
+    redis_url="redis://localhost:6379"
 )
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    await admin.initialize()  # Initializes security features
+    await admin.initialize()  # Initializes all security features
     yield
 ```
 
-## Current Limitations (coming soon)
+## Session Management Migration (v0.2.0)
+
+CRUDAdmin now features a completely redesigned session management system with multiple backend support:
+
+### What's New
+
+- **Multi-Backend Support**: Memory, Redis, Memcached, Database, and Hybrid storage options
+- **CSRF Protection**: Built-in CSRF token generation and validation
+- **Rate Limiting**: Login attempt tracking with IP and username-based limits
+- **Device Fingerprinting**: Enhanced user agent parsing and device info tracking
+- **Performance Improvements**: Session operations no longer require database queries (except Database backend)
+- **Production Ready**: Redis and Memcached backends for horizontal scaling
+
+### Backend Comparison
+
+| Backend | Use Case | Performance | Persistence | Scalability |
+|---------|----------|-------------|-------------|-------------|
+| **Memory** | Development/Testing | Fastest | No | Single Instance |
+| **Redis** | Production (Recommended) | Very Fast | Optional | High |
+| **Memcached** | High-Traffic Production | Very Fast | No | High |
+| **Database** | Simple Deployments | Good | Yes | Medium |
+| **Hybrid** | Enterprise/Audit Requirements | Fast | Yes | High |
+
+## Current Limitations (Roadmap Items)
 
 - No file upload support yet
 - No custom admin views (model-based only)
 - No custom field widgets
 - No SQLAlchemy relationship support
-- No export functionality
+- No export functionality (CSV, Excel, PDF)
+- No role-based permissions system
 
 ## Similar Projects
 

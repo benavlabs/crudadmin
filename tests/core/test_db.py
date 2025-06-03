@@ -9,7 +9,6 @@ from sqlalchemy.orm import DeclarativeBase
 
 from crudadmin.admin_user.models import create_admin_user
 from crudadmin.core.db import DatabaseConfig, get_default_db_path
-from crudadmin.session.models import create_admin_session_model
 
 
 def create_admin_base() -> Type[DeclarativeBase]:
@@ -39,9 +38,7 @@ async def test_database_config_initialization(async_session):
         assert config.base == admin_base
         assert config.session == async_session
         assert config.AdminUser is not None
-        assert config.AdminSession is not None
         assert config.crud_users is not None
-        assert config.crud_sessions is not None
 
         # Test that admin database URL is correctly set
         assert f"sqlite+aiosqlite:///{admin_db_path}" in str(config.admin_engine.url)
@@ -63,18 +60,15 @@ async def test_database_config_with_custom_models(async_session):
     try:
         admin_base = create_admin_base()
         custom_admin_user = create_admin_user(admin_base)
-        custom_admin_session = create_admin_session_model(admin_base)
 
         config = DatabaseConfig(
             base=admin_base,
             session=async_session,
             admin_db_path=admin_db_path,
             admin_user=custom_admin_user,
-            admin_session=custom_admin_session,
         )
 
         assert config.AdminUser == custom_admin_user
-        assert config.AdminSession == custom_admin_session
 
     finally:
         if config and hasattr(config, "admin_engine") and config.admin_engine:
@@ -132,7 +126,7 @@ async def test_initialize_admin_db(async_session):
         tables = [row[0] for row in result.fetchall()]
 
         assert "admin_user" in tables
-        assert "admin_session" in tables
+        # Note: admin_session table is no longer created as sessions use storage backends
 
         await admin_session.close()  # Close the session used for querying
 

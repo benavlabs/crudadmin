@@ -1,5 +1,5 @@
 from datetime import UTC, datetime
-from typing import Any, Dict, Optional, Type
+from typing import Any, Optional, cast
 
 from sqlalchemy import JSON, DateTime, String
 from sqlalchemy import Enum as SQLEnum
@@ -8,12 +8,14 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from .schemas import EventStatus, EventType
 
 
-def create_admin_event_log(base: Type[DeclarativeBase]) -> Type[DeclarativeBase]:
+def create_admin_event_log(base: type[DeclarativeBase]) -> type[DeclarativeBase]:
     tablename = "admin_event_log"
 
-    if hasattr(base, tablename):
-        table: Type[DeclarativeBase] = getattr(base, tablename)
-        return table
+    if hasattr(base, "registry") and hasattr(base.registry, "_class_registry"):
+        existing_class = base.registry._class_registry.get("AdminEventLog")
+        if existing_class is not None and isinstance(existing_class, type):
+            if issubclass(existing_class, base):
+                return cast(type[DeclarativeBase], existing_class)
 
     class AdminEventLog(base):  # type: ignore
         __tablename__ = tablename
@@ -43,7 +45,7 @@ def create_admin_event_log(base: Type[DeclarativeBase]) -> Type[DeclarativeBase]
         user_agent: Mapped[str] = mapped_column(String(512))
         resource_type: Mapped[Optional[str]] = mapped_column(String(128))
         resource_id: Mapped[Optional[str]] = mapped_column(String(128))
-        details: Mapped[Dict[str, Any]] = mapped_column(
+        details: Mapped[dict[str, Any]] = mapped_column(
             JSON, default=dict, nullable=False
         )
 
@@ -53,12 +55,14 @@ def create_admin_event_log(base: Type[DeclarativeBase]) -> Type[DeclarativeBase]
     return AdminEventLog
 
 
-def create_admin_audit_log(base: Type[DeclarativeBase]) -> Type[DeclarativeBase]:
+def create_admin_audit_log(base: type[DeclarativeBase]) -> type[DeclarativeBase]:
     tablename = "admin_audit_log"
 
-    if hasattr(base, tablename):
-        table: Type[DeclarativeBase] = getattr(base, tablename)
-        return table
+    if hasattr(base, "registry") and hasattr(base.registry, "_class_registry"):
+        existing_class = base.registry._class_registry.get("AdminAuditLog")
+        if existing_class is not None and isinstance(existing_class, type):
+            if issubclass(existing_class, base):
+                return cast(type[DeclarativeBase], existing_class)
 
     class AdminAuditLog(base):  # type: ignore
         __tablename__ = tablename
@@ -80,14 +84,14 @@ def create_admin_audit_log(base: Type[DeclarativeBase]) -> Type[DeclarativeBase]
         resource_type: Mapped[str] = mapped_column(String(128))
         resource_id: Mapped[str] = mapped_column(String(128))
         action: Mapped[str] = mapped_column(String(64))
-        previous_state: Mapped[Optional[Dict[str, Any]]] = mapped_column(
+        previous_state: Mapped[Optional[dict[str, Any]]] = mapped_column(
             JSON, nullable=True
         )
-        new_state: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
-        changes: Mapped[Dict[str, Any]] = mapped_column(
+        new_state: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON, nullable=True)
+        changes: Mapped[dict[str, Any]] = mapped_column(
             JSON, default=dict, nullable=False
         )
-        audit_metadata: Mapped[Dict[str, Any]] = mapped_column(
+        audit_metadata: Mapped[dict[str, Any]] = mapped_column(
             JSON, default=dict, nullable=False
         )
 

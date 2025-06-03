@@ -4,7 +4,8 @@ import bcrypt
 import pytest
 
 from crudadmin.admin_user.schemas import AdminUser
-from crudadmin.admin_user.service import AdminUserService, _convert_user_to_dict
+from crudadmin.admin_user.service import AdminUserService
+from crudadmin.core.auth import convert_user_to_dict
 
 
 @pytest.mark.asyncio
@@ -228,14 +229,14 @@ async def test_create_first_admin_existing_user(admin_user_service):
 
 def test_convert_user_to_dict_with_none():
     """Test _convert_user_to_dict with None input."""
-    result = _convert_user_to_dict(None)
+    result = convert_user_to_dict(None)
     assert result is None
 
 
 def test_convert_user_to_dict_with_dict():
     """Test _convert_user_to_dict with dict input."""
     user_dict = {"id": 1, "username": "test", "hashed_password": "hash"}
-    result = _convert_user_to_dict(user_dict)
+    result = convert_user_to_dict(user_dict)
     assert result == user_dict
 
 
@@ -248,7 +249,7 @@ def test_convert_user_to_dict_with_admin_user():
     admin_user.username = "test"
     admin_user.hashed_password = "hash"
 
-    result = _convert_user_to_dict(admin_user)
+    result = convert_user_to_dict(admin_user)
 
     assert result == {
         "id": 1,
@@ -259,7 +260,7 @@ def test_convert_user_to_dict_with_admin_user():
 
 def test_convert_user_to_dict_with_unknown_type():
     """Test _convert_user_to_dict with unknown type."""
-    result = _convert_user_to_dict("unknown_type")
+    result = convert_user_to_dict("unknown_type")
     assert result is None
 
 

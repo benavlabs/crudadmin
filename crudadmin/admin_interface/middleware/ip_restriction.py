@@ -1,6 +1,6 @@
 import logging
 from ipaddress import ip_address, ip_network
-from typing import List, Optional
+from typing import Optional
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
@@ -14,16 +14,16 @@ class IPRestrictionMiddleware(BaseHTTPMiddleware):
     def __init__(
         self,
         app: ASGIApp,
-        allowed_ips: Optional[List[str]] = None,
-        allowed_networks: Optional[List[str]] = None,
+        allowed_ips: Optional[list[str]] = None,
+        allowed_networks: Optional[list[str]] = None,
     ) -> None:
         """
         Middleware to restrict access based on client IP addresses and networks.
 
         Args:
             app (ASGIApp): The FastAPI application instance.
-            allowed_ips (Optional[List[str]]): List of allowed individual IP addresses.
-            allowed_networks (Optional[List[str]]): List of allowed IP networks in CIDR notation.
+            allowed_ips (Optional[list[str]]): List of allowed individual IP addresses.
+            allowed_networks (Optional[list[str]]): List of allowed IP networks in CIDR notation.
         """
         super().__init__(app)
         self.allowed_ips = set()

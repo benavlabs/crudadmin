@@ -52,6 +52,11 @@ include = ["crudadmin/", "LICENSE"]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[dependency-groups]
+dev = [
+    "types-redis>=4.6.0.20241004",
+]
+
 [project.urls]
 Homepage = "https://github.com/igorbenav/crudadmin"
 Documentation = "https://igorbenav.github.io/crudadmin"
@@ -85,6 +90,10 @@ docs = [
 
 all = [
     "crudadmin[standard,dev,docs]"
+]
+test = [
+    "aiomcache>=0.8.2",
+    "redis>=6.2.0",
 ]
 
 [tool.pytest.ini_options]

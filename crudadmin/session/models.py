@@ -1,11 +1,11 @@
 from datetime import UTC, datetime
-from typing import Any, Dict, Type
+from typing import Any
 
 from sqlalchemy import JSON, Boolean, DateTime, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
-def create_admin_session_model(base: Type[DeclarativeBase]) -> Type[DeclarativeBase]:
+def create_admin_session_model(base: type[DeclarativeBase]) -> type[DeclarativeBase]:
     class AdminSession(base):  # type: ignore
         __tablename__ = "admin_session"
 
@@ -19,7 +19,7 @@ def create_admin_session_model(base: Type[DeclarativeBase]) -> Type[DeclarativeB
         ip_address: Mapped[str] = mapped_column(String(45), nullable=False)
         user_agent: Mapped[str] = mapped_column(String(512), nullable=False)
 
-        device_info: Mapped[Dict[str, Any]] = mapped_column(JSON, nullable=False)
+        device_info: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
 
         created_at: Mapped[datetime] = mapped_column(
             DateTime(timezone=True),
@@ -33,7 +33,7 @@ def create_admin_session_model(base: Type[DeclarativeBase]) -> Type[DeclarativeB
         )
         is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
-        session_metadata: Mapped[Dict[str, Any]] = mapped_column(
+        session_metadata: Mapped[dict[str, Any]] = mapped_column(
             JSON, default=dict, nullable=False
         )
 

@@ -14,6 +14,8 @@ from ..admin_user.service import AdminUserService
 from ..core.db import DatabaseConfig
 from ..event import EventType, log_auth_action
 from ..session.manager import SessionManager
+from ..session.schemas import SessionData
+from ..session.storage import AbstractSessionStorage, get_session_storage
 from .auth import AdminAuthentication
 from .typing import RouteResponse
 
@@ -47,6 +49,7 @@ class AdminSite:
         theme: Active UI theme
         secure_cookies: Enable secure cookie flags
         event_integration: Optional event logging integration
+        session_manager: Optional session manager
 
     Attributes:
         db_config: Database configuration instance
@@ -107,27 +110,35 @@ class AdminSite:
         theme: str,
         secure_cookies: bool,
         event_integration: Optional[Any] = None,
+        session_manager: Optional[SessionManager] = None,
     ) -> None:
         self.db_config: DatabaseConfig = database_config
         self.router: APIRouter = APIRouter()
         self.templates: Jinja2Templates = Jinja2Templates(directory=templates_directory)
         self.models: Dict[str, Any] = models
-        self.admin_user_service: AdminUserService = AdminUserService(
-            db_config=database_config
-        )
         self.admin_authentication: AdminAuthentication = admin_authentication
-        self.admin_user_service = admin_authentication.user_service
+        self.admin_user_service: AdminUserService = admin_authentication.user_service
 
         self.mount_path: str = mount_path
         self.theme: str = theme
         self.event_integration: Optional[Any] = event_integration
 
-        self.session_manager: SessionManager = SessionManager(
-            self.db_config,
-            max_sessions_per_user=5,
-            session_timeout_minutes=30,
-            cleanup_interval_minutes=15,
-        )
+        if session_manager:
+            self.session_manager = session_manager
+        else:
+            storage: AbstractSessionStorage[SessionData] = get_session_storage(
+                backend="memory",
+                model_type=SessionData,
+                prefix="session:",
+                expiration=30 * 60,
+            )
+
+            self.session_manager = SessionManager(
+                session_storage=storage,
+                max_sessions_per_user=5,
+                session_timeout_minutes=30,
+                cleanup_interval_minutes=15,
+            )
 
         self.secure_cookies: bool = secure_cookies
 
@@ -170,7 +181,6 @@ class AdminSite:
             self.logout_endpoint(),
             methods=["GET"],
             include_in_schema=False,
-            dependencies=[Depends(self.admin_authentication.get_current_user)],
             response_model=None,
         )
         self.router.add_api_route(
@@ -242,7 +252,7 @@ class AdminSite:
 
                 try:
                     logger.info("Creating user session...")
-                    session = await self.session_manager.create_session(
+                    session_id, csrf_token = await self.session_manager.create_session(
                         request=request,
                         user_id=user["id"],
                         metadata={
@@ -252,28 +262,22 @@ class AdminSite:
                         },
                     )
 
-                    if not session:
+                    if not session_id:
                         logger.error("Failed to create session")
                         raise Exception("Session creation failed")
 
-                    logger.info(f"Session created successfully: {session.session_id}")
+                    logger.info(f"Session created successfully: {session_id}")
 
                     response = RedirectResponse(
                         url=f"/{self.mount_path}/", status_code=303
                     )
 
-                    session_timeout_seconds = int(
-                        self.session_manager.session_timeout.total_seconds()
-                    )
-
-                    response.set_cookie(
-                        key="session_id",
-                        value=session.session_id,
-                        httponly=True,
+                    self.session_manager.set_session_cookies(
+                        response=response,
+                        session_id=session_id,
+                        csrf_token=csrf_token,
                         secure=self.secure_cookies,
-                        max_age=session_timeout_seconds,
                         path=f"/{self.mount_path}",
-                        samesite="lax",
                     )
 
                     await db.commit()
@@ -332,15 +336,16 @@ class AdminSite:
             event_integration: Optional[Any] = Depends(lambda: self.event_integration),
         ) -> RouteResponse:
             if session_id:
-                await self.session_manager.terminate_session(
-                    db=db, session_id=session_id
-                )
+                await self.session_manager.terminate_session(session_id=session_id)
 
             response = RedirectResponse(
                 url=f"/{self.mount_path}/login", status_code=303
             )
 
-            response.delete_cookie(key="session_id", path=f"/{self.mount_path}")
+            self.session_manager.clear_session_cookies(
+                response=response,
+                path=f"/{self.mount_path}",
+            )
 
             return response
 
@@ -369,7 +374,7 @@ class AdminSite:
 
                 if session_id:
                     is_valid_session = await self.session_manager.validate_session(
-                        db=db, session_id=session_id
+                        session_id=session_id
                     )
 
                     if is_valid_session:
