@@ -14,7 +14,6 @@ from .exceptions import (
     UnauthorizedException,
     UnprocessableEntityException,
 )
-from .rate_limiter import SimpleRateLimiter, create_rate_limiter
 
 __all__ = [
     "DatabaseConfig",
@@ -25,8 +24,6 @@ __all__ = [
     "UnprocessableEntityException",
     "DuplicateValueException",
     "RateLimitException",
-    "SimpleRateLimiter",
-    "create_rate_limiter",
     "authenticate_user_by_credentials",
     "convert_user_to_dict",
     "get_password_hash",
