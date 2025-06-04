@@ -1,79 +1,79 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
-         <loc>https://github.com/igorbenav/crudadmin/</loc>
+         <loc>https://github.com/benavlabs/crudadmin/</loc>
          <lastmod>2025-06-04</lastmod>
     </url>
     <url>
-         <loc>https://github.com/igorbenav/crudadmin/quick-start/</loc>
+         <loc>https://github.com/benavlabs/crudadmin/quick-start/</loc>
          <lastmod>2025-06-04</lastmod>
     </url>
     <url>
-         <loc>https://github.com/igorbenav/crudadmin/advanced/overview/</loc>
+         <loc>https://github.com/benavlabs/crudadmin/advanced/overview/</loc>
          <lastmod>2025-06-04</lastmod>
     </url>
     <url>
-         <loc>https://github.com/igorbenav/crudadmin/api/admin_site/</loc>
+         <loc>https://github.com/benavlabs/crudadmin/api/admin_site/</loc>
          <lastmod>2025-06-04</lastmod>
     </url>
     <url>
-         <loc>https://github.com/igorbenav/crudadmin/api/crud_admin/</loc>
+         <loc>https://github.com/benavlabs/crudadmin/api/crud_admin/</loc>
          <lastmod>2025-06-04</lastmod>
     </url>
     <url>
-         <loc>https://github.com/igorbenav/crudadmin/api/events/</loc>
+         <loc>https://github.com/benavlabs/crudadmin/api/events/</loc>
          <lastmod>2025-06-04</lastmod>
     </url>
     <url>
-         <loc>https://github.com/igorbenav/crudadmin/api/model_view/</loc>
+         <loc>https://github.com/benavlabs/crudadmin/api/model_view/</loc>
          <lastmod>2025-06-04</lastmod>
     </url>
     <url>
-         <loc>https://github.com/igorbenav/crudadmin/api/overview/</loc>
+         <loc>https://github.com/benavlabs/crudadmin/api/overview/</loc>
          <lastmod>2025-06-04</lastmod>
     </url>
     <url>
-         <loc>https://github.com/igorbenav/crudadmin/api/session/</loc>
+         <loc>https://github.com/benavlabs/crudadmin/api/session/</loc>
          <lastmod>2025-06-04</lastmod>
     </url>
     <url>
-         <loc>https://github.com/igorbenav/crudadmin/community/CODE_OF_CONDUCT/</loc>
+         <loc>https://github.com/benavlabs/crudadmin/community/CODE_OF_CONDUCT/</loc>
          <lastmod>2025-06-04</lastmod>
     </url>
     <url>
-         <loc>https://github.com/igorbenav/crudadmin/community/CONTRIBUTING/</loc>
+         <loc>https://github.com/benavlabs/crudadmin/community/CONTRIBUTING/</loc>
          <lastmod>2025-06-04</lastmod>
     </url>
     <url>
-         <loc>https://github.com/igorbenav/crudadmin/community/LICENSE/</loc>
+         <loc>https://github.com/benavlabs/crudadmin/community/LICENSE/</loc>
          <lastmod>2025-06-04</lastmod>
     </url>
     <url>
-         <loc>https://github.com/igorbenav/crudadmin/community/overview/</loc>
+         <loc>https://github.com/benavlabs/crudadmin/community/overview/</loc>
          <lastmod>2025-06-04</lastmod>
     </url>
     <url>
-         <loc>https://github.com/igorbenav/crudadmin/usage/adding-models/</loc>
+         <loc>https://github.com/benavlabs/crudadmin/usage/adding-models/</loc>
          <lastmod>2025-06-04</lastmod>
     </url>
     <url>
-         <loc>https://github.com/igorbenav/crudadmin/usage/admin-users/</loc>
+         <loc>https://github.com/benavlabs/crudadmin/usage/admin-users/</loc>
          <lastmod>2025-06-04</lastmod>
     </url>
     <url>
-         <loc>https://github.com/igorbenav/crudadmin/usage/common-patterns/</loc>
+         <loc>https://github.com/benavlabs/crudadmin/usage/common-patterns/</loc>
          <lastmod>2025-06-04</lastmod>
     </url>
     <url>
-         <loc>https://github.com/igorbenav/crudadmin/usage/configuration/</loc>
+         <loc>https://github.com/benavlabs/crudadmin/usage/configuration/</loc>
          <lastmod>2025-06-04</lastmod>
     </url>
     <url>
-         <loc>https://github.com/igorbenav/crudadmin/usage/interface/</loc>
+         <loc>https://github.com/benavlabs/crudadmin/usage/interface/</loc>
          <lastmod>2025-06-04</lastmod>
     </url>
     <url>
-         <loc>https://github.com/igorbenav/crudadmin/usage/overview/</loc>
+         <loc>https://github.com/benavlabs/crudadmin/usage/overview/</loc>
          <lastmod>2025-06-04</lastmod>
     </url>
 </urlset>
