@@ -1,0 +1,2546 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="This guide covers the essential operations for using the CRUDAdmin interface in your daily workflow. You&#x27;ll learn how to navigate the dashboard, manage records, search and filter data, and work with forms effectively.">
+      
+      
+        <meta name="author" content="Igor Benav">
+      
+      
+        <link rel="canonical" href="https://github.com/igorbenav/crudadmin/usage/interface/">
+      
+      
+        <link rel="prev" href="../admin-users/">
+      
+      
+        <link rel="next" href="../common-patterns/">
+      
+      
+      <link rel="icon" href="../../assets/logo.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.1">
+    
+    
+      
+        <title>Using the Interface - CRUDAdmin</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.a40c8224.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Ubuntu:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Ubuntu";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+  
+
+
+  
+  
+
+<script id="__analytics">function __md_analytics(){function e(){dataLayer.push(arguments)}window.dataLayer=window.dataLayer||[],e("js",new Date),e("config",""),document.addEventListener("DOMContentLoaded",(function(){document.forms.search&&document.forms.search.query.addEventListener("blur",(function(){this.value&&e("event","search",{search_term:this.value})}));document$.subscribe((function(){var t=document.forms.feedback;if(void 0!==t)for(var a of t.querySelectorAll("[type=submit]"))a.addEventListener("click",(function(a){a.preventDefault();var n=document.location.pathname,d=this.getAttribute("data-md-value");e("event","feedback",{page:n,data:d}),t.firstElementChild.disabled=!0;var r=t.querySelector(".md-feedback__note [data-md-value='"+d+"']");r&&(r.hidden=!1)})),t.hidden=!1})),location$.subscribe((function(t){e("config","",{page_path:t.pathname})}))}));var t=document.createElement("script");t.async=!0,t.src="https://www.googletagmanager.com/gtag/js?id=",document.getElementById("__analytics").insertAdjacentElement("afterEnd",t)}</script>
+  
+    <script>"undefined"!=typeof __md_analytics&&__md_analytics()</script>
+  
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#using-the-admin-interface" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="CRUDAdmin" class="md-header__button md-logo" aria-label="CRUDAdmin" data-md-component="logo">
+      
+  <img src="../../assets/logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            CRUDAdmin
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Using the Interface
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/igorbenav/crudadmin" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    igorbenav/crudadmin
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+    
+  
+  CRUDAdmin
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../installing/" class="md-tabs__link">
+        
+  
+    
+  
+  Installing
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../quick-start/" class="md-tabs__link">
+        
+  
+    
+  
+  Quick-Start
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../overview/" class="md-tabs__link">
+          
+  
+    
+  
+  Usage
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../advanced/overview/" class="md-tabs__link">
+          
+  
+    
+  
+  Advanced
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../api/overview/" class="md-tabs__link">
+          
+  
+    
+  
+  API Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../community/overview/" class="md-tabs__link">
+          
+  
+    
+  
+  Community
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="CRUDAdmin" class="md-nav__button md-logo" aria-label="CRUDAdmin" data-md-component="logo">
+      
+  <img src="../../assets/logo.png" alt="logo">
+
+    </a>
+    CRUDAdmin
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/igorbenav/crudadmin" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    igorbenav/crudadmin
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CRUDAdmin
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../installing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Installing
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../quick-start/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Quick-Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+        
+        
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Usage
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Usage
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overview/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Basic Configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adding-models/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Adding Models
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin-users/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Managing Admin Users
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Using the Interface
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Using the Interface
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      Prerequisites
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dashboard-navigation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Dashboard Navigation
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Dashboard Navigation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#accessing-the-admin-interface" class="md-nav__link">
+    <span class="md-ellipsis">
+      Accessing the Admin Interface
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#understanding-the-dashboard-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      Understanding the Dashboard Layout
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Understanding the Dashboard Layout">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sidebar-navigation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Sidebar Navigation
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#main-content-area" class="md-nav__link">
+    <span class="md-ellipsis">
+      Main Content Area
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#navigating-between-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      Navigating Between Models
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      Data Management
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Data Management">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#creating-new-records" class="md-nav__link">
+    <span class="md-ellipsis">
+      Creating New Records
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Creating New Records">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-1-access-create-form" class="md-nav__link">
+    <span class="md-ellipsis">
+      Step 1: Access Create Form
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-2-fill-required-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      Step 2: Fill Required Fields
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-3-submit-or-cancel" class="md-nav__link">
+    <span class="md-ellipsis">
+      Step 3: Submit or Cancel
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#viewing-and-sorting-records" class="md-nav__link">
+    <span class="md-ellipsis">
+      Viewing and Sorting Records
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Viewing and Sorting Records">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#list-view-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      List View Features
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sorting-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      Sorting Data
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#updating-existing-records" class="md-nav__link">
+    <span class="md-ellipsis">
+      Updating Existing Records
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Updating Existing Records">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-1-select-record" class="md-nav__link">
+    <span class="md-ellipsis">
+      Step 1: Select Record
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-2-edit-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      Step 2: Edit Fields
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-3-save-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Step 3: Save Changes
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#deleting-records" class="md-nav__link">
+    <span class="md-ellipsis">
+      Deleting Records
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Deleting Records">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#single-record-deletion" class="md-nav__link">
+    <span class="md-ellipsis">
+      Single Record Deletion
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bulk-deletion" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bulk Deletion
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#search-and-filtering" class="md-nav__link">
+    <span class="md-ellipsis">
+      Search and Filtering
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Search and Filtering">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basic-search" class="md-nav__link">
+    <span class="md-ellipsis">
+      Basic Search
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Basic Search">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-to-search" class="md-nav__link">
+    <span class="md-ellipsis">
+      How to Search
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#search-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      Search Behavior
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#column-specific-searching" class="md-nav__link">
+    <span class="md-ellipsis">
+      Column-Specific Searching
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pagination" class="md-nav__link">
+    <span class="md-ellipsis">
+      Pagination
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Pagination">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#managing-large-datasets" class="md-nav__link">
+    <span class="md-ellipsis">
+      Managing Large Datasets
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Managing Large Datasets">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pagination-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      Pagination Features
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#smart-pagination-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      Smart Pagination Behavior
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#form-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      Form Handling
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Form Handling">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#understanding-auto-generated-forms" class="md-nav__link">
+    <span class="md-ellipsis">
+      Understanding Auto-Generated Forms
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Understanding Auto-Generated Forms">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#field-type-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      Field Type Examples
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#form-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Form Validation
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Form Validation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#validation-feedback" class="md-nav__link">
+    <span class="md-ellipsis">
+      Validation Feedback
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#error-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      Error Handling
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bulk-operations" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bulk Operations
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Bulk Operations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#working-with-multiple-records" class="md-nav__link">
+    <span class="md-ellipsis">
+      Working with Multiple Records
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Working with Multiple Records">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#selecting-records" class="md-nav__link">
+    <span class="md-ellipsis">
+      Selecting Records
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#available-bulk-operations" class="md-nav__link">
+    <span class="md-ellipsis">
+      Available Bulk Operations
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bulk-deletion-process" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bulk Deletion Process
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#management-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      Management Features
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Management Features">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#system-health-monitoring" class="md-nav__link">
+    <span class="md-ellipsis">
+      System Health Monitoring
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#event-logs-if-enabled" class="md-nav__link">
+    <span class="md-ellipsis">
+      Event Logs (if enabled)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Event Logs (if enabled)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#event-tracking" class="md-nav__link">
+    <span class="md-ellipsis">
+      Event Tracking
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      Next Steps
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../common-patterns/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Common Patterns
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Advanced
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Advanced
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced/overview/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    API Reference
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            API Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/overview/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/crud_admin/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CRUDAdmin
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/model_view/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    ModelView
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/admin_site/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    AdminSite
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/session/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Session Management
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/events/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Event System
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Community
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            Community
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../community/overview/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../community/CONTRIBUTING/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Contributing
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../community/CODE_OF_CONDUCT/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Code of Conduct
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../community/LICENSE/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    License
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      Prerequisites
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dashboard-navigation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Dashboard Navigation
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Dashboard Navigation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#accessing-the-admin-interface" class="md-nav__link">
+    <span class="md-ellipsis">
+      Accessing the Admin Interface
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#understanding-the-dashboard-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      Understanding the Dashboard Layout
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Understanding the Dashboard Layout">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sidebar-navigation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Sidebar Navigation
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#main-content-area" class="md-nav__link">
+    <span class="md-ellipsis">
+      Main Content Area
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#navigating-between-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      Navigating Between Models
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      Data Management
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Data Management">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#creating-new-records" class="md-nav__link">
+    <span class="md-ellipsis">
+      Creating New Records
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Creating New Records">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-1-access-create-form" class="md-nav__link">
+    <span class="md-ellipsis">
+      Step 1: Access Create Form
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-2-fill-required-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      Step 2: Fill Required Fields
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-3-submit-or-cancel" class="md-nav__link">
+    <span class="md-ellipsis">
+      Step 3: Submit or Cancel
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#viewing-and-sorting-records" class="md-nav__link">
+    <span class="md-ellipsis">
+      Viewing and Sorting Records
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Viewing and Sorting Records">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#list-view-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      List View Features
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sorting-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      Sorting Data
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#updating-existing-records" class="md-nav__link">
+    <span class="md-ellipsis">
+      Updating Existing Records
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Updating Existing Records">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-1-select-record" class="md-nav__link">
+    <span class="md-ellipsis">
+      Step 1: Select Record
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-2-edit-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      Step 2: Edit Fields
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-3-save-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Step 3: Save Changes
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#deleting-records" class="md-nav__link">
+    <span class="md-ellipsis">
+      Deleting Records
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Deleting Records">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#single-record-deletion" class="md-nav__link">
+    <span class="md-ellipsis">
+      Single Record Deletion
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bulk-deletion" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bulk Deletion
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#search-and-filtering" class="md-nav__link">
+    <span class="md-ellipsis">
+      Search and Filtering
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Search and Filtering">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basic-search" class="md-nav__link">
+    <span class="md-ellipsis">
+      Basic Search
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Basic Search">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-to-search" class="md-nav__link">
+    <span class="md-ellipsis">
+      How to Search
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#search-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      Search Behavior
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#column-specific-searching" class="md-nav__link">
+    <span class="md-ellipsis">
+      Column-Specific Searching
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pagination" class="md-nav__link">
+    <span class="md-ellipsis">
+      Pagination
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Pagination">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#managing-large-datasets" class="md-nav__link">
+    <span class="md-ellipsis">
+      Managing Large Datasets
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Managing Large Datasets">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pagination-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      Pagination Features
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#smart-pagination-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      Smart Pagination Behavior
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#form-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      Form Handling
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Form Handling">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#understanding-auto-generated-forms" class="md-nav__link">
+    <span class="md-ellipsis">
+      Understanding Auto-Generated Forms
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Understanding Auto-Generated Forms">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#field-type-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      Field Type Examples
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#form-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Form Validation
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Form Validation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#validation-feedback" class="md-nav__link">
+    <span class="md-ellipsis">
+      Validation Feedback
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#error-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      Error Handling
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bulk-operations" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bulk Operations
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Bulk Operations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#working-with-multiple-records" class="md-nav__link">
+    <span class="md-ellipsis">
+      Working with Multiple Records
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Working with Multiple Records">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#selecting-records" class="md-nav__link">
+    <span class="md-ellipsis">
+      Selecting Records
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#available-bulk-operations" class="md-nav__link">
+    <span class="md-ellipsis">
+      Available Bulk Operations
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bulk-deletion-process" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bulk Deletion Process
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#management-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      Management Features
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Management Features">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#system-health-monitoring" class="md-nav__link">
+    <span class="md-ellipsis">
+      System Health Monitoring
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#event-logs-if-enabled" class="md-nav__link">
+    <span class="md-ellipsis">
+      Event Logs (if enabled)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Event Logs (if enabled)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#event-tracking" class="md-nav__link">
+    <span class="md-ellipsis">
+      Event Tracking
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      Next Steps
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="using-the-admin-interface">Using the Admin Interface<a class="headerlink" href="#using-the-admin-interface" title="Permanent link">&para;</a></h1>
+<p>This guide covers the essential operations for using the CRUDAdmin interface in your daily workflow. You'll learn how to navigate the dashboard, manage records, search and filter data, and work with forms effectively.</p>
+<h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
+<p>Before using the admin interface, ensure you have:</p>
+<ul>
+<li>A configured CRUDAdmin instance with models registered (see <a href="../adding-models/">Adding Models</a>)</li>
+<li>Admin user credentials (see <a href="../admin-users/">Managing Admin Users</a>)</li>
+<li>Access to your admin interface (typically at <code>/admin</code>)</li>
+</ul>
+<hr />
+<h2 id="dashboard-navigation">Dashboard Navigation<a class="headerlink" href="#dashboard-navigation" title="Permanent link">&para;</a></h2>
+<h3 id="accessing-the-admin-interface">Accessing the Admin Interface<a class="headerlink" href="#accessing-the-admin-interface" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Navigate to your admin URL</strong>: Go to <code>/admin</code> (or your configured mount path)</li>
+<li><strong>Login</strong>: Enter your admin credentials</li>
+<li><strong>Dashboard loads</strong>: Main interface with sidebar navigation and content area</li>
+</ol>
+<h3 id="understanding-the-dashboard-layout">Understanding the Dashboard Layout<a class="headerlink" href="#understanding-the-dashboard-layout" title="Permanent link">&para;</a></h3>
+<p>The admin interface is organized into clear sections:</p>
+<p><img alt="Dashboard Layout" src="../../assets/screenshots/dashboard-layout.png" /></p>
+<h4 id="sidebar-navigation">Sidebar Navigation<a class="headerlink" href="#sidebar-navigation" title="Permanent link">&para;</a></h4>
+<p>The left sidebar contains collapsible sections:</p>
+<ul>
+<li><strong>Navigation</strong>: Dashboard overview with system statistics</li>
+<li><strong>Authentication</strong>: Admin Users and Sessions management</li>
+<li><strong>Models</strong>: Your registered models with record counts</li>
+<li><strong>Management</strong>: Health checks and event logs (if enabled)</li>
+</ul>
+<h4 id="main-content-area">Main Content Area<a class="headerlink" href="#main-content-area" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Dashboard</strong>: Overview cards showing model statistics</li>
+<li><strong>Model pages</strong>: List, create, and edit interfaces for each model</li>
+<li><strong>Management tools</strong>: System monitoring and audit features</li>
+</ul>
+<h3 id="navigating-between-models">Navigating Between Models<a class="headerlink" href="#navigating-between-models" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Click any model</strong> in the sidebar (e.g., "User", "Product")</li>
+<li><strong>View the model list</strong> with all records</li>
+<li><strong>Use action buttons</strong> to create, edit, or delete records</li>
+</ol>
+<p><img alt="Model List Page" src="../../assets/screenshots/model-list-page.png" /></p>
+<hr />
+<h2 id="data-management">Data Management<a class="headerlink" href="#data-management" title="Permanent link">&para;</a></h2>
+<h3 id="creating-new-records">Creating New Records<a class="headerlink" href="#creating-new-records" title="Permanent link">&para;</a></h3>
+<h4 id="step-1-access-create-form">Step 1: Access Create Form<a class="headerlink" href="#step-1-access-create-form" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Click <strong>"+ Add [ModelName]"</strong> button on any model list page</li>
+<li>Form opens with fields based on your Pydantic schema</li>
+</ul>
+<h4 id="step-2-fill-required-fields">Step 2: Fill Required Fields<a class="headerlink" href="#step-2-fill-required-fields" title="Permanent link">&para;</a></h4>
+<p>Forms include different field types automatically generated from your schemas:</p>
+<ul>
+<li><strong>Text inputs</strong>: Username, description, notes</li>
+<li><strong>Email fields</strong>: With built-in email validation</li>
+<li><strong>Select dropdowns</strong>: For choice fields like roles or status</li>
+<li><strong>Checkboxes</strong>: For boolean fields like "active" or "featured"</li>
+<li><strong>Date/time pickers</strong>: For datetime fields</li>
+</ul>
+<p><img alt="Create Form Example" src="../../assets/screenshots/create-form-example.png" /></p>
+<h4 id="step-3-submit-or-cancel">Step 3: Submit or Cancel<a class="headerlink" href="#step-3-submit-or-cancel" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Create</strong>: Saves the record and returns to list</li>
+<li><strong>Cancel</strong>: Returns to list without saving</li>
+<li><strong>Validation errors</strong>: Show immediately with helpful messages</li>
+</ul>
+<h3 id="viewing-and-sorting-records">Viewing and Sorting Records<a class="headerlink" href="#viewing-and-sorting-records" title="Permanent link">&para;</a></h3>
+<h4 id="list-view-features">List View Features<a class="headerlink" href="#list-view-features" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Table display</strong>: All model fields in columns</li>
+<li><strong>Record counts</strong>: Total number of records shown</li>
+<li><strong>Sortable columns</strong>: Click headers to sort ascending/descending</li>
+<li><strong>Pagination</strong>: Navigate large datasets efficiently</li>
+</ul>
+<p><img alt="Sortable Table Headers" src="../../assets/screenshots/sortable-headers.png" /></p>
+<h4 id="sorting-data">Sorting Data<a class="headerlink" href="#sorting-data" title="Permanent link">&para;</a></h4>
+<ol>
+<li><strong>Click any column header</strong> to sort by that field</li>
+<li><strong>Click again</strong> to reverse the sort order</li>
+<li><strong>Sort indicators</strong> show current direction (▲ asc, ▼ desc)</li>
+</ol>
+<h3 id="updating-existing-records">Updating Existing Records<a class="headerlink" href="#updating-existing-records" title="Permanent link">&para;</a></h3>
+<h4 id="step-1-select-record">Step 1: Select Record<a class="headerlink" href="#step-1-select-record" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Check the checkbox</strong> next to the record you want to edit</li>
+<li><strong>Update button</strong> appears in the action bar</li>
+</ul>
+<h4 id="step-2-edit-fields">Step 2: Edit Fields<a class="headerlink" href="#step-2-edit-fields" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Click <strong>"✎ Update"</strong> to open the edit form</li>
+<li><strong>Current values</strong> are pre-filled in all fields</li>
+<li><strong>Modify only</strong> the fields you want to change</li>
+</ul>
+<p><img alt="Update Form Example" src="../../assets/screenshots/update-form-example.png" /></p>
+<h4 id="step-3-save-changes">Step 3: Save Changes<a class="headerlink" href="#step-3-save-changes" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Update</strong>: Saves changes and returns to list</li>
+<li><strong>Cancel</strong>: Discards changes and returns to list</li>
+</ul>
+<h3 id="deleting-records">Deleting Records<a class="headerlink" href="#deleting-records" title="Permanent link">&para;</a></h3>
+<h4 id="single-record-deletion">Single Record Deletion<a class="headerlink" href="#single-record-deletion" title="Permanent link">&para;</a></h4>
+<ol>
+<li><strong>Select one record</strong> using its checkbox</li>
+<li><strong>Click "🗑 Delete Selected"</strong> button</li>
+<li><strong>Confirm deletion</strong> in the dialog that appears</li>
+</ol>
+<h4 id="bulk-deletion">Bulk Deletion<a class="headerlink" href="#bulk-deletion" title="Permanent link">&para;</a></h4>
+<ol>
+<li><strong>Select multiple records</strong> using checkboxes</li>
+<li><strong>Click "🗑 Delete Selected"</strong> button  </li>
+<li><strong>Confirm bulk deletion</strong> for all selected items</li>
+</ol>
+<p><img alt="Delete Confirmation Dialog" src="../../assets/screenshots/delete-confirmation.png" /></p>
+<p><strong>Note</strong>: The action buttons change dynamically:</p>
+<ul>
+<li><strong>No selection</strong>: Only "Add" button visible</li>
+<li><strong>One selected</strong>: "Update" and "Delete" buttons appear</li>
+<li><strong>Multiple selected</strong>: Only "Delete" button appears (bulk operation)</li>
+</ul>
+<p><img alt="Action Button States" src="../../assets/screenshots/action-buttons-states.png" /></p>
+<hr />
+<h2 id="search-and-filtering">Search and Filtering<a class="headerlink" href="#search-and-filtering" title="Permanent link">&para;</a></h2>
+<h3 id="basic-search">Basic Search<a class="headerlink" href="#basic-search" title="Permanent link">&para;</a></h3>
+<p>Use the search interface to find specific records quickly:</p>
+<p><img alt="Search Interface" src="../../assets/screenshots/search-interface.png" /></p>
+<h4 id="how-to-search">How to Search<a class="headerlink" href="#how-to-search" title="Permanent link">&para;</a></h4>
+<ol>
+<li><strong>Select the column</strong> to search in from the dropdown</li>
+<li><strong>Enter your search term</strong> in the text field</li>
+<li><strong>Search automatically</strong> as you type (with a short delay)</li>
+<li><strong>Click "Search"</strong> for immediate results</li>
+</ol>
+<h4 id="search-behavior">Search Behavior<a class="headerlink" href="#search-behavior" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Partial matching</strong>: Finds records containing your search term</li>
+<li><strong>Case insensitive</strong>: "Admin" matches "admin", "ADMIN", etc.</li>
+<li><strong>Real-time results</strong>: Updates as you type</li>
+<li><strong>Persistent</strong>: Search terms remain when you change pages</li>
+</ul>
+<h3 id="column-specific-searching">Column-Specific Searching<a class="headerlink" href="#column-specific-searching" title="Permanent link">&para;</a></h3>
+<p>Different column types support different search patterns:</p>
+<ul>
+<li><strong>Text fields</strong>: Partial word matching</li>
+<li><strong>Email fields</strong>: Search by domain (@company.com) or username</li>
+<li><strong>Number fields</strong>: Exact or partial number matching</li>
+<li><strong>Date fields</strong>: Search by date patterns</li>
+<li><strong>Choice fields</strong>: Search by specific option values</li>
+</ul>
+<hr />
+<h2 id="pagination">Pagination<a class="headerlink" href="#pagination" title="Permanent link">&para;</a></h2>
+<h3 id="managing-large-datasets">Managing Large Datasets<a class="headerlink" href="#managing-large-datasets" title="Permanent link">&para;</a></h3>
+<p>When you have many records, pagination helps you navigate efficiently:</p>
+<p><img alt="Pagination Controls" src="../../assets/screenshots/pagination-controls.png" /></p>
+<h4 id="pagination-features">Pagination Features<a class="headerlink" href="#pagination-features" title="Permanent link">&para;</a></h4>
+<p><strong>Records Per Page:</strong></p>
+<ul>
+<li>Choose from 10, 20, 50, or 100 records per page</li>
+<li>Changes apply immediately</li>
+<li>Preserves your current search and sort settings</li>
+</ul>
+<p><strong>Page Navigation:</strong></p>
+<ul>
+<li><strong>Previous/Next buttons</strong> for page-by-page navigation</li>
+<li><strong>Page indicator</strong> shows current position (e.g., "Page 2 of 15")</li>
+<li><strong>Automatic adjustment</strong> if you delete records from current page</li>
+</ul>
+<h4 id="smart-pagination-behavior">Smart Pagination Behavior<a class="headerlink" href="#smart-pagination-behavior" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Maintains search terms</strong> when changing pages</li>
+<li><strong>Preserves sort order</strong> across all pages</li>
+<li><strong>Adjusts current page</strong> if necessary after deletions</li>
+<li><strong>Shows filtered totals</strong> when search is active</li>
+</ul>
+<hr />
+<h2 id="form-handling">Form Handling<a class="headerlink" href="#form-handling" title="Permanent link">&para;</a></h2>
+<h3 id="understanding-auto-generated-forms">Understanding Auto-Generated Forms<a class="headerlink" href="#understanding-auto-generated-forms" title="Permanent link">&para;</a></h3>
+<p>CRUDAdmin creates forms automatically from your Pydantic schemas.</p>
+<h4 id="field-type-examples">Field Type Examples<a class="headerlink" href="#field-type-examples" title="Permanent link">&para;</a></h4>
+<p><strong>Text Input Fields:</strong>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Schema definition</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">username</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">min_length</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">50</span><span class="p">)</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="c1"># Generates: Username* [text input] (required field marked with *)</span>
+</span></code></pre></div></p>
+<p><strong>Email Fields:</strong>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Schema definition</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">email</span><span class="p">:</span> <span class="n">EmailStr</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="c1"># Generates: Email* [email input] (with validation)</span>
+</span></code></pre></div></p>
+<p><strong>Select Dropdowns:</strong>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Schema definition</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">role</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">pattern</span><span class="o">=</span><span class="s2">&quot;^(admin|user|moderator)$&quot;</span><span class="p">)</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="c1"># Generates: Role* [dropdown] with options</span>
+</span></code></pre></div></p>
+<p><strong>Boolean Checkboxes:</strong>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Schema definition</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">is_active</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="c1"># Generates: ☑ Active (checkbox, checked by default)</span>
+</span></code></pre></div></p>
+<h3 id="form-validation">Form Validation<a class="headerlink" href="#form-validation" title="Permanent link">&para;</a></h3>
+<h4 id="validation-feedback">Validation Feedback<a class="headerlink" href="#validation-feedback" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Required fields</strong> marked with asterisk (*)</li>
+<li><strong>Format validation</strong> for emails, patterns, etc.</li>
+<li><strong>Length restrictions</strong> enforced (min/max characters)</li>
+<li><strong>Real-time feedback</strong> as you fill fields</li>
+</ul>
+<p><img alt="Form Validation Examples" src="../../assets/screenshots/form-validation-errors.png" /></p>
+<h4 id="error-handling">Error Handling<a class="headerlink" href="#error-handling" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Field-level errors</strong> appear below problematic fields</li>
+<li><strong>Clear error messages</strong> explain what needs to be fixed</li>
+<li><strong>Form-level errors</strong> show at the top for general issues</li>
+<li><strong>Automatic focus</strong> moves to first error field</li>
+</ul>
+<hr />
+<h2 id="bulk-operations">Bulk Operations<a class="headerlink" href="#bulk-operations" title="Permanent link">&para;</a></h2>
+<h3 id="working-with-multiple-records">Working with Multiple Records<a class="headerlink" href="#working-with-multiple-records" title="Permanent link">&para;</a></h3>
+<p>Select multiple records to perform bulk actions:</p>
+<h4 id="selecting-records">Selecting Records<a class="headerlink" href="#selecting-records" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Individual selection</strong>: Check boxes next to specific records</li>
+<li><strong>Select all</strong>: Use the header checkbox to select all visible records</li>
+<li><strong>Partial selection</strong>: Mix individual selections as needed</li>
+</ul>
+<h4 id="available-bulk-operations">Available Bulk Operations<a class="headerlink" href="#available-bulk-operations" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Bulk deletion</strong>: Delete multiple records at once</li>
+<li><strong>Batch updates</strong>: Update multiple records simultaneously (if configured)</li>
+<li><strong>Export operations</strong>: Download selected records (if enabled)</li>
+</ul>
+<h4 id="bulk-deletion-process">Bulk Deletion Process<a class="headerlink" href="#bulk-deletion-process" title="Permanent link">&para;</a></h4>
+<ol>
+<li><strong>Select target records</strong> using checkboxes</li>
+<li><strong>Click "Delete Selected"</strong> (appears when multiple items selected)</li>
+<li><strong>Review selection</strong> in confirmation dialog</li>
+<li><strong>Confirm deletion</strong> to remove all selected records</li>
+</ol>
+<p><strong>Important</strong>: Bulk operations cannot be undone, so review your selection carefully before confirming.</p>
+<hr />
+<h2 id="management-features">Management Features<a class="headerlink" href="#management-features" title="Permanent link">&para;</a></h2>
+<h3 id="system-health-monitoring">System Health Monitoring<a class="headerlink" href="#system-health-monitoring" title="Permanent link">&para;</a></h3>
+<p>Access system status through the Management section:</p>
+<p><img alt="Health Monitoring Dashboard" src="../../assets/screenshots/health-monitoring.png" /></p>
+<ul>
+<li><strong>Database connectivity</strong>: Connection status and response times</li>
+<li><strong>Session storage</strong>: Health of your session backend (memory/Redis/etc.)</li>
+<li><strong>Event system</strong>: Status of audit logging (if enabled)</li>
+<li><strong>Manual refresh</strong>: Update health checks on demand</li>
+</ul>
+<h3 id="event-logs-if-enabled">Event Logs (if enabled)<a class="headerlink" href="#event-logs-if-enabled" title="Permanent link">&para;</a></h3>
+<p>Monitor admin activity through the event log system:</p>
+<p><img alt="Event Log Interface" src="../../assets/screenshots/event-log-filters.png" /></p>
+<h4 id="event-tracking">Event Tracking<a class="headerlink" href="#event-tracking" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>User actions</strong>: Login, logout, record changes</li>
+<li><strong>CRUD operations</strong>: Create, update, delete activities</li>
+<li><strong>System events</strong>: Authentication failures, system errors</li>
+<li><strong>Filterable history</strong>: Search by user, date range, event type</li>
+</ul>
+<p><img alt="Event Log Details" src="../../assets/screenshots/event-log-details.png" /></p>
+<hr />
+<h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
+<p>After mastering the basic interface operations, explore the <strong><a href="../../advanced/overview/">Advanced Topics</a></strong> section for production features and sophisticated configurations.</p>
+<p>The admin interface provides everything you need for daily data management. With practice, you'll develop efficient workflows that make managing your application data quick and reliable. </p>
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.instant", "navigation.instant.prefetch", "navigation.tabs", "navigation.indexes", "search.suggest", "content.code.copy"], "search": "../../assets/javascripts/workers/search.f8cc74c7.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.5090c770.min.js"></script>
+      
+    
+  </body>
+</html>

@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="This guide provides comprehensive information about using CRUDAdmin to create admin interfaces for your FastAPI applications. Whether you&#x27;re just getting started or looking to implement advanced features, you&#x27;ll find everything you need in these sections.">
+        <meta name="description" content="This section guides you through everything you need to know about using CRUDAdmin effectively in your projects. Follow these topics in order for the best learning experience.">
       
       
         <meta name="author" content="Igor Benav">
@@ -15,10 +15,10 @@
         <link rel="canonical" href="https://github.com/igorbenav/crudadmin/usage/overview/">
       
       
-        <link rel="prev" href="../..">
+        <link rel="prev" href="../../quick-start/">
       
       
-        <link rel="next" href="../getting_started/">
+        <link rel="next" href="../configuration/">
       
       
       <link rel="icon" href="../../assets/logo.png">
@@ -92,7 +92,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#crudadmin-usage-overview" class="md-skip">
+        <a href="#usage-overview" class="md-skip">
           Skip to content
         </a>
       
@@ -249,6 +249,40 @@
         
   
   
+  
+    <li class="md-tabs__item">
+      <a href="../../installing/" class="md-tabs__link">
+        
+  
+    
+  
+  Installing
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../quick-start/" class="md-tabs__link">
+        
+  
+    
+  
+  Quick-Start
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
     
   
   
@@ -261,6 +295,26 @@
     
   
   Usage
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../advanced/overview/" class="md-tabs__link">
+          
+  
+    
+  
+  Advanced
 
         </a>
       </li>
@@ -377,12 +431,58 @@
       
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../../installing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Installing
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../quick-start/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Quick-Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
     
   
   
   
     
     
+      
+        
+      
+        
       
         
       
@@ -405,10 +505,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
         
           
-          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
             
   
   <span class="md-ellipsis">
@@ -420,8 +520,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_2">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             Usage
           </label>
@@ -482,37 +582,55 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#core-documentation" class="md-nav__link">
+  <a href="#getting-started" class="md-nav__link">
     <span class="md-ellipsis">
-      Core Documentation
+      Getting Started
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Core Documentation">
+    <nav class="md-nav" aria-label="Getting Started">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#getting-started-guide" class="md-nav__link">
+  <a href="#1-basic-configuration" class="md-nav__link">
     <span class="md-ellipsis">
-      Getting Started Guide
+      1. Basic Configuration
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#security-and-authentication" class="md-nav__link">
+  <a href="#2-adding-models" class="md-nav__link">
     <span class="md-ellipsis">
-      Security and Authentication
+      2. Adding Models
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#monitoring-and-maintenance" class="md-nav__link">
+  <a href="#3-managing-admin-users" class="md-nav__link">
     <span class="md-ellipsis">
-      Monitoring and Maintenance
+      3. Managing Admin Users
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-using-the-interface" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Using the Interface
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-common-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. Common Patterns
     </span>
   </a>
   
@@ -524,60 +642,18 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#quick-start-example" class="md-nav__link">
+  <a href="#whats-next" class="md-nav__link">
     <span class="md-ellipsis">
-      Quick Start Example
+      What's Next?
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#common-use-cases" class="md-nav__link">
+  <a href="#quick-navigation" class="md-nav__link">
     <span class="md-ellipsis">
-      Common Use Cases
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Common Use Cases">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#basic-admin-interface" class="md-nav__link">
-    <span class="md-ellipsis">
-      Basic Admin Interface
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#secure-production-setup" class="md-nav__link">
-    <span class="md-ellipsis">
-      Secure Production Setup
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#monitored-environment" class="md-nav__link">
-    <span class="md-ellipsis">
-      Monitored Environment
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#next-steps" class="md-nav__link">
-    <span class="md-ellipsis">
-      Next Steps
+      Quick Navigation
     </span>
   </a>
   
@@ -599,11 +675,11 @@
   
   
     <li class="md-nav__item">
-      <a href="../getting_started/" class="md-nav__link">
+      <a href="../configuration/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
-    Getting Started
+    Basic Configuration
     
   </span>
   
@@ -621,11 +697,11 @@
   
   
     <li class="md-nav__item">
-      <a href="../monitoring_maintenance/" class="md-nav__link">
+      <a href="../adding-models/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
-    Monitoring
+    Adding Models
     
   </span>
   
@@ -643,11 +719,127 @@
   
   
     <li class="md-nav__item">
-      <a href="../security_authentication/" class="md-nav__link">
+      <a href="../admin-users/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
-    Security
+    Managing Admin Users
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../interface/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Using the Interface
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../common-patterns/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Common Patterns
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Advanced
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Advanced
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced/overview/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
     
   </span>
   
@@ -682,6 +874,10 @@
       
         
       
+        
+      
+        
+      
     
     
       
@@ -692,10 +888,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
         
           
-          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
             
   
   <span class="md-ellipsis">
@@ -707,8 +903,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             API Reference
           </label>
@@ -802,6 +998,50 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/session/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Session Management
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/events/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Event System
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -836,10 +1076,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
         
           
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
             
   
   <span class="md-ellipsis">
@@ -851,8 +1091,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
             <span class="md-nav__icon md-icon"></span>
             Community
           </label>
@@ -980,37 +1220,55 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#core-documentation" class="md-nav__link">
+  <a href="#getting-started" class="md-nav__link">
     <span class="md-ellipsis">
-      Core Documentation
+      Getting Started
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Core Documentation">
+    <nav class="md-nav" aria-label="Getting Started">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#getting-started-guide" class="md-nav__link">
+  <a href="#1-basic-configuration" class="md-nav__link">
     <span class="md-ellipsis">
-      Getting Started Guide
+      1. Basic Configuration
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#security-and-authentication" class="md-nav__link">
+  <a href="#2-adding-models" class="md-nav__link">
     <span class="md-ellipsis">
-      Security and Authentication
+      2. Adding Models
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#monitoring-and-maintenance" class="md-nav__link">
+  <a href="#3-managing-admin-users" class="md-nav__link">
     <span class="md-ellipsis">
-      Monitoring and Maintenance
+      3. Managing Admin Users
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-using-the-interface" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Using the Interface
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-common-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. Common Patterns
     </span>
   </a>
   
@@ -1022,60 +1280,18 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#quick-start-example" class="md-nav__link">
+  <a href="#whats-next" class="md-nav__link">
     <span class="md-ellipsis">
-      Quick Start Example
+      What's Next?
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#common-use-cases" class="md-nav__link">
+  <a href="#quick-navigation" class="md-nav__link">
     <span class="md-ellipsis">
-      Common Use Cases
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Common Use Cases">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#basic-admin-interface" class="md-nav__link">
-    <span class="md-ellipsis">
-      Basic Admin Interface
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#secure-production-setup" class="md-nav__link">
-    <span class="md-ellipsis">
-      Secure Production Setup
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#monitored-environment" class="md-nav__link">
-    <span class="md-ellipsis">
-      Monitored Environment
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#next-steps" class="md-nav__link">
-    <span class="md-ellipsis">
-      Next Steps
+      Quick Navigation
     </span>
   </a>
   
@@ -1100,106 +1316,70 @@
   
 
 
-<h1 id="crudadmin-usage-overview">CRUDAdmin Usage Overview<a class="headerlink" href="#crudadmin-usage-overview" title="Permanent link">&para;</a></h1>
-<p>This guide provides comprehensive information about using CRUDAdmin to create admin interfaces for your FastAPI applications. Whether you're just getting started or looking to implement advanced features, you'll find everything you need in these sections.</p>
-<h2 id="core-documentation">Core Documentation<a class="headerlink" href="#core-documentation" title="Permanent link">&para;</a></h2>
-<h3 id="getting-started-guide"><a href="../getting_started/">Getting Started Guide</a><a class="headerlink" href="#getting-started-guide" title="Permanent link">&para;</a></h3>
-<p>Learn the basics of CRUDAdmin and set up your first admin interface:</p>
+<h1 id="usage-overview">Usage Overview<a class="headerlink" href="#usage-overview" title="Permanent link">&para;</a></h1>
+<p>This section guides you through everything you need to know about using CRUDAdmin effectively in your projects. Follow these topics in order for the best learning experience.</p>
+<h2 id="getting-started">Getting Started<a class="headerlink" href="#getting-started" title="Permanent link">&para;</a></h2>
+<h3 id="1-basic-configuration">1. <a href="../configuration/">Basic Configuration</a><a class="headerlink" href="#1-basic-configuration" title="Permanent link">&para;</a></h3>
+<p>Learn how to set up and configure your CRUDAdmin instance for different environments.</p>
 <ul>
-<li>Understanding CRUDAdmin's core concepts</li>
-<li>Setting up your first admin interface</li>
-<li>Configuring database connections</li>
-<li>Adding and managing models</li>
-<li>Basic usage and configuration</li>
+<li><strong>Creating your first admin interface</strong> with essential settings</li>
+<li><strong>Session backend configuration</strong> (Memory, Redis, Memcached, Database, Hybrid)</li>
+<li><strong>Security settings</strong> for authentication and access control</li>
+<li><strong>Environment-based configuration</strong> for development vs production</li>
+<li><strong>FastAPI integration</strong> patterns and best practices</li>
 </ul>
-<h3 id="security-and-authentication"><a href="../security_authentication/">Security and Authentication</a><a class="headerlink" href="#security-and-authentication" title="Permanent link">&para;</a></h3>
-<p>Implement robust security measures for your admin interface:</p>
+<h3 id="2-adding-models">2. <a href="../adding-models/">Adding Models</a><a class="headerlink" href="#2-adding-models" title="Permanent link">&para;</a></h3>
+<p>Master the core functionality of registering your SQLAlchemy models with CRUDAdmin.</p>
 <ul>
-<li>Setting up authentication and session management</li>
-<li>Configuring IP restrictions and HTTPS</li>
-<li>Managing secrets securely</li>
-<li>Implementing access control</li>
-<li>Production security best practices</li>
+<li><strong>Model registration</strong> with create, update, and read schemas</li>
+<li><strong>Action control</strong> (view, create, update, delete permissions)</li>
+<li><strong>Password field handling</strong> with automatic transformation</li>
+<li><strong>Advanced schema configuration</strong> for different operations</li>
+<li><strong>Real-world examples</strong> and troubleshooting tips</li>
 </ul>
-<h3 id="monitoring-and-maintenance"><a href="../monitoring_maintenance/">Monitoring and Maintenance</a><a class="headerlink" href="#monitoring-and-maintenance" title="Permanent link">&para;</a></h3>
-<p>Keep your admin interface running smoothly:</p>
+<h3 id="3-managing-admin-users">3. <a href="../admin-users/">Managing Admin Users</a><a class="headerlink" href="#3-managing-admin-users" title="Permanent link">&para;</a></h3>
+<p>Set up authentication and manage who can access your admin interface.</p>
 <ul>
-<li>Setting up event tracking and audit logs</li>
-<li>Using the health monitoring dashboard</li>
-<li>Managing event logs effectively</li>
-<li>Implementing maintenance best practices</li>
-<li>Daily monitoring routines</li>
+<li><strong>Creating admin users</strong> and managing credentials</li>
+<li><strong>Authentication flow</strong> and session management</li>
+<li><strong>User roles and permissions</strong> (if applicable)</li>
+<li><strong>Security best practices</strong> for admin access</li>
 </ul>
-<h2 id="quick-start-example">Quick Start Example<a class="headerlink" href="#quick-start-example" title="Permanent link">&para;</a></h2>
-<p>Here's a minimal example to get your admin interface up and running:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">fastapi</span><span class="w"> </span><span class="kn">import</span> <span class="n">FastAPI</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">sqlalchemy.ext.asyncio</span><span class="w"> </span><span class="kn">import</span> <span class="n">AsyncSession</span><span class="p">,</span> <span class="n">create_async_engine</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">sqlalchemy.orm</span><span class="w"> </span><span class="kn">import</span> <span class="n">declarative_base</span>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="c1"># Set up database</span>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="n">Base</span> <span class="o">=</span> <span class="n">declarative_base</span><span class="p">()</span>
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="n">engine</span> <span class="o">=</span> <span class="n">create_async_engine</span><span class="p">(</span><span class="s2">&quot;sqlite+aiosqlite:///app.db&quot;</span><span class="p">)</span>
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="n">session</span> <span class="o">=</span> <span class="n">AsyncSession</span><span class="p">(</span><span class="n">engine</span><span class="p">)</span>
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="c1"># Create admin interface</span>
-</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="n">admin</span> <span class="o">=</span> <span class="n">CRUDAdmin</span><span class="p">(</span>
-</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="n">session</span><span class="o">=</span><span class="n">session</span><span class="p">,</span>
-</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    <span class="n">SECRET_KEY</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;ADMIN_SECRET_KEY&quot;</span><span class="p">),</span>
-</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    <span class="n">initial_admin</span><span class="o">=</span><span class="p">{</span>
-</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>        <span class="s2">&quot;username&quot;</span><span class="p">:</span> <span class="s2">&quot;admin&quot;</span><span class="p">,</span>
-</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>        <span class="s2">&quot;password&quot;</span><span class="p">:</span> <span class="s2">&quot;secure_pass123&quot;</span>
-</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>    <span class="p">}</span>
-</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="p">)</span>
-</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>
-</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a><span class="c1"># Mount to FastAPI</span>
-</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a><span class="n">app</span> <span class="o">=</span> <span class="n">FastAPI</span><span class="p">()</span>
-</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a><span class="n">app</span><span class="o">.</span><span class="n">mount</span><span class="p">(</span><span class="s2">&quot;/admin&quot;</span><span class="p">,</span> <span class="n">admin</span><span class="o">.</span><span class="n">app</span><span class="p">)</span>
-</span></code></pre></div>
-<h2 id="common-use-cases">Common Use Cases<a class="headerlink" href="#common-use-cases" title="Permanent link">&para;</a></h2>
-<h3 id="basic-admin-interface">Basic Admin Interface<a class="headerlink" href="#basic-admin-interface" title="Permanent link">&para;</a></h3>
-<p>Perfect for simple applications needing data management:
-<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Define your model</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="k">class</span><span class="w"> </span><span class="nc">User</span><span class="p">(</span><span class="n">Base</span><span class="p">):</span>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    <span class="n">__tablename__</span> <span class="o">=</span> <span class="s2">&quot;users&quot;</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="nb">id</span> <span class="o">=</span> <span class="n">Column</span><span class="p">(</span><span class="n">Integer</span><span class="p">,</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="n">username</span> <span class="o">=</span> <span class="n">Column</span><span class="p">(</span><span class="n">String</span><span class="p">,</span> <span class="n">unique</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="n">email</span> <span class="o">=</span> <span class="n">Column</span><span class="p">(</span><span class="n">String</span><span class="p">)</span>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="c1"># Add to admin interface</span>
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="n">admin</span><span class="o">.</span><span class="n">add_view</span><span class="p">(</span>
-</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>    <span class="n">model</span><span class="o">=</span><span class="n">User</span><span class="p">,</span>
-</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>    <span class="n">create_schema</span><span class="o">=</span><span class="n">UserCreate</span><span class="p">,</span>
-</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>    <span class="n">update_schema</span><span class="o">=</span><span class="n">UserUpdate</span>
-</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="p">)</span>
-</span></code></pre></div></p>
-<h3 id="secure-production-setup">Secure Production Setup<a class="headerlink" href="#secure-production-setup" title="Permanent link">&para;</a></h3>
-<p>Recommended configuration for production environments:
-<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">admin</span> <span class="o">=</span> <span class="n">CRUDAdmin</span><span class="p">(</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>    <span class="n">session</span><span class="o">=</span><span class="n">session</span><span class="p">,</span>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>    <span class="n">SECRET_KEY</span><span class="o">=</span><span class="n">SECRET_KEY</span><span class="p">,</span>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    <span class="n">enforce_https</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    <span class="n">secure_cookies</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    <span class="n">allowed_networks</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;10.0.0.0/24&quot;</span><span class="p">],</span>
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    <span class="n">track_events</span><span class="o">=</span><span class="kc">True</span>
-</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="p">)</span>
-</span></code></pre></div></p>
-<h3 id="monitored-environment">Monitored Environment<a class="headerlink" href="#monitored-environment" title="Permanent link">&para;</a></h3>
-<p>Set up comprehensive monitoring:
-<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">admin</span> <span class="o">=</span> <span class="n">CRUDAdmin</span><span class="p">(</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>    <span class="n">session</span><span class="o">=</span><span class="n">session</span><span class="p">,</span>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>    <span class="n">SECRET_KEY</span><span class="o">=</span><span class="n">SECRET_KEY</span><span class="p">,</span>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    <span class="n">track_events</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    <span class="n">admin_db_url</span><span class="o">=</span><span class="s2">&quot;postgresql+asyncpg://user:pass@localhost/admin_logs&quot;</span>
-</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="p">)</span>
-</span></code></pre></div></p>
-<h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
-<ol>
-<li>Start with the <a href="../getting_started/">Getting Started Guide</a> to create your first admin interface</li>
-<li>Implement security measures using the <a href="../security_authentication/">Security and Authentication</a> guide</li>
-<li>Set up monitoring using the <a href="../monitoring_maintenance/">Monitoring and Maintenance</a> guide</li>
-</ol>
-<p>Each guide provides detailed examples and best practices to help you make the most of CRUDAdmin's features.</p>
+<h3 id="4-using-the-interface">4. <a href="../interface/">Using the Interface</a><a class="headerlink" href="#4-using-the-interface" title="Permanent link">&para;</a></h3>
+<p>Navigate and operate the admin interface effectively for daily tasks.</p>
+<ul>
+<li><strong>Dashboard navigation</strong> and understanding the layout</li>
+<li><strong>CRUD operations</strong> (Create, Read, Update, Delete)</li>
+<li><strong>Search and filtering</strong> data efficiently</li>
+<li><strong>Bulk operations</strong> for managing multiple records</li>
+<li><strong>Form handling</strong> and validation</li>
+</ul>
+<h3 id="5-common-patterns">5. <a href="../common-patterns/">Common Patterns</a><a class="headerlink" href="#5-common-patterns" title="Permanent link">&para;</a></h3>
+<p>Real-world usage patterns and scenarios you'll encounter in practice.</p>
+<ul>
+<li><strong>Multi-model relationships</strong> (blog systems, e-commerce catalogs)</li>
+<li><strong>Role-based access patterns</strong> for different admin levels</li>
+<li><strong>Advanced validation patterns</strong> with business logic</li>
+<li><strong>Performance optimization</strong> for large datasets</li>
+<li><strong>Integration patterns</strong> with existing FastAPI applications</li>
+<li><strong>Security patterns</strong> for production environments</li>
+</ul>
+<h2 id="whats-next">What's Next?<a class="headerlink" href="#whats-next" title="Permanent link">&para;</a></h2>
+<p>After completing the Usage section, you'll have a solid foundation for building and managing admin interfaces with CRUDAdmin. From here, you can explore:</p>
+<ul>
+<li><strong><a href="../../advanced/overview/">Advanced Features</a></strong> - Production-grade features like event tracking, advanced session management, and security</li>
+<li><strong><a href="../../api/overview/">API Reference</a></strong> - Detailed technical documentation for all classes and methods</li>
+<li><strong><a href="../../community/overview/">Community</a></strong> - Contributing guidelines and getting help</li>
+</ul>
+<h2 id="quick-navigation">Quick Navigation<a class="headerlink" href="#quick-navigation" title="Permanent link">&para;</a></h2>
+<p>Need to jump to a specific topic? Here are the most commonly accessed sections:</p>
+<ul>
+<li><strong><a href="../configuration/#basic-example">Quick setup example</a></strong> - Get running in 5 minutes</li>
+<li><strong><a href="../adding-models/#basic-model-registration">Adding your first model</a></strong> - Register a model and start managing data</li>
+<li><strong><a href="../interface/#search-and-filtering">Search and filtering</a></strong> - Find records quickly</li>
+<li><strong><a href="../common-patterns/#performance-optimization-patterns">Performance tips</a></strong> - Optimize for large datasets</li>
+<li><strong><a href="../common-patterns/#security-patterns">Security setup</a></strong> - Production security configuration </li>
+</ul>
 
 
 

@@ -6,19 +6,19 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Welcome to the project&#x27;s community hub. Here, you&#x27;ll find essential resources and guidelines that are crucial for contributing to and participating in the project. Please take the time to familiarize yourself with the following documents:">
+        <meta name="description" content="Welcome to the Advanced section of CRUDAdmin documentation. This section covers production-grade features, scalability patterns, and sophisticated configurations for enterprise deployments.">
       
       
         <meta name="author" content="Igor Benav">
       
       
-        <link rel="canonical" href="https://github.com/igorbenav/crudadmin/community/overview/">
+        <link rel="canonical" href="https://github.com/igorbenav/crudadmin/advanced/overview/">
       
       
-        <link rel="prev" href="../../api/events/">
+        <link rel="prev" href="../../usage/common-patterns/">
       
       
-        <link rel="next" href="../CONTRIBUTING/">
+        <link rel="next" href="../../api/overview/">
       
       
       <link rel="icon" href="../../assets/logo.png">
@@ -92,7 +92,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#community-overview" class="md-skip">
+        <a href="#advanced-topics" class="md-skip">
           Skip to content
         </a>
       
@@ -303,11 +303,13 @@
         
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
-        <a href="../../advanced/overview/" class="md-tabs__link">
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
           
   
     
@@ -343,13 +345,11 @@
         
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
-        <a href="./" class="md-tabs__link">
+      <li class="md-tabs__item">
+        <a href="../../community/overview/" class="md-tabs__link">
           
   
     
@@ -665,8 +665,10 @@
       
   
   
+    
   
   
+  
     
     
       
@@ -675,17 +677,20 @@
     
     
       
+        
+        
+      
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
         
           
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
             
   
   <span class="md-ellipsis">
@@ -697,7 +702,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             Advanced
@@ -708,10 +713,31 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../advanced/overview/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   <span class="md-ellipsis">
@@ -721,6 +747,122 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-youll-find-here" class="md-nav__link">
+    <span class="md-ellipsis">
+      What You'll Find Here
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#planned-advanced-topics" class="md-nav__link">
+    <span class="md-ellipsis">
+      Planned Advanced Topics
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Planned Advanced Topics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#advanced-security" class="md-nav__link">
+    <span class="md-ellipsis">
+      🔒 Advanced Security
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#session-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      📊 Session Management
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#event-tracking-audit-logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      📝 Event Tracking &amp; Audit Logging
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#deployment-scaling" class="md-nav__link">
+    <span class="md-ellipsis">
+      🚀 Deployment &amp; Scaling
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#advanced-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      ⚙️ Advanced Configuration
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      Prerequisites
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#getting-started" class="md-nav__link">
+    <span class="md-ellipsis">
+      Getting Started
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stay-updated" class="md-nav__link">
+    <span class="md-ellipsis">
+      Stay Updated
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -929,10 +1071,8 @@
       
   
   
-    
   
   
-  
     
     
       
@@ -947,20 +1087,17 @@
     
     
       
-        
-        
-      
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
         
           
-          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
             
   
   <span class="md-ellipsis">
@@ -972,7 +1109,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_7">
             <span class="md-nav__icon md-icon"></span>
             Community
@@ -983,31 +1120,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  <span class="md-ellipsis">
-    Overview
-    
-  </span>
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../community/overview/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1017,62 +1133,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#table-of-contents" class="md-nav__link">
-    <span class="md-ellipsis">
-      Table of Contents
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#contributing" class="md-nav__link">
-    <span class="md-ellipsis">
-      Contributing
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#code-of-conduct" class="md-nav__link">
-    <span class="md-ellipsis">
-      Code of Conduct
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#license" class="md-nav__link">
-    <span class="md-ellipsis">
-      License
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1085,7 +1145,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../CONTRIBUTING/" class="md-nav__link">
+      <a href="../../community/CONTRIBUTING/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1107,7 +1167,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../CODE_OF_CONDUCT/" class="md-nav__link">
+      <a href="../../community/CODE_OF_CONDUCT/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1129,7 +1189,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../LICENSE/" class="md-nav__link">
+      <a href="../../community/LICENSE/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1178,36 +1238,96 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#table-of-contents" class="md-nav__link">
+  <a href="#what-youll-find-here" class="md-nav__link">
     <span class="md-ellipsis">
-      Table of Contents
+      What You'll Find Here
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#contributing" class="md-nav__link">
+  <a href="#planned-advanced-topics" class="md-nav__link">
     <span class="md-ellipsis">
-      Contributing
+      Planned Advanced Topics
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Planned Advanced Topics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#advanced-security" class="md-nav__link">
+    <span class="md-ellipsis">
+      🔒 Advanced Security
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#session-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      📊 Session Management
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#event-tracking-audit-logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      📝 Event Tracking &amp; Audit Logging
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#deployment-scaling" class="md-nav__link">
+    <span class="md-ellipsis">
+      🚀 Deployment &amp; Scaling
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#advanced-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      ⚙️ Advanced Configuration
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      Prerequisites
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#code-of-conduct" class="md-nav__link">
+  <a href="#getting-started" class="md-nav__link">
     <span class="md-ellipsis">
-      Code of Conduct
+      Getting Started
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#license" class="md-nav__link">
+  <a href="#stay-updated" class="md-nav__link">
     <span class="md-ellipsis">
-      License
+      Stay Updated
     </span>
   </a>
   
@@ -1232,28 +1352,42 @@
   
 
 
-<h1 id="community-overview">Community Overview<a class="headerlink" href="#community-overview" title="Permanent link">&para;</a></h1>
-<p>Welcome to the project's community hub. Here, you'll find essential resources and guidelines that are crucial for contributing to and participating in the project. Please take the time to familiarize yourself with the following documents:</p>
-<h2 id="table-of-contents">Table of Contents<a class="headerlink" href="#table-of-contents" title="Permanent link">&para;</a></h2>
+<h1 id="advanced-topics">Advanced Topics<a class="headerlink" href="#advanced-topics" title="Permanent link">&para;</a></h1>
+<p>Welcome to the Advanced section of CRUDAdmin documentation. This section covers production-grade features, scalability patterns, and sophisticated configurations for enterprise deployments.</p>
+<h2 id="what-youll-find-here">What You'll Find Here<a class="headerlink" href="#what-youll-find-here" title="Permanent link">&para;</a></h2>
+<p>The Advanced section is designed for production deployments and complex use cases that go beyond basic CRUDAdmin setup.</p>
+<h2 id="planned-advanced-topics">Planned Advanced Topics<a class="headerlink" href="#planned-advanced-topics" title="Permanent link">&para;</a></h2>
+<h3 id="advanced-security">🔒 Advanced Security<a class="headerlink" href="#advanced-security" title="Permanent link">&para;</a></h3>
+<p><em>Coming Soon</em></p>
+<h3 id="session-management">📊 Session Management<a class="headerlink" href="#session-management" title="Permanent link">&para;</a></h3>
+<p><em>Coming Soon</em></p>
+<h3 id="event-tracking-audit-logging">📝 Event Tracking &amp; Audit Logging<a class="headerlink" href="#event-tracking-audit-logging" title="Permanent link">&para;</a></h3>
+<p><em>Coming Soon</em></p>
+<h3 id="deployment-scaling">🚀 Deployment &amp; Scaling<a class="headerlink" href="#deployment-scaling" title="Permanent link">&para;</a></h3>
+<p><em>Coming Soon</em></p>
+<h3 id="advanced-configuration">⚙️ Advanced Configuration<a class="headerlink" href="#advanced-configuration" title="Permanent link">&para;</a></h3>
+<p><em>Coming Soon</em></p>
+<h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
+<p>Before diving into advanced topics, ensure you have:</p>
 <ul>
-<li><a href="#contributing">Contributing</a></li>
-<li><a href="#code-of-conduct">Code of Conduct</a></li>
-<li><a href="#license">License</a></li>
+<li>✅ Completed the <a href="../../usage/overview/">Usage Guide</a></li>
+<li>✅ Implemented basic CRUDAdmin setup</li>
+<li>✅ Understanding of FastAPI and SQLAlchemy</li>
+<li>✅ Experience with production deployments</li>
 </ul>
+<h2 id="getting-started">Getting Started<a class="headerlink" href="#getting-started" title="Permanent link">&para;</a></h2>
+<p>The advanced topics will be released progressively. Each section will include:</p>
+<ul>
+<li><strong>Real-world examples</strong> from production environments</li>
+<li><strong>Complete configuration samples</strong> ready for deployment</li>
+<li><strong>Performance benchmarks</strong> and optimization guides</li>
+<li><strong>Security best practices</strong> and compliance guidance</li>
+<li><strong>Troubleshooting guides</strong> for common production issues</li>
+</ul>
+<h2 id="stay-updated">Stay Updated<a class="headerlink" href="#stay-updated" title="Permanent link">&para;</a></h2>
+<p>Check back regularly for new advanced topics as they become available. Each new section will provide comprehensive, production-tested guidance for sophisticated CRUDAdmin deployments.</p>
 <hr />
-<h2 id="contributing">Contributing<a class="headerlink" href="#contributing" title="Permanent link">&para;</a></h2>
-<p><a href="../CONTRIBUTING/">View the Contributing Guidelines</a></p>
-<p>Interested in contributing to the project? Great! The contributing guidelines will provide you with all the information you need to get started. This includes how to submit issues, propose changes, and the process for submitting pull requests.</p>
-<hr />
-<h2 id="code-of-conduct">Code of Conduct<a class="headerlink" href="#code-of-conduct" title="Permanent link">&para;</a></h2>
-<p><a href="../CODE_OF_CONDUCT/">View the Code of Conduct</a></p>
-<p>The Code of Conduct outlines the standards and behaviors expected of our community members. It's crucial to ensure a welcoming and inclusive environment for everyone. Please take the time to read and adhere to these guidelines.</p>
-<hr />
-<h2 id="license">License<a class="headerlink" href="#license" title="Permanent link">&para;</a></h2>
-<p><a href="../LICENSE/">View the License</a></p>
-<p>The license document outlines the terms under which our project can be used, modified, and distributed. Understanding the licensing is important for both users and contributors of the project.</p>
-<hr />
-<p>Thank you for being a part of our community and for contributing to our project's success!</p>
+<p><strong>Note</strong>: If you have specific advanced topics you'd like to see covered, please let us know through our github. </p>
 
 
 
