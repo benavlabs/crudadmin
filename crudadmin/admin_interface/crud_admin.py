@@ -1181,7 +1181,7 @@ class CRUDAdmin:
                 raise
 
     def use_redis_sessions(
-        self, redis_url: str = "redis://localhost:6379", **kwargs
+        self, redis_url: str = "redis://localhost:6379", **kwargs: Any
     ) -> "CRUDAdmin":
         """Configure Redis session backend.
 
@@ -1197,7 +1197,7 @@ class CRUDAdmin:
         return self
 
     def use_memcached_sessions(
-        self, servers: Optional[List[str]] = None, **kwargs
+        self, servers: Optional[List[str]] = None, **kwargs: Any
     ) -> "CRUDAdmin":
         """Configure Memcached session backend.
 
@@ -1214,7 +1214,7 @@ class CRUDAdmin:
         self._session_backend_kwargs = {"servers": servers, **kwargs}
         return self
 
-    def use_memory_sessions(self, **kwargs) -> "CRUDAdmin":
+    def use_memory_sessions(self, **kwargs: Any) -> "CRUDAdmin":
         """Configure in-memory session backend.
 
         Args:
@@ -1227,7 +1227,7 @@ class CRUDAdmin:
         self._session_backend_kwargs = kwargs
         return self
 
-    def use_database_sessions(self, **kwargs) -> "CRUDAdmin":
+    def use_database_sessions(self, **kwargs: Any) -> "CRUDAdmin":
         """Configure database session backend.
 
         This enables session storage in the AdminSession table for full

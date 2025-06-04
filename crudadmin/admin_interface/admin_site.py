@@ -434,7 +434,8 @@ class AdminSite:
         Get common context data needed for base template.
 
         Args:
-            db: Database session for queries
+            admin_db: Admin database session for authentication queries
+            app_db: Application database session for model queries
 
         Returns:
             Dictionary containing auth tables, model data, and config

@@ -1,6 +1,6 @@
 import logging
 from abc import ABC, abstractmethod
-from typing import Generic, Optional, Type, TypeVar, cast
+from typing import Any, Generic, Optional, Type, TypeVar, cast
 from uuid import uuid4
 
 from pydantic import BaseModel
@@ -142,7 +142,7 @@ class AbstractSessionStorage(Generic[T], ABC):
 
 
 class SessionStorage(AbstractSessionStorage[T], Generic[T]):
-    def __new__(cls, backend: str = "memory", **kwargs) -> "SessionStorage[T]":
+    def __new__(cls, backend: str = "memory", **kwargs: Any) -> "SessionStorage[T]":
         """Factory method to create the appropriate session storage backend.
 
         Args:
@@ -159,7 +159,7 @@ class SessionStorage(AbstractSessionStorage[T], Generic[T]):
 
 
 def get_session_storage(
-    backend: str, model_type: Type[BaseModel], **kwargs
+    backend: str, model_type: Type[BaseModel], **kwargs: Any
 ) -> AbstractSessionStorage[T]:
     """Get the appropriate session storage backend.
 

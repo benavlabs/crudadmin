@@ -5,6 +5,7 @@ from typing import Any, Literal, Optional
 
 from fastapi import Request, Response
 
+from ..core.rate_limiter import SimpleRateLimiter
 from .schemas import CSRFToken, SessionCreate, SessionData, UserAgentInfo
 from .storage import AbstractSessionStorage, get_session_storage
 from .user_agents_types import parse
@@ -84,11 +85,11 @@ class SessionManager:
         session_timeout_minutes: int = 30,
         cleanup_interval_minutes: int = 15,
         csrf_token_bytes: int = 32,
-        rate_limiter=None,
+        rate_limiter: Optional[SimpleRateLimiter] = None,
         login_max_attempts: int = 5,
         login_window_minutes: int = 15,
         session_backend: str = "memory",
-        **backend_kwargs,
+        **backend_kwargs: Any,
     ):
         """Initialize the session manager.
 
