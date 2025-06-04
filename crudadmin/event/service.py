@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from enum import Enum
 from typing import Any, Optional, cast
+from uuid import UUID
 
 from fastapi import Request
 from fastcrud import FastCRUD
@@ -29,6 +30,8 @@ class CustomJSONEncoder(json.JSONEncoder):
             return str(obj)
         if isinstance(obj, Enum):
             return obj.value
+        if isinstance(obj, UUID):
+            return str(obj)
         return super().default(obj)
 
 

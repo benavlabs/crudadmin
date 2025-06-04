@@ -511,7 +511,7 @@ class CRUDAdmin:
         ) -> RouteResponse:
             from ..event import EventStatus, EventType
 
-            users = await self.db_config.crud_users.get_multi(db=app_db)
+            users = await self.db_config.crud_users.get_multi(db=admin_db)
 
             context = await self.admin_site.get_base_context(
                 admin_db=admin_db, app_db=app_db
