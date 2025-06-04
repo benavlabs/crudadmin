@@ -44,7 +44,6 @@ plugins:
 
 nav:
   - CRUDAdmin: index.md
-  - Installing: installing.md
   - Quick-Start: quick-start.md
   - Usage:
     - Overview: usage/overview.md
