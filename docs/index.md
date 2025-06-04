@@ -6,7 +6,7 @@
 </style>
 
 <p align="center">
-  <a href="https://github.com/igorbenav/crudadmin">
+  <a href="https://github.com/benavlabs/crudadmin">
     <img src="assets/CRUDAdmin.png?raw=true" alt="CRUDAdmin logo" width="45%" height="auto">
   </a>
 </p>
@@ -14,8 +14,8 @@
   <i>Modern admin interface for FastAPI with built-in authentication, event tracking, and security features</i>
 </p>
 <p align="center" markdown=1>
-<a href="https://github.com/igorbenav/crudadmin/actions/workflows/tests.yml">
-  <img src="https://github.com/igorbenav/crudadmin/actions/workflows/tests.yml/badge.svg" alt="Tests"/>
+<a href="https://github.com/benavlabs/crudadmin/actions/workflows/tests.yml">
+  <img src="https://github.com/benavlabs/crudadmin/actions/workflows/tests.yml/badge.svg" alt="Tests"/>
 </a>
 <a href="https://pypi.org/project/crudadmin/">
   <img src="https://img.shields.io/pypi/v/crudadmin?color=%2334D058&label=pypi%20package" alt="PyPi Version"/>

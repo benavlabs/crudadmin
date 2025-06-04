@@ -1,7 +1,7 @@
 # CRUDAdmin
 
 <p align="center">
-  <a href="https://igorbenav.github.io/crudadmin/">
+  <a href="https://benavlabs.github.io/crudadmin/">
     <img src="docs/assets/CRUDAdmin.png" alt="CRUDAdmin logo" width="45%" height="auto">
   </a>
 </p>
@@ -11,8 +11,8 @@
 </p>
 
 <p align="center">
-<a href="https://github.com/igorbenav/crudadmin/actions/workflows/tests.yml">
-  <img src="https://github.com/igorbenav/crudadmin/actions/workflows/tests.yml/badge.svg" alt="Tests"/>
+<a href="https://github.com/benavlabs/crudadmin/actions/workflows/tests.yml">
+  <img src="https://github.com/benavlabs/crudadmin/actions/workflows/tests.yml/badge.svg" alt="Tests"/>
 </a>
 <a href="https://pypi.org/project/crudadmin/">
   <img src="https://img.shields.io/pypi/v/crudadmin?color=%2334D058&label=pypi%20package" alt="PyPi Version"/>
@@ -26,7 +26,7 @@
 
 **CRUDAdmin** is a robust admin interface generator for **FastAPI** applications, offering secure authentication, comprehensive event tracking, and essential monitoring features. Built with [FastCRUD](https://github.com/benavlabs/fastcrud) and HTMX, it helps you create production-ready admin panels with minimal configuration.
 
-**Documentation**: [https://igorbenav.github.io/crudadmin/](https://igorbenav.github.io/crudadmin/)
+**Documentation**: [https://benavlabs.github.io/crudadmin/](https://benavlabs.github.io/crudadmin/)
 
 > [!WARNING]  
 > CRUDAdmin is still experimental. While actively developed and tested, APIs may change between versions. Upgrade with caution in production environments, always carefuly reading the changelog.
@@ -173,10 +173,10 @@ admin = CRUDAdmin(
 
 ## Documentation
 
-- **[Quick Start](https://igorbenav.github.io/crudadmin/quick-start/)**: Get up and running in 5 minutes
-- **[Usage Guide](https://igorbenav.github.io/crudadmin/usage/overview/)**: Complete usage documentation
-- **[API Reference](https://igorbenav.github.io/crudadmin/api/overview/)**: Full API documentation
-- **[Advanced Topics](https://igorbenav.github.io/crudadmin/advanced/overview/)**: Production features and configurations
+- **[Quick Start](https://benavlabs.github.io/crudadmin/quick-start/)**: Get up and running in 5 minutes
+- **[Usage Guide](https://benavlabs.github.io/crudadmin/usage/overview/)**: Complete usage documentation
+- **[API Reference](https://benavlabs.github.io/crudadmin/api/overview/)**: Full API documentation
+- **[Advanced Topics](https://benavlabs.github.io/crudadmin/advanced/overview/)**: Production features and configurations
 
 ## License
 
