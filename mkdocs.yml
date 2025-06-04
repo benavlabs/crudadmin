@@ -1,7 +1,7 @@
 site_name: CRUDAdmin
 site_description: Modern admin interface for FastAPI with built-in authentication, event tracking, and security features.
 site_author: Igor Benav
-site_url: https://github.com/igorbenav/crudadmin
+site_url: https://github.com/benavlabs/crudadmin
 
 theme:
   name: material
@@ -81,8 +81,8 @@ markdown_extensions:
   - pymdownx.snippets
   - pymdownx.superfences
 
-repo_name: igorbenav/crudadmin
-repo_url: https://github.com/igorbenav/crudadmin
+repo_name: benavlabs/crudadmin
+repo_url: https://github.com/benavlabs/crudadmin
 edit_uri: edit/main/docs/
 
 extra_css:

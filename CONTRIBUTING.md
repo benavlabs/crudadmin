@@ -8,7 +8,7 @@ Thank you for your interest in contributing to CRUDAdmin! This guide is meant to
 Start by forking and cloning the CRUDAdmin repository:
 
 ```sh
-git clone https://github.com/igorbenav/crudadmin.git
+git clone https://github.com/benavlabs/crudadmin.git
 ```
 
 ### Using UV for Dependency Management

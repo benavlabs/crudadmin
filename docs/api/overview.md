@@ -59,7 +59,7 @@ If you wish to contribute to the development of CRUDAdmin, please refer to our [
 
 Your feedback is crucial in helping us improve this documentation and the CRUDAdmin library. If you have any suggestions, corrections, or queries, please:
 
-- Open an issue on our [GitHub repository](https://github.com/igorbenav/crudadmin)
+- Open an issue on our [GitHub repository](https://github.com/benavlabs/crudadmin)
 - Join our community discussions
 - Contribute to the documentation
 

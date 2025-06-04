@@ -58,11 +58,11 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/igorbenav/crudadmin"
-Documentation = "https://igorbenav.github.io/crudadmin"
-Repository = "https://github.com/igorbenav/crudadmin"
-Issues = "https://github.com/igorbenav/crudadmin/issues"
-Changelog = "https://github.com/igorbenav/crudadmin/releases"
+Homepage = "https://github.com/benavlabs/crudadmin"
+Documentation = "https://benavlabs.github.io/crudadmin"
+Repository = "https://github.com/benavlabs/crudadmin"
+Issues = "https://github.com/benavlabs/crudadmin/issues"
+Changelog = "https://github.com/benavlabs/crudadmin/releases"
 
 [project.optional-dependencies]
 standard = [
