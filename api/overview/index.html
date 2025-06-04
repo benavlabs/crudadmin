@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Modern admin interface for FastAPI with built-in authentication, event tracking, and security features.">
+        <meta name="description" content="Welcome to the API Reference section of CRUDAdmin documentation. This section provides detailed information about the various classes, functions, and modules that make up our modern admin interface for FastAPI applications. Whether you are looking to extend the admin interface, integrate with your existing systems, or explore advanced configuration options, this section will guide you through the intricacies of our codebase.">
       
       
         <meta name="author" content="Igor Benav">
@@ -90,6 +90,11 @@
     <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
     <label class="md-overlay" for="__drawer"></label>
     <div data-md-component="skip">
+      
+        
+        <a href="#api-reference-overview" class="md-skip">
+          Skip to content
+        </a>
       
     </div>
     <div data-md-component="announce">
@@ -761,6 +766,20 @@
       <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
       
       
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
       
       <a href="./" class="md-nav__link md-nav__link--active">
         
@@ -772,6 +791,103 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#key-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      Key Components
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architecture-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      Architecture Overview
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Architecture Overview">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#core-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      Core Layer
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#interface-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      Interface Layer
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#event-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      Event Layer
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#usage-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      Usage Patterns
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#contribution" class="md-nav__link">
+    <span class="md-ellipsis">
+      Contribution
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#support-feedback" class="md-nav__link">
+    <span class="md-ellipsis">
+      Support &amp; Feedback
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -1056,6 +1172,94 @@
   
   
   
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#key-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      Key Components
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architecture-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      Architecture Overview
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Architecture Overview">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#core-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      Core Layer
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#interface-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      Interface Layer
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#event-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      Event Layer
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#usage-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      Usage Patterns
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#contribution" class="md-nav__link">
+    <span class="md-ellipsis">
+      Contribution
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#support-feedback" class="md-nav__link">
+    <span class="md-ellipsis">
+      Support &amp; Feedback
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
   
 </nav>
                   </div>
@@ -1074,7 +1278,77 @@
   
 
 
-  <h1>Overview</h1>
+<h1 id="api-reference-overview">API Reference Overview<a class="headerlink" href="#api-reference-overview" title="Permanent link">&para;</a></h1>
+<p>Welcome to the API Reference section of CRUDAdmin documentation. This section provides detailed information about the various classes, functions, and modules that make up our modern admin interface for FastAPI applications. Whether you are looking to extend the admin interface, integrate with your existing systems, or explore advanced configuration options, this section will guide you through the intricacies of our codebase.</p>
+<h2 id="key-components">Key Components<a class="headerlink" href="#key-components" title="Permanent link">&para;</a></h2>
+<p>CRUDAdmin's API is comprised of several key components, each serving a specific purpose in creating a comprehensive admin interface:</p>
+<ol>
+<li>
+<p><strong>CRUDAdmin Class</strong>: The main entry point and core class for creating admin interfaces. It handles the creation of the admin application, model registration, authentication setup, and security configuration.</p>
+<ul>
+<li><a href="../crud_admin/">CRUDAdmin Class Reference</a></li>
+</ul>
+</li>
+<li>
+<p><strong>ModelView Class</strong>: Handles the representation and CRUD operations for individual SQLAlchemy models within the admin interface. It provides customizable views with filtering, pagination, and bulk operations.</p>
+<ul>
+<li><a href="../model_view/">ModelView Class Reference</a></li>
+</ul>
+</li>
+<li>
+<p><strong>AdminSite Class</strong>: The foundation class that manages the overall admin site structure, routing, and template rendering. It coordinates between different model views and handles the main admin interface.</p>
+<ul>
+<li><a href="../admin_site/">AdminSite Class Reference</a></li>
+</ul>
+</li>
+<li>
+<p><strong>Session Management System</strong>: A comprehensive session management system with multiple backend options (Memory, Redis, Memcached, Database, Hybrid) providing secure authentication, CSRF protection, and session tracking.</p>
+<ul>
+<li><a href="../session/">Session Management API Reference</a></li>
+</ul>
+</li>
+<li>
+<p><strong>Event System</strong>: A robust event logging and audit trail system that tracks all admin actions, authentication events, and security-related activities with comprehensive audit capabilities.</p>
+<ul>
+<li><a href="../events/">Event System API Reference</a></li>
+</ul>
+</li>
+</ol>
+<h2 id="architecture-overview">Architecture Overview<a class="headerlink" href="#architecture-overview" title="Permanent link">&para;</a></h2>
+<p>CRUDAdmin follows a modular architecture designed for flexibility and scalability:</p>
+<h3 id="core-layer">Core Layer<a class="headerlink" href="#core-layer" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Authentication &amp; Authorization</strong>: Secure admin user management with role-based access</li>
+<li><strong>Session Management</strong>: Multi-backend session storage with security features</li>
+<li><strong>Rate Limiting</strong>: Protection against abuse and brute force attacks</li>
+<li><strong>Database Integration</strong>: SQLAlchemy model integration with FastCRUD backend</li>
+</ul>
+<h3 id="interface-layer">Interface Layer<a class="headerlink" href="#interface-layer" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Admin Site</strong>: Main admin interface coordination and routing</li>
+<li><strong>Model Views</strong>: Individual model CRUD interfaces with customization options</li>
+<li><strong>Template System</strong>: HTMX-powered responsive UI with modern design</li>
+<li><strong>Static Assets</strong>: CSS, JavaScript, and image resources</li>
+</ul>
+<h3 id="event-layer">Event Layer<a class="headerlink" href="#event-layer" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Event Logging</strong>: Comprehensive audit trail for all admin actions</li>
+<li><strong>Security Events</strong>: Authentication and authorization event tracking</li>
+<li><strong>Audit Integration</strong>: Automated logging with decorator support</li>
+</ul>
+<h2 id="usage-patterns">Usage Patterns<a class="headerlink" href="#usage-patterns" title="Permanent link">&para;</a></h2>
+<p>Each component is documented with its own dedicated page, where you can find detailed information about its methods, parameters, return types, and usage examples. These pages are designed to provide you with all the information you need to understand and work with our API effectively.</p>
+<h2 id="contribution">Contribution<a class="headerlink" href="#contribution" title="Permanent link">&para;</a></h2>
+<p>If you wish to contribute to the development of CRUDAdmin, please refer to our <a href="../../community/CONTRIBUTING/">Contributing Guidelines</a>. We welcome contributions of all forms, from bug fixes to feature development and documentation improvements.</p>
+<h2 id="support-feedback">Support &amp; Feedback<a class="headerlink" href="#support-feedback" title="Permanent link">&para;</a></h2>
+<p>Your feedback is crucial in helping us improve this documentation and the CRUDAdmin library. If you have any suggestions, corrections, or queries, please:</p>
+<ul>
+<li>Open an issue on our <a href="https://github.com/igorbenav/crudadmin">GitHub repository</a></li>
+<li>Join our community discussions</li>
+<li>Contribute to the documentation</li>
+</ul>
+<hr />
+<p>Navigate through each section for detailed documentation of our API components. Each page includes comprehensive examples, parameter descriptions, and usage patterns to help you make the most of CRUDAdmin's capabilities.</p>
 
 
 
@@ -1082,7 +1356,8 @@
 
 
 
-
+  
+  
 
 
 
