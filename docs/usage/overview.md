@@ -1,120 +1,68 @@
-# CRUDAdmin Usage Overview
+# Usage Overview
 
-This guide provides comprehensive information about using CRUDAdmin to create admin interfaces for your FastAPI applications. Whether you're just getting started or looking to implement advanced features, you'll find everything you need in these sections.
+This section guides you through everything you need to know about using CRUDAdmin effectively in your projects. Follow these topics in order for the best learning experience.
 
-## Core Documentation
+## Getting Started
 
-### [Getting Started Guide](getting_started.md)
+### 1. [Basic Configuration](configuration.md)
+Learn how to set up and configure your CRUDAdmin instance for different environments.
 
-Learn the basics of CRUDAdmin and set up your first admin interface:
+- **Creating your first admin interface** with essential settings
+- **Session backend configuration** (Memory, Redis, Memcached, Database, Hybrid)
+- **Security settings** for authentication and access control
+- **Environment-based configuration** for development vs production
+- **FastAPI integration** patterns and best practices
 
-- Understanding CRUDAdmin's core concepts
-- Setting up your first admin interface
-- Configuring database connections
-- Adding and managing models
-- Basic usage and configuration
+### 2. [Adding Models](adding-models.md)
+Master the core functionality of registering your SQLAlchemy models with CRUDAdmin.
 
-### [Security and Authentication](security_authentication.md)
+- **Model registration** with create, update, and read schemas
+- **Action control** (view, create, update, delete permissions)
+- **Password field handling** with automatic transformation
+- **Advanced schema configuration** for different operations
+- **Real-world examples** and troubleshooting tips
 
-Implement robust security measures for your admin interface:
+### 3. [Managing Admin Users](admin-users.md)
+Set up authentication and manage who can access your admin interface.
 
-- Setting up authentication and session management
-- Configuring IP restrictions and HTTPS
-- Managing secrets securely
-- Implementing access control
-- Production security best practices
+- **Creating admin users** and managing credentials
+- **Authentication flow** and session management
+- **User roles and permissions** (if applicable)
+- **Security best practices** for admin access
 
-### [Monitoring and Maintenance](monitoring_maintenance.md)
+### 4. [Using the Interface](interface.md)
+Navigate and operate the admin interface effectively for daily tasks.
 
-Keep your admin interface running smoothly:
+- **Dashboard navigation** and understanding the layout
+- **CRUD operations** (Create, Read, Update, Delete)
+- **Search and filtering** data efficiently
+- **Bulk operations** for managing multiple records
+- **Form handling** and validation
 
-- Setting up event tracking and audit logs
-- Using the health monitoring dashboard
-- Managing event logs effectively
-- Implementing maintenance best practices
-- Daily monitoring routines
+### 5. [Common Patterns](common-patterns.md)
+Real-world usage patterns and scenarios you'll encounter in practice.
 
-## Quick Start Example
+- **Multi-model relationships** (blog systems, e-commerce catalogs)
+- **Role-based access patterns** for different admin levels
+- **Advanced validation patterns** with business logic
+- **Performance optimization** for large datasets
+- **Integration patterns** with existing FastAPI applications
+- **Security patterns** for production environments
 
-Here's a minimal example to get your admin interface up and running:
+## What's Next?
 
-```python
-from fastapi import FastAPI
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import declarative_base
-import os
+After completing the Usage section, you'll have a solid foundation for building and managing admin interfaces with CRUDAdmin. From here, you can explore:
 
-# Set up database
-Base = declarative_base()
-engine = create_async_engine("sqlite+aiosqlite:///app.db")
-session = AsyncSession(engine)
+- **[Advanced Features](../advanced/overview.md)** - Production-grade features like event tracking, advanced session management, and security
+- **[API Reference](../api/overview.md)** - Detailed technical documentation for all classes and methods
+- **[Community](../community/overview.md)** - Contributing guidelines and getting help
 
-# Create admin interface
-admin = CRUDAdmin(
-    session=session,
-    SECRET_KEY=os.environ.get("ADMIN_SECRET_KEY"),
-    initial_admin={
-        "username": "admin",
-        "password": "secure_pass123"
-    }
-)
+## Quick Navigation
 
-# Mount to FastAPI
-app = FastAPI()
-app.mount("/admin", admin.app)
-```
+Need to jump to a specific topic? Here are the most commonly accessed sections:
 
-## Common Use Cases
-
-### Basic Admin Interface
-
-Perfect for simple applications needing data management:
-```python
-# Define your model
-class User(Base):
-    __tablename__ = "users"
-    id = Column(Integer, primary_key=True)
-    username = Column(String, unique=True)
-    email = Column(String)
-
-# Add to admin interface
-admin.add_view(
-    model=User,
-    create_schema=UserCreate,
-    update_schema=UserUpdate
-)
-```
-
-### Secure Production Setup
-
-Recommended configuration for production environments:
-```python
-admin = CRUDAdmin(
-    session=session,
-    SECRET_KEY=SECRET_KEY,
-    enforce_https=True,
-    secure_cookies=True,
-    allowed_networks=["10.0.0.0/24"],
-    track_events=True
-)
-```
-
-### Monitored Environment
-
-Set up comprehensive monitoring:
-```python
-admin = CRUDAdmin(
-    session=session,
-    SECRET_KEY=SECRET_KEY,
-    track_events=True,
-    admin_db_url="postgresql+asyncpg://user:pass@localhost/admin_logs"
-)
-```
-
-## Next Steps
-
-1. Start with the [Getting Started Guide](getting_started.md) to create your first admin interface
-2. Implement security measures using the [Security and Authentication](security_authentication.md) guide
-3. Set up monitoring using the [Monitoring and Maintenance](monitoring_maintenance.md) guide
-
-Each guide provides detailed examples and best practices to help you make the most of CRUDAdmin's features.
+- **[Quick setup example](configuration.md#basic-example)** - Get running in 5 minutes
+- **[Adding your first model](adding-models.md#basic-model-registration)** - Register a model and start managing data
+- **[Search and filtering](interface.md#search-and-filtering)** - Find records quickly
+- **[Performance tips](common-patterns.md#performance-optimization-patterns)** - Optimize for large datasets
+- **[Security setup](common-patterns.md#security-patterns)** - Production security configuration 
