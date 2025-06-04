@@ -1,10 +1,12 @@
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime, timedelta
 from typing import Optional, Type
-from unittest.mock import Mock
+from unittest.mock import AsyncMock, MagicMock, Mock
 
 import pytest
 import pytest_asyncio
+from fastapi import Request, Response
 from fastapi.testclient import TestClient
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import (
@@ -29,6 +31,8 @@ from crudadmin.core.db import DatabaseConfig
 from crudadmin.event.models import create_admin_audit_log, create_admin_event_log
 from crudadmin.event.service import EventService
 from crudadmin.session.manager import SessionManager
+from crudadmin.session.schemas import SessionData
+from crudadmin.session.storage import get_session_storage
 
 
 class Base(DeclarativeBase):
@@ -333,8 +337,16 @@ async def admin_user_service(db_config) -> AdminUserService:
 @pytest_asyncio.fixture(scope="function")
 async def session_manager(db_config) -> SessionManager:
     """Create a SessionManager instance for testing."""
+    # Use memory backend for testing
+    storage = get_session_storage(
+        backend="memory",
+        model_type=SessionData,
+        prefix="test_session:",
+        expiration=30 * 60,  # 30 minutes in seconds
+    )
+
     return SessionManager(
-        db_config=db_config,
+        session_storage=storage,
         session_timeout_minutes=30,
         max_sessions_per_user=5,
     )
@@ -383,3 +395,85 @@ def create_admin_base() -> Type[DeclarativeBase]:
         pass
 
     return AdminBase
+
+
+# Session-specific fixtures
+@pytest.fixture
+def mock_session_storage():
+    """Create a mock session storage."""
+    storage = AsyncMock()
+    storage.create = AsyncMock()
+    storage.get = AsyncMock()
+    storage.update = AsyncMock()
+    storage.delete = AsyncMock()
+    storage.extend = AsyncMock()
+    storage.exists = AsyncMock()
+    storage.get_user_sessions = AsyncMock(return_value=[])
+    storage._scan_iter = AsyncMock()
+    return storage
+
+
+@pytest.fixture
+def mock_csrf_storage():
+    """Create a mock CSRF token storage."""
+    storage = AsyncMock()
+    storage.create = AsyncMock()
+    storage.get = AsyncMock()
+    storage.delete = AsyncMock()
+    return storage
+
+
+@pytest.fixture
+def mock_session_manager():
+    """Create a mock session manager."""
+    session_manager = MagicMock(spec=SessionManager)
+    session_manager.create_session = AsyncMock()
+    session_manager.validate_session = AsyncMock()
+    session_manager.validate_csrf_token = AsyncMock()
+    session_manager.regenerate_csrf_token = AsyncMock()
+    session_manager.terminate_session = AsyncMock()
+    session_manager.set_session_cookies = MagicMock()
+    session_manager.clear_session_cookies = MagicMock()
+    session_manager.track_login_attempt = AsyncMock()
+    session_manager.cleanup_expired_sessions = AsyncMock()
+    session_manager.session_timeout = timedelta(minutes=30)
+    return session_manager
+
+
+@pytest.fixture
+def mock_session_data():
+    """Create mock session data for testing."""
+    return SessionData(
+        session_id="test-session-id",
+        user_id=1,
+        is_active=True,
+        ip_address="127.0.0.1",
+        user_agent="test-agent",
+        device_info={},
+        last_activity=datetime.now(UTC),
+        metadata={},
+    )
+
+
+@pytest.fixture
+def mock_session_request():
+    """Create a mock request for session testing."""
+    request = MagicMock(spec=Request)
+    request.client.host = "127.0.0.1"
+    request.headers = {
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/91.0.4472.124 Safari/537.36",
+        "x-forwarded-for": "192.168.1.1",
+        "X-CSRF-Token": "test-csrf-token",
+    }
+    request.cookies = {"session_id": "test-session-id"}
+    request.method = "POST"
+    return request
+
+
+@pytest.fixture
+def mock_session_response():
+    """Create a mock response for session testing."""
+    response = MagicMock(spec=Response)
+    response.set_cookie = MagicMock()
+    response.delete_cookie = MagicMock()
+    return response

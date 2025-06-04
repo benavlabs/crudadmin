@@ -1,7 +1,7 @@
 import logging
 from typing import TYPE_CHECKING
 
-from fastapi import Request
+from fastapi import Request, Response
 from fastapi.responses import RedirectResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
@@ -17,6 +17,26 @@ class AdminAuthMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.admin_instance = admin_instance
 
+    def _add_no_cache_headers(self, response: Response) -> None:
+        """Add HTTP headers to prevent browser caching of admin pages.
+
+        This prevents the issue where admin pages remain accessible after
+        logout due to browser caching.
+        """
+        response.headers["Cache-Control"] = (
+            "no-cache, no-store, must-revalidate, private"
+        )
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+
+    def _should_add_cache_headers(self, response: Response) -> bool:
+        """Determine if cache headers should be added to the response.
+
+        Returns False for redirect responses to avoid interfering with
+        browser redirect handling and cookie transmission.
+        """
+        return not (300 <= response.status_code < 400)
+
     async def dispatch(self, request: Request, call_next):
         if not request.url.path.startswith(f"/{self.admin_instance.mount_path}/"):
             return await call_next(request)
@@ -25,7 +45,8 @@ class AdminAuthMiddleware(BaseHTTPMiddleware):
         is_static_path = "/static/" in request.url.path
 
         if is_login_path or is_static_path:
-            return await call_next(request)
+            response = await call_next(request)
+            return response
 
         logger.debug(f"Checking auth for path: {request.url.path}")
 
@@ -43,32 +64,20 @@ class AdminAuthMiddleware(BaseHTTPMiddleware):
                     )
 
                 try:
-                    is_valid_session = (
+                    session_data = (
                         await self.admin_instance.session_manager.validate_session(
-                            db=db, session_id=session_id, update_activity=True
+                            session_id=session_id, update_activity=True
                         )
                     )
-                    if not is_valid_session:
-                        logger.debug("Invalid session")
+
+                    if not session_data:
+                        logger.debug("Invalid or expired session")
                         return RedirectResponse(
                             url=f"/{self.admin_instance.mount_path}/login?error=Session+expired",
                             status_code=303,
                         )
 
-                    # Retrieve user_id from session data
-                    session_data = (
-                        await self.admin_instance.session_manager.get_session_metadata(
-                            db, session_id
-                        )
-                    )
-                    if not session_data or "user_id" not in session_data:
-                        logger.debug("User ID not found in session data")
-                        return RedirectResponse(
-                            url=f"/{self.admin_instance.mount_path}/login?error=Session+corrupted",  # Or some other error
-                            status_code=303,
-                        )
-
-                    user_id = session_data["user_id"]
+                    user_id = session_data.user_id
                     user = await self.admin_instance.db_config.crud_users.get(
                         db=db, id=user_id
                     )
@@ -82,11 +91,13 @@ class AdminAuthMiddleware(BaseHTTPMiddleware):
 
                     request.state.user = user
 
-                    await self.admin_instance.session_manager.cleanup_expired_sessions(
-                        db
-                    )
+                    await self.admin_instance.session_manager.cleanup_expired_sessions()
 
                     response = await call_next(request)
+
+                    if self._should_add_cache_headers(response):
+                        self._add_no_cache_headers(response)
+
                     return response
 
                 except Exception as e:

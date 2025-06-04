@@ -1,6 +1,6 @@
 [project]
 name = "crudadmin"
-version = "0.2.0"
+version = "0.3.0"
 description = "FastAPI-based admin interface with authentication, event logging and CRUD operations"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -52,6 +52,11 @@ include = ["crudadmin/", "LICENSE"]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[dependency-groups]
+dev = [
+    "types-redis>=4.6.0.20241004",
+]
+
 [project.urls]
 Homepage = "https://github.com/igorbenav/crudadmin"
 Documentation = "https://igorbenav.github.io/crudadmin"
@@ -62,6 +67,22 @@ Changelog = "https://github.com/igorbenav/crudadmin/releases"
 [project.optional-dependencies]
 standard = [
     "uvicorn[standard]>=0.12.0"
+]
+
+redis = [
+    "redis>=6.2.0"
+]
+
+memcached = [
+    "aiomcache>=0.8.2"
+]
+
+postgres = [
+    "asyncpg>=0.29.0"
+]
+
+mysql = [
+    "aiomysql>=0.2.0"
 ]
 
 dev = [
@@ -85,6 +106,11 @@ docs = [
 
 all = [
     "crudadmin[standard,dev,docs]"
+]
+
+test = [
+    "aiomcache>=0.8.2",
+    "redis>=6.2.0",
 ]
 
 [tool.pytest.ini_options]

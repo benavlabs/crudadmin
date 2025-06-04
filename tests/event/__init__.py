@@ -1,0 +1,1 @@
+"""Event service tests module."""

@@ -11,101 +11,66 @@
 </p>
 
 <p align="center">
-<a href="https://pypi.org/project/crudadmin">
-  <img src="https://img.shields.io/pypi/v/crudadmin?color=%2334D058&label=pypi%20package" alt="Package version"/>
+<a href="https://github.com/igorbenav/crudadmin/actions/workflows/tests.yml">
+  <img src="https://github.com/igorbenav/crudadmin/actions/workflows/tests.yml/badge.svg" alt="Tests"/>
 </a>
-<a href="https://pypi.org/project/crudadmin">
-  <img src="https://img.shields.io/pypi/pyversions/crudadmin.svg?color=%2334D058" alt="Supported Python versions"/>
+<a href="https://pypi.org/project/crudadmin/">
+  <img src="https://img.shields.io/pypi/v/crudadmin?color=%2334D058&label=pypi%20package" alt="PyPi Version"/>
+</a>
+<a href="https://pypi.org/project/crudadmin/">
+  <img src="https://img.shields.io/pypi/pyversions/crudadmin.svg?color=%2334D058" alt="Supported Python Versions"/>
 </a>
 </p>
 
-<hr>
-<p align="justify">
-<b>CRUDAdmin</b> is a robust admin interface generator for <b>FastAPI</b> applications, offering secure authentication, comprehensive event tracking, and essential monitoring features. Built on top of FastCRUD and SQLAlchemy, it helps you create production-ready admin panels with minimal configuration.
-</p>
+---
 
-<p><b>Documentation</b>: <a href="https://igorbenav.github.io/crudadmin/">https://igorbenav.github.io/crudadmin/</a></p>
+**CRUDAdmin** is a robust admin interface generator for **FastAPI** applications, offering secure authentication, comprehensive event tracking, and essential monitoring features. Built with [FastCRUD](https://github.com/benavlabs/fastcrud) and HTMX, it helps you create production-ready admin panels with minimal configuration.
+
+**Documentation**: [https://igorbenav.github.io/crudadmin/](https://igorbenav.github.io/crudadmin/)
 
 > [!WARNING]  
-> CRUDAdmin is still experimental.
-
-<hr>
+> CRUDAdmin is still experimental. While actively developed and tested, APIs may change between versions. Upgrade with caution in production environments, always carefuly reading the changelog.
 
 ## Features
 
-- 🔒 **Session-based Authentication**: Secure session management with inactivity timeouts and concurrent session limits
-- 🛡️ **Built-in Security**: IP restrictions, HTTPS enforcement, and secure cookie handling
-- 📝 **Event Tracking**: Comprehensive audit logs for all admin actions with user attribution
-- 🏥 **Health Monitoring**: Real-time system status dashboard with key metrics
-- 📊 **Auto-generated Interface**: Creates admin UI directly from your SQLAlchemy models
-- 🔍 **Smart Filtering**: Type-aware field filtering and efficient search
-- 🌗 **Modern UI**: Clean interface with dark/light theme support
+- **🔒 Multi-Backend Session Management**: Memory, Redis, Memcached, Database, and Hybrid backends
+- **🛡️ Built-in Security**: CSRF protection, rate limiting, IP restrictions, HTTPS enforcement, and secure cookies
+- **📝 Event Tracking & Audit Logs**: Comprehensive audit trails for all admin actions with user attribution
+- **📊 Auto-generated Interface**: Creates admin UI directly from your SQLAlchemy models with intelligent field detection
+- **🔍 Advanced Filtering**: Type-aware field filtering, search, and pagination with bulk operations
+- **🌗 Modern UI**: Clean, responsive interface built with HTMX and [FastCRUD](https://github.com/benavlabs/fastcrud)
 
-## Requirements
+## Quick Start
 
-Before installing CRUDAdmin, ensure you have:
-
-- **FastAPI**: Latest version for the web framework
-- **SQLAlchemy**: Version 2.0+ for database operations
-- **Pydantic**: Version 2.0+ for data validation
-
-## Installing
+### Installation
 
 ```sh
-pip install crudadmin
+uv add crudadmin
 ```
 
-Or using poetry:
-
+For production with Redis sessions:
 ```sh
-poetry add crudadmin
+uv add "crudadmin[redis]"
 ```
 
-## Usage
-
-CRUDAdmin offers a straightforward way to create admin interfaces. Here's how to get started:
-
-### Define Your Models and Schemas
-
-**models.py**
-```python
-from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy import Column, Integer, String
-
-class Base(DeclarativeBase):
-    pass
-
-class User(Base):
-    __tablename__ = "users"
-    id = Column(Integer, primary_key=True)
-    username = Column(String, unique=True)
-    email = Column(String)
-    role = Column(String)
+Or using pip and memcached:
+```sh
+pip install "crudadmin[memcached]"
 ```
 
-**schemas.py**
-```python
-from pydantic import BaseModel, EmailStr
+### Basic Setup
 
-class UserCreate(BaseModel):
-    username: str
-    email: EmailStr
-    role: str = "user"
-
-class UserUpdate(BaseModel):
-    email: EmailStr | None = None
-    role: str | None = None
-```
-
-### Set Up the Admin Interface
-
-**main.py**
 ```python
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from crudadmin import CRUDAdmin
-import os
+
+from .user import (
+    User,
+    UserCreate,
+    UserUpdate,
+)
 
 # Database setup
 engine = create_async_engine("sqlite+aiosqlite:///app.db")
@@ -114,7 +79,7 @@ session = AsyncSession(engine)
 # Create admin interface
 admin = CRUDAdmin(
     session=session,
-    SECRET_KEY=os.environ.get("ADMIN_SECRET_KEY"),
+    SECRET_KEY="your-secret-key-here",
     initial_admin={
         "username": "admin",
         "password": "secure_password123"
@@ -145,67 +110,74 @@ app = FastAPI(lifespan=lifespan)
 app.mount("/admin", admin.app)
 ```
 
-### Enable Event Tracking
+Navigate to `/admin` to access your admin interface with:
 
+- User authentication
+- CRUD operations for your models
+- Responsive UI with dark/light themes
+- Built-in security features
+
+## Session Backends
+
+### Development (Default)
 ```python
-admin = CRUDAdmin(
-    session=session,
-    SECRET_KEY=SECRET_KEY,
-    track_events=True,
-    admin_db_url="postgresql+asyncpg://user:pass@localhost/admin_logs"
-)
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    await admin.initialize()  # Creates event tracking tables
-    yield
+admin = CRUDAdmin(session=session, SECRET_KEY="key")  # Memory backend
 ```
 
-### Configure Security Features
+### Production with Redis
+```python
+admin = CRUDAdmin(session=session, SECRET_KEY="key").use_redis_sessions(
+    redis_url="redis://localhost:6379"
+)
+```
 
+### Production with Security Features
 ```python
 admin = CRUDAdmin(
     session=session,
     SECRET_KEY=SECRET_KEY,
-    # Security settings
+    # Security features
     allowed_ips=["10.0.0.1"],
     allowed_networks=["192.168.1.0/24"],
     secure_cookies=True,
     enforce_https=True,
-    # Session settings
-    max_sessions_per_user=5,
-    session_timeout_minutes=30
-)
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    await admin.initialize()  # Initializes security features
-    yield
+    # Session management
+    max_sessions_per_user=3,
+    session_timeout_minutes=15,
+    # Event tracking
+    track_events=True
+).use_redis_sessions(redis_url="redis://localhost:6379")
 ```
 
-## Current Limitations (coming soon)
+## Backend Options
 
-- No file upload support yet
-- No custom admin views (model-based only)
-- No custom field widgets
-- No SQLAlchemy relationship support
-- No export functionality
+| Backend | Use Case | Performance | Persistence | Scalability |
+|---------|----------|-------------|-------------|-------------|
+| **Memory** | Development/Testing | Fastest | No | Single Instance |
+| **Redis** | Production (Recommended) | Very Fast | Optional | High |
+| **Memcached** | High-Traffic Production | Very Fast | No | High |
+| **Database** | Simple Deployments | Good | Yes | Medium |
+| **Hybrid** | Enterprise/Audit Requirements | Fast | Yes | High |
 
-## Similar Projects
+## What You Get
 
-- **[Django Admin](https://docs.djangoproject.com/en/stable/ref/contrib/admin/)**: The inspiration for this project
-- **[Flask-Admin](https://flask-admin.readthedocs.io/)**: Similar project for Flask
-- **[Sqladmin](https://github.com/aminalaee/sqladmin)**: Another FastAPI admin interface
+- **Secure Authentication** - Login/logout with session management  
+- **Auto-Generated Forms** - Create and edit forms built from your Pydantic schemas  
+- **Data Tables** - Paginated, sortable tables for viewing your data  
+- **CRUD Operations** - Full Create, Read, Update, Delete functionality  
+- **Responsive UI** - Works on desktop and mobile devices  
+- **Dark/Light Themes** - Toggle between themes  
+- **Input Validation** - Built-in validation using your Pydantic schemas  
+- **Event Tracking** - Monitor all admin actions with audit trails  
+- **Health Monitoring** - Real-time system status and diagnostics  
+
+## Documentation
+
+- **[Quick Start](https://igorbenav.github.io/crudadmin/quick-start/)**: Get up and running in 5 minutes
+- **[Usage Guide](https://igorbenav.github.io/crudadmin/usage/overview/)**: Complete usage documentation
+- **[API Reference](https://igorbenav.github.io/crudadmin/api/overview/)**: Full API documentation
+- **[Advanced Topics](https://igorbenav.github.io/crudadmin/advanced/overview/)**: Production features and configurations
 
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Contact
-
-Igor Benav – [@igorbenav](https://x.com/igorbenav) – igormagalhaesr@gmail.com
-[github.com/igorbenav](https://github.com/igorbenav/)

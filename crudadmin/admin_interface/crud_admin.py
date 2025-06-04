@@ -29,10 +29,15 @@ from sqlalchemy.orm import DeclarativeBase
 from ..admin_interface.auth import AdminAuthentication
 from ..admin_interface.middleware.auth import AdminAuthMiddleware
 from ..admin_interface.middleware.ip_restriction import IPRestrictionMiddleware
-from ..admin_user.schemas import AdminUserCreate, AdminUserCreateInternal
+from ..admin_user.schemas import (
+    AdminUserCreate,
+    AdminUserCreateInternal,
+)
 from ..admin_user.service import AdminUserService
 from ..core.db import AdminBase, DatabaseConfig
-from ..session import SessionManager, create_admin_session_model
+from ..session import SessionManager
+from ..session.schemas import SessionData
+from ..session.storage import AbstractSessionStorage, get_session_storage
 from .admin_site import AdminSite
 from .model_view import ModelView
 from .typing import RouteResponse
@@ -112,6 +117,7 @@ class CRUDAdmin:
         enforce_https: Redirect HTTP to HTTPS, default False
         https_port: HTTPS port for redirects, default 443
         track_events: Enable event logging, default False
+        track_sessions_in_db: Enable session tracking in database, default False
 
     Raises:
         ValueError: If mount_path is invalid or theme is unsupported
@@ -298,10 +304,12 @@ class CRUDAdmin:
         enforce_https: bool = False,
         https_port: int = 443,
         track_events: bool = False,
+        track_sessions_in_db: bool = False,
     ) -> None:
         self.mount_path = mount_path.strip("/") if mount_path else "admin"
         self.theme = theme or "dark-theme"
         self.track_events = track_events
+        self.track_sessions_in_db = track_sessions_in_db
 
         self.templates_directory = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "..", "templates"
@@ -336,7 +344,6 @@ class CRUDAdmin:
             session=session,
             admin_db_url=admin_db_url,
             admin_db_path=admin_db_path,
-            admin_session=create_admin_session_model(AdminBase),
             admin_event_log=event_log_model,
             admin_audit_log=audit_log_model,
         )
@@ -360,8 +367,29 @@ class CRUDAdmin:
         self.oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"/{self.mount_path}/login")
         self.secure_cookies = secure_cookies
 
+        session_backend = getattr(self, "_session_backend", "memory")
+        backend_kwargs = getattr(self, "_session_backend_kwargs", {})
+
+        if self.track_sessions_in_db:
+            if session_backend == "redis":
+                actual_backend = "hybrid"
+                backend_kwargs["db_config"] = self.db_config
+            else:
+                actual_backend = "database"
+                backend_kwargs["db_config"] = self.db_config
+        else:
+            actual_backend = session_backend
+
+        storage: AbstractSessionStorage[SessionData] = get_session_storage(
+            backend=actual_backend,
+            model_type=SessionData,
+            prefix="session:",
+            expiration=session_timeout_minutes * 60,
+            **backend_kwargs,
+        )
+
         self.session_manager = SessionManager(
-            self.db_config,
+            session_storage=storage,
             max_sessions_per_user=max_sessions_per_user,
             session_timeout_minutes=session_timeout_minutes,
             cleanup_interval_minutes=cleanup_interval_minutes,
@@ -425,27 +453,7 @@ class CRUDAdmin:
             await admin.initialize()
             ```
         """
-        if hasattr(self.db_config, "AdminEventLog") and self.db_config.AdminEventLog:
-            assert hasattr(self.db_config.AdminEventLog, "metadata"), (
-                "AdminEventLog must have metadata"
-            )
-
-        if hasattr(self.db_config, "AdminAuditLog") and self.db_config.AdminAuditLog:
-            assert hasattr(self.db_config.AdminAuditLog, "metadata"), (
-                "AdminAuditLog must have metadata"
-            )
-
-        async with self.db_config.admin_engine.begin() as conn:
-            await conn.run_sync(self.db_config.AdminUser.metadata.create_all)
-            await conn.run_sync(self.db_config.AdminSession.metadata.create_all)
-
-            if (
-                self.track_events
-                and self.db_config.AdminEventLog
-                and self.db_config.AdminAuditLog
-            ):
-                await conn.run_sync(self.db_config.AdminEventLog.metadata.create_all)
-                await conn.run_sync(self.db_config.AdminAuditLog.metadata.create_all)
+        await self.db_config.initialize_admin_db()
 
         if self.initial_admin:
             await self._create_initial_admin(self.initial_admin)
@@ -503,7 +511,7 @@ class CRUDAdmin:
         ) -> RouteResponse:
             from ..event import EventStatus, EventType
 
-            users = await self.db_config.crud_users.get_multi(db=app_db)
+            users = await self.db_config.crud_users.get_multi(db=admin_db)
 
             context = await self.admin_site.get_base_context(
                 admin_db=admin_db, app_db=app_db
@@ -705,6 +713,7 @@ class CRUDAdmin:
             theme=self.theme,
             secure_cookies=self.secure_cookies,
             event_integration=self.event_integration if self.track_events else None,
+            session_manager=self.session_manager,
         )
 
         self.admin_site.setup_routes()
@@ -784,6 +793,7 @@ class CRUDAdmin:
         delete_schema: Optional[Type[BaseModel]],
         include_in_models: bool = True,
         allowed_actions: Optional[set[str]] = None,
+        password_transformer: Optional[Any] = None,
     ) -> None:
         """
         Add CRUD view for a database model.
@@ -804,6 +814,7 @@ class CRUDAdmin:
                 - **"update"**: Allow updating existing records
                 - **"delete"**: Allow deleting records
                 Defaults to all actions if None
+            password_transformer: PasswordTransformer instance for handling password field transformation
 
         Raises:
             ValueError: If schemas don't match model structure
@@ -812,6 +823,7 @@ class CRUDAdmin:
         Notes:
             - Forms are auto-generated with field types determined from Pydantic schemas
             - Actions controlled by allowed_actions parameter
+            - Use password_transformer for models with password fields that need hashing
 
             URL Routes:
             - List view: /admin/<model_name>/
@@ -845,6 +857,36 @@ class CRUDAdmin:
                 update_internal_schema=None,
                 delete_schema=None,
                 allowed_actions={"view", "create", "update"}  # No deletion
+            )
+            ```
+
+            User with password handling:
+            ```python
+            from crudadmin.admin_interface.model_view import PasswordTransformer
+            import bcrypt
+
+            def hash_password(password: str) -> str:
+                return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+            class UserCreateWithPassword(BaseModel):
+                username: str
+                email: EmailStr
+                password: str  # This will be transformed to hashed_password
+
+            transformer = PasswordTransformer(
+                password_field="password",
+                hashed_field="hashed_password",
+                hash_function=hash_password,
+                required_fields=["username", "email"]
+            )
+
+            admin.add_view(
+                model=User,
+                create_schema=UserCreateWithPassword,
+                update_schema=UserUpdate,
+                update_internal_schema=None,
+                delete_schema=None,
+                password_transformer=transformer
             )
             ```
 
@@ -976,7 +1018,8 @@ class CRUDAdmin:
             delete_schema=delete_schema,
             admin_site=self.admin_site,
             allowed_actions=allowed_actions,
-            event_integration=self.event_integration if self.track_events else None,
+            event_integration=self.event_integration,
+            password_transformer=password_transformer,
         )
 
         if self.track_events and self.event_integration:
@@ -1056,7 +1099,7 @@ class CRUDAdmin:
                 health_checks["database"] = {"status": "unhealthy", "message": str(e)}
 
             try:
-                await self.session_manager.cleanup_expired_sessions(db)
+                await self.session_manager.cleanup_expired_sessions()
                 health_checks["session_management"] = {
                     "status": "healthy",
                     "message": "Session cleanup working",
@@ -1136,3 +1179,67 @@ class CRUDAdmin:
                     "Error creating initial admin user: %s", str(e), exc_info=True
                 )
                 raise
+
+    def use_redis_sessions(
+        self, redis_url: str = "redis://localhost:6379", **kwargs: Any
+    ) -> "CRUDAdmin":
+        """Configure Redis session backend.
+
+        Args:
+            redis_url: Redis connection URL
+            **kwargs: Additional Redis configuration options
+
+        Returns:
+            Self for method chaining
+        """
+        self._session_backend = "redis"
+        self._session_backend_kwargs = {"redis_url": redis_url, **kwargs}
+        return self
+
+    def use_memcached_sessions(
+        self, servers: Optional[List[str]] = None, **kwargs: Any
+    ) -> "CRUDAdmin":
+        """Configure Memcached session backend.
+
+        Args:
+            servers: List of memcached server addresses
+            **kwargs: Additional Memcached configuration options
+
+        Returns:
+            Self for method chaining
+        """
+        if servers is None:
+            servers = ["localhost:11211"]
+        self._session_backend = "memcached"
+        self._session_backend_kwargs = {"servers": servers, **kwargs}
+        return self
+
+    def use_memory_sessions(self, **kwargs: Any) -> "CRUDAdmin":
+        """Configure in-memory session backend.
+
+        Args:
+            **kwargs: Additional memory storage configuration options
+
+        Returns:
+            Self for method chaining
+        """
+        self._session_backend = "memory"
+        self._session_backend_kwargs = kwargs
+        return self
+
+    def use_database_sessions(self, **kwargs: Any) -> "CRUDAdmin":
+        """Configure database session backend.
+
+        This enables session storage in the AdminSession table for full
+        admin dashboard visibility.
+
+        Args:
+            **kwargs: Additional database storage configuration options
+
+        Returns:
+            Self for method chaining
+        """
+        self._session_backend = "database"
+        self._session_backend_kwargs = kwargs
+        self.track_sessions_in_db = True
+        return self

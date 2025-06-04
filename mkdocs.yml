@@ -44,16 +44,24 @@ plugins:
 
 nav:
   - CRUDAdmin: index.md
+  - Installing: installing.md
+  - Quick-Start: quick-start.md
   - Usage:
     - Overview: usage/overview.md
-    - Getting Started: usage/getting_started.md
-    - Monitoring: usage/monitoring_maintenance.md
-    - Security: usage/security_authentication.md
+    - Basic Configuration: usage/configuration.md
+    - Adding Models: usage/adding-models.md
+    - Managing Admin Users: usage/admin-users.md
+    - Using the Interface: usage/interface.md
+    - Common Patterns: usage/common-patterns.md
+  - Advanced:
+    - Overview: advanced/overview.md
   - API Reference:
     - Overview: api/overview.md
     - CRUDAdmin: api/crud_admin.md
     - ModelView: api/model_view.md
     - AdminSite: api/admin_site.md
+    - Session Management: api/session.md
+    - Event System: api/events.md
   - Community:
     - Overview: community/overview.md
     - Contributing: community/CONTRIBUTING.md

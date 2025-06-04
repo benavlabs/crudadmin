@@ -1,6 +1,6 @@
 import enum
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Optional
 
 from pydantic import BaseModel, ConfigDict
 
@@ -29,7 +29,7 @@ class AdminEventLogBase(BaseModel):
     user_agent: str
     resource_type: Optional[str] = None
     resource_id: Optional[str] = None
-    details: Dict[str, Any] = {}
+    details: dict = {}
 
 
 class AdminEventLogCreate(AdminEventLogBase):
@@ -48,10 +48,10 @@ class AdminAuditLogBase(BaseModel):
     resource_type: str
     resource_id: str
     action: str
-    previous_state: Optional[Dict[str, Any]] = None
-    new_state: Optional[Dict[str, Any]] = None
-    changes: Dict[str, Any] = {}
-    metadata: Dict[str, Any] = {}
+    previous_state: Optional[dict] = None
+    new_state: Optional[dict] = None
+    changes: dict = {}
+    metadata: dict = {}
 
 
 class AdminAuditLogCreate(AdminAuditLogBase):
