@@ -181,3 +181,8 @@ admin = CRUDAdmin(
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+<hr>
+<a href="https://benav.io">
+  <img src="docs/assets/benav_labs_banner.png" alt="Powered by Benav Labs - benav.io"/>
+</a>
