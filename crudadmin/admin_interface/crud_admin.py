@@ -151,7 +151,7 @@ class CRUDAdmin:
 
         # Setup database
         engine = create_async_engine("sqlite+aiosqlite:///app.db")
-        
+
         # Create database session dependency
         async def get_session():
             async with AsyncSession(engine) as session:
