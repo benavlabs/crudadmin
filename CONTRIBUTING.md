@@ -29,6 +29,12 @@ Then
 source .venv/bin/activate
 ```
 
+### Installing Dependencies
+Install the required dependencies using UV:
+```sh
+uv sync --all-extras
+```
+
 ## Making Contributions
 
 ### Coding Standards
