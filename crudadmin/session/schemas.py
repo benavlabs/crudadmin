@@ -105,7 +105,6 @@ class AdminSession(TimestampSchema, BaseSession):
     session_metadata: dict[str, Any] = Field(
         default_factory=dict, description="admin specific session metadata"
     )
-    # remove redundant timestamp fields - let TimestampSchema handle them
 
 
 class AdminSessionRead(BaseSession):
