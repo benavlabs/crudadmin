@@ -151,11 +151,15 @@ class CRUDAdmin:
 
         # Setup database
         engine = create_async_engine("sqlite+aiosqlite:///app.db")
-        session = AsyncSession(engine)
+        
+        # Create database session dependency
+        async def get_session():
+            async with AsyncSession(engine) as session:
+                yield session
 
         # Create admin interface
         admin = CRUDAdmin(
-            session=session,
+            session=get_session,
             SECRET_KEY=SECRET_KEY,
             initial_admin={
                 "username": "admin",
@@ -167,7 +171,7 @@ class CRUDAdmin:
         Production setup with security features:
         ```python
         admin = CRUDAdmin(
-            session=session,
+            session=get_session,
             SECRET_KEY=SECRET_KEY,
             # Security features
             allowed_ips=["10.0.0.1", "10.0.0.2"],
@@ -187,7 +191,7 @@ class CRUDAdmin:
         Session management configuration:
         ```python
         admin = CRUDAdmin(
-            session=session,
+            session=get_session,
             SECRET_KEY=SECRET_KEY,
             # Session management settings
             max_sessions_per_user=5,
@@ -269,7 +273,7 @@ class CRUDAdmin:
         Event tracking and audit logs:
         ```python
         admin = CRUDAdmin(
-            session=session,
+            session=get_session,
             SECRET_KEY=SECRET_KEY,
             track_events=True,  # Enable event tracking
             # Custom admin database for logs
@@ -446,7 +450,7 @@ class CRUDAdmin:
             Manual initialization:
             ```python
             admin = CRUDAdmin(
-                session=async_session,
+                session=get_session,
                 SECRET_KEY="key",
                 setup_on_initialization=False
             )

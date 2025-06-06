@@ -75,11 +75,14 @@ Assuming you have your SQLAlchemy model, Pydantic schemas and database connectio
 ??? note "Set up your database connection (click to expand)"
     ```python
     from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-    from sqlalchemy.orm import sessionmaker
     
     DATABASE_URL = "sqlite+aiosqlite:///./admin_demo.db"
     engine = create_async_engine(DATABASE_URL, echo=True)
-    async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    
+    # Create database session dependency
+    async def get_session():
+        async with AsyncSession(engine) as session:
+            yield session
     ```
 
 ### Using CRUDAdmin
@@ -96,7 +99,7 @@ from crudadmin import CRUDAdmin
 
 # Create admin interface
 admin = CRUDAdmin(
-    session=async_session,  # Your session factory
+    session=get_session,  # Your session dependency function
     SECRET_KEY=os.environ.get("SECRET_KEY", "your-secret-key-for-development"),
     initial_admin={
         "username": "admin",

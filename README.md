@@ -74,11 +74,15 @@ from .user import (
 
 # Database setup
 engine = create_async_engine("sqlite+aiosqlite:///app.db")
-session = AsyncSession(engine)
+
+# Create database session dependency
+async def get_session():
+    async with AsyncSession(engine) as session:
+        yield session
 
 # Create admin interface
 admin = CRUDAdmin(
-    session=session,
+    session=get_session,
     SECRET_KEY="your-secret-key-here",
     initial_admin={
         "username": "admin",
@@ -121,12 +125,12 @@ Navigate to `/admin` to access your admin interface with:
 
 ### Development (Default)
 ```python
-admin = CRUDAdmin(session=session, SECRET_KEY="key")  # Memory backend
+admin = CRUDAdmin(session=get_session, SECRET_KEY="key")  # Memory backend
 ```
 
 ### Production with Redis
 ```python
-admin = CRUDAdmin(session=session, SECRET_KEY="key").use_redis_sessions(
+admin = CRUDAdmin(session=get_session, SECRET_KEY="key").use_redis_sessions(
     redis_url="redis://localhost:6379"
 )
 ```
@@ -134,7 +138,7 @@ admin = CRUDAdmin(session=session, SECRET_KEY="key").use_redis_sessions(
 ### Production with Security Features
 ```python
 admin = CRUDAdmin(
-    session=session,
+    session=get_session,
     SECRET_KEY=SECRET_KEY,
     # Security features
     allowed_ips=["10.0.0.1"],

@@ -25,7 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 # Minimal CRUDAdmin instance
 admin = CRUDAdmin(
-    session=your_async_session,  # Your SQLAlchemy async session
+    session=get_session,  # Your session dependency function
     SECRET_KEY="your-secret-key-here"
 )
 ```
@@ -43,12 +43,16 @@ from sqlalchemy.orm import sessionmaker
 # Database setup
 DATABASE_URL = "sqlite+aiosqlite:///./app.db"
 engine = create_async_engine(DATABASE_URL, echo=True)
-async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+# Create database session dependency
+async def get_session():
+    async with AsyncSession(engine) as session:
+        yield session
 
 # Create admin with common settings
 admin = CRUDAdmin(
     # Required parameters (no defaults)
-    session=async_session,
+    session=get_session,
     SECRET_KEY=os.environ.get("ADMIN_SECRET_KEY", "dev-key-change-in-production"),
     
     # Basic interface settings
@@ -70,7 +74,7 @@ admin = CRUDAdmin(
 
 - **Required parameters**: `session` and `SECRET_KEY` have no defaults and must be provided
 - **Optional parameters**: All other parameters have sensible defaults and can be omitted
-- **Most minimal setup**: `CRUDAdmin(session=async_session, SECRET_KEY="your-key")` uses all defaults
+- **Most minimal setup**: `CRUDAdmin(session=get_session, SECRET_KEY="your-key")` uses all defaults
 
 ---
 
@@ -82,10 +86,12 @@ admin = CRUDAdmin(
 Your SQLAlchemy async session factory or callable that returns sessions:
 
 ```python
-# Session factory (most common)
-from sqlalchemy.orm import sessionmaker
-async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-admin = CRUDAdmin(session=async_session, SECRET_KEY=secret_key)
+# Session dependency function (recommended)
+async def get_session():
+    async with AsyncSession(engine) as session:
+        yield session
+
+admin = CRUDAdmin(session=get_session, SECRET_KEY=secret_key)
 ```
 
 #### `SECRET_KEY` (str)
@@ -94,7 +100,7 @@ Critical for session security and cookie signing. **Never use default values in 
 ```python
 # ✅ Use environment variables
 admin = CRUDAdmin(
-    session=session, 
+    session=get_session, 
     SECRET_KEY=os.environ["ADMIN_SECRET_KEY"]
 )
 
@@ -109,11 +115,11 @@ URL path where the admin interface will be accessible. **If you want a different
 
 ```python
 # Default: accessible at /admin (no mount_path parameter needed)
-admin = CRUDAdmin(session=session, SECRET_KEY=key)
+admin = CRUDAdmin(session=get_session, SECRET_KEY=key)
 
 # Custom path: accessible at /dashboard (must specify mount_path)
 admin = CRUDAdmin(
-    session=session, 
+    session=get_session, 
     SECRET_KEY=key,
     mount_path="/dashboard"  # Required for non-default paths
 )
@@ -134,10 +140,10 @@ Choose between light and dark themes:
 
 ```python
 # Dark theme (default)
-admin = CRUDAdmin(session=session, SECRET_KEY=key, theme="dark-theme")
+admin = CRUDAdmin(session=get_session, SECRET_KEY=key, theme="dark-theme")
 
 # Light theme
-admin = CRUDAdmin(session=session, SECRET_KEY=key, theme="light-theme")
+admin = CRUDAdmin(session=get_session, SECRET_KEY=key, theme="light-theme")
 ```
 
 #### `admin_db_path` (str, default: None)
@@ -145,11 +151,11 @@ Custom location for the admin database (used for admin users, sessions, etc.):
 
 ```python
 # Default: creates ./crudadmin_data/admin.db
-admin = CRUDAdmin(session=session, SECRET_KEY=key)
+admin = CRUDAdmin(session=get_session, SECRET_KEY=key)
 
 # Custom path
 admin = CRUDAdmin(
-    session=session, 
+    session=get_session, 
     SECRET_KEY=key,
     admin_db_path="./admin/admin_database.db"
 )
@@ -160,11 +166,11 @@ Automatically create an admin user when the system initializes:
 
 ```python
 # No initial admin (default - create manually later)
-admin = CRUDAdmin(session=session, SECRET_KEY=key)
+admin = CRUDAdmin(session=get_session, SECRET_KEY=key)
 
 # Create initial admin automatically
 admin = CRUDAdmin(
-    session=session,
+    session=get_session,
     SECRET_KEY=key,
     initial_admin={
         "username": "admin",
@@ -202,7 +208,7 @@ app.mount("/admin", admin.app)
 ```python
 # If you configured a custom mount_path
 admin = CRUDAdmin(
-    session=async_session,
+    session=get_session,
     SECRET_KEY=key,
     mount_path="/dashboard"
 )
@@ -220,7 +226,7 @@ app.mount("/dashboard", admin.app)
 ```python
 # Simple development configuration
 admin = CRUDAdmin(
-    session=async_session,
+    session=get_session,
     SECRET_KEY="dev-key-change-in-production",  # Simple key for development
     initial_admin={                             # Convenient auto-admin
         "username": "admin",
@@ -234,7 +240,7 @@ admin = CRUDAdmin(
 ```python
 # Basic production configuration
 admin = CRUDAdmin(
-    session=async_session,
+    session=get_session,
     SECRET_KEY=os.environ["ADMIN_SECRET_KEY"],  # Required environment variable
     initial_admin=None,                         # Create admin users manually
     secure_cookies=True,                        # Default: True (good for production)
