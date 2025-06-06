@@ -21,7 +21,7 @@ The easiest way to create your first admin user is during CRUDAdmin initializati
 ```python
 # Create admin interface with initial admin user
 admin = CRUDAdmin(
-    session=async_session,
+    session=get_session,
     SECRET_KEY=os.environ["ADMIN_SECRET_KEY"],
     initial_admin={
         "username": "admin",
@@ -263,7 +263,7 @@ Each admin user can have multiple concurrent sessions:
 ```python
 # Configure session limits (in CRUDAdmin initialization)
 admin = CRUDAdmin(
-    session=async_session,
+    session=get_session,
     SECRET_KEY=key,
     max_sessions_per_user=3,        # Limit concurrent sessions
     session_timeout_minutes=30,     # Auto-logout after inactivity
@@ -287,7 +287,7 @@ admin = CRUDAdmin(
 ```python
 # Development: Simple auto-admin
 admin = CRUDAdmin(
-    session=async_session,
+    session=get_session,
     SECRET_KEY="dev-key-change-in-production",
     initial_admin={
         "username": "admin",
@@ -297,7 +297,7 @@ admin = CRUDAdmin(
 
 # Production: No auto-admin, manual creation
 admin = CRUDAdmin(
-    session=async_session,
+    session=get_session,
     SECRET_KEY=os.environ["ADMIN_SECRET_KEY"],
     initial_admin=None  # Create admin users manually
 )

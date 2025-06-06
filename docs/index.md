@@ -87,11 +87,15 @@ from crudadmin import CRUDAdmin
 
 # Database setup
 engine = create_async_engine("sqlite+aiosqlite:///app.db")
-session = AsyncSession(engine)
+
+# Create database session dependency
+async def get_session():
+    async with AsyncSession(engine) as session:
+        yield session
 
 # Create admin interface
 admin = CRUDAdmin(
-    session=session,
+    session=get_session,
     SECRET_KEY="your-secret-key-here",
     initial_admin={
         "username": "admin",
@@ -197,7 +201,7 @@ CRUDAdmin offers flexible configuration options for different deployment scenari
 from crudadmin import CRUDAdmin
 
 admin = CRUDAdmin(
-    session=async_session,
+    session=get_session,
     SECRET_KEY="your-secret-key",
     initial_admin={
         "username": "admin", 
@@ -220,7 +224,7 @@ app.mount("/admin", admin.app)
 
 ```python
 admin = CRUDAdmin(
-    session=async_session,
+    session=get_session,
     SECRET_KEY=os.environ["ADMIN_SECRET_KEY"],
     
     # Security features
@@ -289,7 +293,7 @@ admin.use_memcached_sessions(
 
 # Hybrid Sessions (Redis + Database)
 admin = CRUDAdmin(
-    session=session,
+    session=get_session,
     SECRET_KEY=SECRET_KEY,
     track_sessions_in_db=True
 ).use_redis_sessions(
