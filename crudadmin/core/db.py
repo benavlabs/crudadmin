@@ -59,7 +59,7 @@ class DatabaseConfig:
     def __init__(
         self,
         base: Type[DeclarativeBase],
-        session: AsyncSession,
+        session: Callable[[], AsyncGenerator[AsyncSession, None]],
         admin_db_url: Optional[str] = None,
         admin_db_path: Optional[str] = None,
         admin_user: Optional[Type[DeclarativeBase]] = None,
@@ -88,7 +88,7 @@ class DatabaseConfig:
         ] = None,
     ) -> None:
         self.base: Type[DeclarativeBase] = base
-        self.session: AsyncSession = session
+        self.session: Callable[[], AsyncGenerator[AsyncSession, None]] = session
 
         if admin_db_url is None:
             if admin_db_path is None:
@@ -197,8 +197,8 @@ class DatabaseConfig:
         """Get a session for the admin database."""
         return self.admin_session
 
-    def get_app_session(self) -> AsyncSession:
-        """Get a session for the main application database."""
+    def get_app_session(self) -> Callable[[], AsyncGenerator[AsyncSession, None]]:
+        """Get a session dependency for the main application database."""
         return self.session
 
     def get_primary_key(self, model: Type[DeclarativeBase]) -> Optional[str]:

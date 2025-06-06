@@ -5,6 +5,7 @@ from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 from typing import (
     Any,
+    AsyncGenerator,
     Dict,
     List,
     Optional,
@@ -84,7 +85,7 @@ class CRUDAdmin:
         - Token-based authentication
 
     Args:
-        session: Async SQLAlchemy session for database operations
+        session: Async SQLAlchemy session dependency function that yields sessions
         SECRET_KEY: Secret key for session management and cookie signing. Generate securely using:
             **Python one-liner (recommended)**
             python -c "import secrets; print(secrets.token_urlsafe(32))"
@@ -290,7 +291,7 @@ class CRUDAdmin:
 
     def __init__(
         self,
-        session: AsyncSession,
+        session: Callable[[], AsyncGenerator[AsyncSession, None]],
         SECRET_KEY: str,
         mount_path: Optional[str] = "/admin",
         theme: Optional[str] = "dark-theme",
