@@ -32,7 +32,7 @@ source .venv/bin/activate
 ### Installing Dependencies
 Install the required dependencies using UV:
 ```sh
-uv sync --all-extras
+uv sync --group dev
 ```
 
 ## Making Contributions
