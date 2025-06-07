@@ -42,11 +42,13 @@
 
 ## Video Preview
 
+<p align="center">To see what CRUDAdmin dashboard actually looks like in practice, watch the video demo on youtube:</p>
 <p align="center">
   <a href="https://www.youtube.com/watch?v=THLdUbDQ9yM">
     <img src="docs/assets/youtube-preview.png" alt="Watch CRUDAdmin Dashboard Demo on Youtube" width="75%" height="auto"/>
   </a>
 </p>
+<br>
 
 ## Quick Start
 
