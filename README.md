@@ -40,6 +40,14 @@
 - **🔍 Advanced Filtering**: Type-aware field filtering, search, and pagination with bulk operations
 - **🌗 Modern UI**: Clean, responsive interface built with HTMX and [FastCRUD](https://github.com/benavlabs/fastcrud)
 
+## Video Preview
+
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=THLdUbDQ9yM">
+    <img src="docs/assets/youtube-preview.png" alt="Watch CRUDAdmin Dashboard Demo on Youtube" width="75%" height="auto"/>
+  </a>
+</p>
+
 ## Quick Start
 
 ### Installation
