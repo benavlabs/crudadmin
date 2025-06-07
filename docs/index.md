@@ -43,6 +43,15 @@
 - **🔍 Advanced Filtering**: Type-aware field filtering, search, and pagination with bulk operations
 - **🌗 Modern UI**: Clean, responsive interface built with HTMX and [FastCRUD](https://github.com/benavlabs/fastcrud)
 
+## Video Preview
+
+<p align="center">To see what CRUDAdmin dashboard looks like in practice, watch the video demo on youtube:</p>
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=THLdUbDQ9yM">
+    <img src="assets/youtube-preview.png" alt="Watch CRUDAdmin Dashboard Demo on Youtube"/>
+  </a>
+</p>
+
 ## Minimal Example
 
 Here's how simple it is to get a complete admin interface running:
