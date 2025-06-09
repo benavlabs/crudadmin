@@ -3,7 +3,7 @@ name = "crudadmin"
 version = "0.3.2"
 description = "FastAPI-based admin interface with authentication, event logging and CRUD operations"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.9.2"
 authors = [
     { name = "Igor Benav", email = "igor.magalhaes.r@gmail.com" }
 ]
@@ -39,7 +39,7 @@ dependencies = [
     "user-agents>=2.2.0",
     "aiosqlite>=0.20.0",
     "greenlet>=3.1.1",
-    "fastcrud>=0.15.5",
+    "fastcrud>=0.15.12",
 ]
 
 [tool.hatch.build.targets.sdist]
