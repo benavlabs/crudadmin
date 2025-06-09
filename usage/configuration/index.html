@@ -608,33 +608,24 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#essential-configuration-parameters" class="md-nav__link">
+  <a href="#parameter-details" class="md-nav__link">
     <span class="md-ellipsis">
-      Essential Configuration Parameters
+      Parameter Details
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Essential Configuration Parameters">
+    <nav class="md-nav" aria-label="Parameter Details">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#required-parameters" class="md-nav__link">
+  <a href="#session-callable-required" class="md-nav__link">
     <span class="md-ellipsis">
-      Required Parameters
+      session (Callable, required)
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Required Parameters">
+    <nav class="md-nav" aria-label="session (Callable, required)">
       <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#session-asyncsession" class="md-nav__link">
-    <span class="md-ellipsis">
-      session (AsyncSession)
-    </span>
-  </a>
-  
-</li>
         
           <li class="md-nav__item">
   <a href="#secret_key-str" class="md-nav__link">
@@ -1362,33 +1353,24 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#essential-configuration-parameters" class="md-nav__link">
+  <a href="#parameter-details" class="md-nav__link">
     <span class="md-ellipsis">
-      Essential Configuration Parameters
+      Parameter Details
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Essential Configuration Parameters">
+    <nav class="md-nav" aria-label="Parameter Details">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#required-parameters" class="md-nav__link">
+  <a href="#session-callable-required" class="md-nav__link">
     <span class="md-ellipsis">
-      Required Parameters
+      session (Callable, required)
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Required Parameters">
+    <nav class="md-nav" aria-label="session (Callable, required)">
       <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#session-asyncsession" class="md-nav__link">
-    <span class="md-ellipsis">
-      session (AsyncSession)
-    </span>
-  </a>
-  
-</li>
         
           <li class="md-nav__item">
   <a href="#secret_key-str" class="md-nav__link">
@@ -1619,10 +1601,21 @@
 <li><strong>Optional parameters</strong>: All other parameters have sensible defaults and can be omitted</li>
 <li><strong>Most minimal setup</strong>: <code>CRUDAdmin(session=get_session, SECRET_KEY="your-key")</code> uses all defaults</li>
 </ul>
+<div class="admonition warning">
+<p class="admonition-title">Security Best Practices</p>
+<p><strong>Database Security:</strong> When using SQLite, always add <code>*.db</code>, <code>*.sqlite</code>, and <code>crudadmin_data/</code> to your <code>.gitignore</code> to prevent committing sensitive data.</p>
+<p><strong>Production Security:</strong> For production environments, always follow these best practices:</p>
+<ul>
+<li>Use strong, randomly generated secret keys.</li>
+<li>Use environment variables for all sensitive configuration.</li>
+<li>Use a robust session backend like Redis: <code>uv add "crudadmin[redis]"</code></li>
+<li>Enable HTTPS and secure cookies to protect data in transit.</li>
+<li>Set up proper logging and monitoring to detect security events.</li>
+</ul>
+</div>
 <hr />
-<h2 id="essential-configuration-parameters">Essential Configuration Parameters<a class="headerlink" href="#essential-configuration-parameters" title="Permanent link">&para;</a></h2>
-<h3 id="required-parameters">Required Parameters<a class="headerlink" href="#required-parameters" title="Permanent link">&para;</a></h3>
-<h4 id="session-asyncsession"><code>session</code> (AsyncSession)<a class="headerlink" href="#session-asyncsession" title="Permanent link">&para;</a></h4>
+<h2 id="parameter-details">Parameter Details<a class="headerlink" href="#parameter-details" title="Permanent link">&para;</a></h2>
+<h3 id="session-callable-required"><code>session</code> (Callable, required)<a class="headerlink" href="#session-callable-required" title="Permanent link">&para;</a></h3>
 <p>Your SQLAlchemy async session factory or callable that returns sessions:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Session dependency function (recommended)</span>
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_session</span><span class="p">():</span>

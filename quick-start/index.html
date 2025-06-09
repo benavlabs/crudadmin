@@ -516,6 +516,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#security-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      🔒 Security Setup
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#accessing-your-admin-interface" class="md-nav__link">
     <span class="md-ellipsis">
       Accessing Your Admin Interface
@@ -1237,6 +1246,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#security-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      🔒 Security Setup
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#accessing-your-admin-interface" class="md-nav__link">
     <span class="md-ellipsis">
       Accessing Your Admin Interface
@@ -1406,17 +1424,31 @@
 </span><span id="__span-6-40"><a id="__codelineno-6-40" name="__codelineno-6-40" href="#__codelineno-6-40"></a><span class="c1"># Mount admin interface</span>
 </span><span id="__span-6-41"><a id="__codelineno-6-41" name="__codelineno-6-41" href="#__codelineno-6-41"></a><span class="n">app</span><span class="o">.</span><span class="n">mount</span><span class="p">(</span><span class="s2">&quot;/admin&quot;</span><span class="p">,</span> <span class="n">admin</span><span class="o">.</span><span class="n">app</span><span class="p">)</span>
 </span></code></pre></div>
-<p>And you're all done! </p>
+<h2 id="security-setup">🔒 Security Setup<a class="headerlink" href="#security-setup" title="Permanent link">&para;</a></h2>
+<p><strong>Before committing your code</strong>, ensure your <code>.gitignore</code> excludes database files:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a># Add these to your .gitignore
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>*.db
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>*.sqlite
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>*.sqlite3
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>crudadmin_data/
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>*.db-journal
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>*.sqlite3-journal
+</span></code></pre></div>
+<p>This prevents accidentally committing:
+- Your admin database with credentials
+- Application databases with user data
+- Session storage files
+- SQLite journal files</p>
 <h2 id="accessing-your-admin-interface">Accessing Your Admin Interface<a class="headerlink" href="#accessing-your-admin-interface" title="Permanent link">&para;</a></h2>
 <ol>
 <li>
 <p><strong>Start your FastAPI server:</strong>
-    <div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>uvicorn<span class="w"> </span>main:app<span class="w"> </span>--reload
+    <div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>uvicorn<span class="w"> </span>main:app<span class="w"> </span>--reload
 </span></code></pre></div></p>
 </li>
 <li>
 <p><strong>Navigate to the admin interface:</strong>
-    <div class="language-text highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>http://localhost:8000/admin
+    <div class="language-text highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>http://localhost:8000/admin
 </span></code></pre></div></p>
 </li>
 <li>
