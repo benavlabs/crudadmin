@@ -28,7 +28,7 @@
 
 **Documentation**: [https://benavlabs.github.io/crudadmin/](https://benavlabs.github.io/crudadmin/)
 
-> [!WARNING]  
+> \[!WARNING\]  
 > CRUDAdmin is still experimental. While actively developed and tested, APIs may change between versions. Upgrade with caution in production environments, always carefuly reading the changelog.
 
 ## Features
@@ -131,31 +131,20 @@ Navigate to `/admin` to access your admin interface with:
 - Responsive UI with dark/light themes
 - Built-in security features
 
-## ⚠️ Security Notice
-
-**Important for SQLite users:** If you're using SQLite databases (which is the default for CRUDAdmin), make sure to add database files to your `.gitignore`:
-
-```gitignore
-# SQLite databases - NEVER commit these to version control
-*.db
-*.sqlite
-*.sqlite3
-crudadmin_data/  # CRUDAdmin's default admin database directory
-
-# Also exclude database journals
-*.db-journal
-*.sqlite3-journal
-```
-
-**Why this matters:**
-- SQLite databases contain sensitive data including admin credentials, session tokens, and user data
-- Committing database files to public repositories exposes this sensitive information
-- Database files can become large and are not suitable for version control
-
-**What to commit instead:**
-- Database schema/migration files
-- Sample data files (with fake/sanitized data)
-- Configuration files (with placeholder values)
+> \[!WARNING\]
+> **Important for SQLite users:** If you're using SQLite databases (which is the default for CRUDAdmin), make sure to add database files to your `.gitignore` to avoid committing sensitive data like admin credentials and session tokens.
+>
+> ```gitignore
+> # SQLite databases - NEVER commit these to version control
+> *.db
+> *.sqlite
+> *.sqlite3
+> crudadmin_data/
+>
+> # Also exclude database journals
+> *.db-journal
+> *.sqlite3-journal
+> ```
 
 ## Session Backends
 
