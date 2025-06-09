@@ -28,7 +28,7 @@
 
 **Documentation**: [https://benavlabs.github.io/crudadmin/](https://benavlabs.github.io/crudadmin/)
 
-> [!WARNING]  
+> \[!WARNING\]  
 > CRUDAdmin is still experimental. While actively developed and tested, APIs may change between versions. Upgrade with caution in production environments, always carefuly reading the changelog.
 
 ## Features
@@ -130,6 +130,21 @@ Navigate to `/admin` to access your admin interface with:
 - CRUD operations for your models
 - Responsive UI with dark/light themes
 - Built-in security features
+
+> \[!WARNING\]
+> **Important for SQLite users:** If you're using SQLite databases (which is the default for CRUDAdmin), make sure to add database files to your `.gitignore` to avoid committing sensitive data like admin credentials and session tokens.
+>
+> ```gitignore
+> # SQLite databases - NEVER commit these to version control
+> *.db
+> *.sqlite
+> *.sqlite3
+> crudadmin_data/
+>
+> # Also exclude database journals
+> *.db-journal
+> *.sqlite3-journal
+> ```
 
 ## Session Backends
 
