@@ -133,7 +133,25 @@ app = FastAPI(lifespan=lifespan)
 app.mount("/admin", admin.app)
 ```
 
-And you're all done! 
+## 🔒 Security Setup
+
+**Before committing your code**, ensure your `.gitignore` excludes database files:
+
+```gitignore
+# Add these to your .gitignore
+*.db
+*.sqlite
+*.sqlite3
+crudadmin_data/
+*.db-journal
+*.sqlite3-journal
+```
+
+This prevents accidentally committing:
+- Your admin database with credentials
+- Application databases with user data
+- Session storage files
+- SQLite journal files
 
 ## Accessing Your Admin Interface
 

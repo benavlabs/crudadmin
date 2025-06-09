@@ -76,13 +76,22 @@ admin = CRUDAdmin(
 - **Optional parameters**: All other parameters have sensible defaults and can be omitted
 - **Most minimal setup**: `CRUDAdmin(session=get_session, SECRET_KEY="your-key")` uses all defaults
 
+!!! warning "Security Best Practices"
+    **Database Security:** When using SQLite, always add `*.db`, `*.sqlite`, and `crudadmin_data/` to your `.gitignore` to prevent committing sensitive data.
+
+    **Production Security:** For production environments, always follow these best practices:
+    
+    - Use strong, randomly generated secret keys.
+    - Use environment variables for all sensitive configuration.
+    - Use a robust session backend like Redis: `uv add "crudadmin[redis]"`
+    - Enable HTTPS and secure cookies to protect data in transit.
+    - Set up proper logging and monitoring to detect security events.
+
 ---
 
-## Essential Configuration Parameters
+## Parameter Details
 
-### Required Parameters
-
-#### `session` (AsyncSession)
+### `session` (Callable, required)
 Your SQLAlchemy async session factory or callable that returns sessions:
 
 ```python

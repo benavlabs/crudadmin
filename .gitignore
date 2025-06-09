@@ -61,6 +61,12 @@ local_settings.py
 db.sqlite3
 db.sqlite3-journal
 
+# SQLite databases
+*.db
+*.db-journal*
+*.sqlite
+*.sqlite3
+
 # Flask stuff:
 instance/
 .webassets-cache
@@ -170,3 +176,4 @@ uv.lock
 .python-version
 
 local_test
+crudadmin_data/
