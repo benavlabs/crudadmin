@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 import time
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta, timezone
@@ -10,12 +11,16 @@ from typing import (
     List,
     Optional,
     Type,
-    TypeAlias,
     TypedDict,
     TypeVar,
     Union,
     cast,
 )
+
+if sys.version_info >= (3, 10):
+    from typing import TypeAlias
+else:
+    from typing_extensions import TypeAlias
 
 from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.security import OAuth2PasswordBearer
