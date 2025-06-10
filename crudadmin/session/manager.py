@@ -1,6 +1,6 @@
 import logging
 import secrets
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Literal, Optional
 
 from fastapi import Request, Response
@@ -9,6 +9,8 @@ from ..core.rate_limiter import SimpleRateLimiter
 from .schemas import CSRFToken, SessionCreate, SessionData, UserAgentInfo
 from .storage import AbstractSessionStorage, get_session_storage
 from .user_agents_types import parse
+
+UTC = timezone.utc
 
 logger = logging.getLogger(__name__)
 

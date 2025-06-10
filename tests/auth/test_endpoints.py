@@ -1,4 +1,4 @@
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -6,6 +6,8 @@ from fastapi import HTTPException, Request, status
 
 from crudadmin.session.manager import SessionManager
 from crudadmin.session.schemas import SessionData
+
+UTC = timezone.utc
 
 
 class CSRFException(HTTPException):

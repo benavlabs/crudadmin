@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Optional, cast
 
 from sqlalchemy import JSON, DateTime, String
@@ -6,6 +6,8 @@ from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from .schemas import EventStatus, EventType
+
+UTC = timezone.utc
 
 
 def create_admin_event_log(base: type[DeclarativeBase]) -> type[DeclarativeBase]:

@@ -1,8 +1,10 @@
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Optional, Type
 
 from sqlalchemy import Boolean, DateTime, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+UTC = timezone.utc
 
 
 def create_admin_user(base: Type[DeclarativeBase]) -> Type[DeclarativeBase]:

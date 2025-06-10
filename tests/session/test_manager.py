@@ -1,4 +1,4 @@
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import Mock
 
 import pytest
@@ -6,6 +6,8 @@ import pytest
 from crudadmin.session.manager import SessionManager
 from crudadmin.session.schemas import SessionData
 from crudadmin.session.storage import get_session_storage
+
+UTC = timezone.utc
 
 
 @pytest.mark.asyncio

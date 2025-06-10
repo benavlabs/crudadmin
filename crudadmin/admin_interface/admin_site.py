@@ -1,6 +1,6 @@
 import logging
 from collections.abc import AsyncGenerator, Callable
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional, cast
 
 from fastapi import APIRouter, Cookie, Depends, Request, Response
@@ -18,6 +18,8 @@ from ..session.schemas import SessionData
 from ..session.storage import AbstractSessionStorage, get_session_storage
 from .auth import AdminAuthentication
 from .typing import RouteResponse
+
+UTC = timezone.utc
 
 logger = logging.getLogger(__name__)
 

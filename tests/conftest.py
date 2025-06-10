@@ -1,6 +1,6 @@
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Type
 from unittest.mock import AsyncMock, MagicMock, Mock
 
@@ -33,6 +33,8 @@ from crudadmin.event.service import EventService
 from crudadmin.session.manager import SessionManager
 from crudadmin.session.schemas import SessionData
 from crudadmin.session.storage import get_session_storage
+
+UTC = timezone.utc
 
 
 class Base(DeclarativeBase):

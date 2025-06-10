@@ -1,12 +1,14 @@
 import json
 import logging
 import re
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Pattern, TypeVar
 
 from pydantic import BaseModel
 
 from ..storage import AbstractSessionStorage
+
+UTC = timezone.utc
 
 T = TypeVar("T", bound=BaseModel)
 logger = logging.getLogger(__name__)

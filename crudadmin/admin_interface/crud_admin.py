@@ -2,7 +2,7 @@ import logging
 import os
 import time
 from collections.abc import Awaitable, Callable
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import (
     Any,
     AsyncGenerator,
@@ -42,6 +42,8 @@ from ..session.storage import AbstractSessionStorage, get_session_storage
 from .admin_site import AdminSite
 from .model_view import ModelView
 from .typing import RouteResponse
+
+UTC = timezone.utc
 
 logger = logging.getLogger("crudadmin")
 

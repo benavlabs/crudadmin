@@ -1,6 +1,6 @@
 import json
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from enum import Enum
 from typing import Any, Optional, cast
@@ -18,6 +18,8 @@ from .schemas import (
     EventStatus,
     EventType,
 )
+
+UTC = timezone.utc
 
 logger = logging.getLogger(__name__)
 
