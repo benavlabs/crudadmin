@@ -1,7 +1,7 @@
 import functools
 import logging
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional, Type
 
 from fastapi import Request
@@ -10,6 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 
 from .models import EventType
+
+UTC = timezone.utc
 
 logger = logging.getLogger(__name__)
 

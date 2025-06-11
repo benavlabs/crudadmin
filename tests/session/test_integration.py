@@ -1,4 +1,4 @@
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -7,6 +7,8 @@ from fastapi import Response
 from crudadmin.session.manager import SessionManager
 from crudadmin.session.schemas import CSRFToken, SessionData, UserAgentInfo
 from crudadmin.session.storage import get_session_storage
+
+UTC = timezone.utc
 
 
 class TestSessionManagerIntegration:

@@ -1,8 +1,9 @@
 import logging
 import os
+import sys
 import time
 from collections.abc import Awaitable, Callable
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import (
     Any,
     AsyncGenerator,
@@ -10,12 +11,16 @@ from typing import (
     List,
     Optional,
     Type,
-    TypeAlias,
     TypedDict,
     TypeVar,
     Union,
     cast,
 )
+
+if sys.version_info >= (3, 10):
+    from typing import TypeAlias
+else:
+    from typing_extensions import TypeAlias
 
 from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.security import OAuth2PasswordBearer
@@ -42,6 +47,8 @@ from ..session.storage import AbstractSessionStorage, get_session_storage
 from .admin_site import AdminSite
 from .model_view import ModelView
 from .typing import RouteResponse
+
+UTC = timezone.utc
 
 logger = logging.getLogger("crudadmin")
 

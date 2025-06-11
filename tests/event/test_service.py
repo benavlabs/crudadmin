@@ -1,5 +1,5 @@
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from enum import Enum
 from unittest.mock import ANY, AsyncMock, Mock, patch
@@ -13,6 +13,8 @@ from crudadmin.event.schemas import (
     EventType,
 )
 from crudadmin.event.service import CustomJSONEncoder, EventService
+
+UTC = timezone.utc
 
 
 class SampleEnum(Enum):

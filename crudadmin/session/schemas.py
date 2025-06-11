@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 from uuid import uuid4
@@ -6,6 +6,8 @@ from uuid import uuid4
 from pydantic import BaseModel, Field, field_validator
 
 from ..core.schemas.timestamp import TimestampSchema
+
+UTC = timezone.utc
 
 
 class DeviceType(str, Enum):

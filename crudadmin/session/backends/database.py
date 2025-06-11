@@ -6,7 +6,7 @@ dashboard for session management and monitoring.
 """
 
 import logging
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any, Optional, TypeVar
 
 from pydantic import BaseModel
@@ -15,6 +15,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ...core.db import DatabaseConfig
 from ..schemas import AdminSessionCreate, AdminSessionUpdate
 from ..storage import AbstractSessionStorage
+
+UTC = timezone.utc
 
 T = TypeVar("T", bound=BaseModel)
 logger = logging.getLogger(__name__)
