@@ -31,7 +31,7 @@
 <hr>
 
 !!! warning "Experimental Status"
-    CRUDAdmin is still experimental. While actively developed and tested, APIs may change between versions. Upgrade with caution in production environments, always carefuly reading the changelog.
+    CRUDAdmin is still experimental. While actively developed and tested, APIs may change between versions. Upgrade with caution in production environments, always carefully reading the changelog.
 
 ## Features
 

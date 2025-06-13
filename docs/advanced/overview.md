@@ -48,4 +48,4 @@ Check back regularly for new advanced topics as they become available. Each new 
 
 ---
 
-**Note**: If you have specific advanced topics you'd like to see covered, please let us know through our github. 
+**Note**: If you have specific advanced topics you'd like to see covered, please let us know through our GitHub.
