@@ -23,11 +23,13 @@ UV can a virtual environment for your project. Activate it using:
 uv venv
 ```
 
-Then
+Then:
 
 ```sh
 source .venv/bin/activate
 ```
+
+This project supports Python versions `>=3.9.2`. However, for consistency and compatibility across environments, we recommend using **Python 3.9.x** (with a minimum of 3.9.2) when setting up the virtual environment, as specified in the `.python-version` file.
 
 ### Installing Dependencies
 Install the required dependencies using UV:

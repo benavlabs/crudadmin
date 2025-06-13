@@ -173,7 +173,6 @@ cython_debug/
 .ruff_cache
 
 uv.lock
-.python-version
 
 local_test
 crudadmin_data/
