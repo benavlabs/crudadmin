@@ -1406,9 +1406,10 @@
 <p>UV can a virtual environment for your project. Activate it using:</p>
 <div class="language-sh highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>uv<span class="w"> </span>venv
 </span></code></pre></div>
-<p>Then</p>
+<p>Then:</p>
 <div class="language-sh highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nb">source</span><span class="w"> </span>.venv/bin/activate
 </span></code></pre></div>
+<p>This project supports Python versions <code>&gt;=3.9.2</code>. However, for consistency and compatibility across environments, we recommend using <strong>Python 3.9.x</strong> (with a minimum of 3.9.2) when setting up the virtual environment, as specified in the <code>.python-version</code> file.</p>
 <h3 id="installing-dependencies">Installing Dependencies<a class="headerlink" href="#installing-dependencies" title="Permanent link">&para;</a></h3>
 <p>Install the required dependencies using UV:
 <div class="language-sh highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>uv<span class="w"> </span>sync<span class="w"> </span>--group<span class="w"> </span>dev
