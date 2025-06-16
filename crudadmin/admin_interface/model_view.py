@@ -772,7 +772,10 @@ class ModelView:
                     f"{pk_name}__in": valid_ids
                 }
                 records_to_delete = await self.crud.get_multi(
-                    db=db, limit=len(valid_ids), **cast(Any, filter_criteria)
+                    db=db,
+                    limit=len(valid_ids),
+                    schema_to_select=self.select_schema,
+                    **cast(Any, filter_criteria),
                 )
 
                 request.state.deleted_records = records_to_delete.get("data", [])
@@ -804,6 +807,7 @@ class ModelView:
                     db=db,
                     offset=(adjusted_page - 1) * rows_per_page,
                     limit=rows_per_page,
+                    schema_to_select=self.select_schema,
                 )
 
                 items: Dict[str, Any] = {
@@ -947,6 +951,7 @@ class ModelView:
                     limit=rows_per_page,
                     sort_columns=sort_columns,
                     sort_orders=sort_orders,
+                    schema_to_select=self.select_schema,
                     **cast(Any, filter_criteria),
                 )
 
@@ -1053,7 +1058,9 @@ class ModelView:
             db: AsyncSession = Depends(self.session),
         ) -> Response:
             """Show a form to update an existing record by `id`."""
-            item = await self.crud.get(db=db, id=id)
+            item = await self.crud.get(
+                db=db, id=id, schema_to_select=self.select_schema
+            )
             if not item:
                 return JSONResponse(
                     status_code=404, content={"message": f"Item with id {id} not found"}
@@ -1112,7 +1119,9 @@ class ModelView:
                     status_code=422, content={"message": "No id parameter provided"}
                 )
 
-            item = await self.crud.get(db=db, id=id)
+            item = await self.crud.get(
+                db=db, id=id, schema_to_select=self.select_schema
+            )
             if not item:
                 return JSONResponse(
                     status_code=404, content={"message": f"Item with id {id} not found"}
@@ -1283,7 +1292,11 @@ class ModelView:
                 filter_criteria[f"{search_column}__ilike"] = f"%{search_value}%"
 
             items_result = await self.crud.get_multi(
-                db=db, offset=offset, limit=limit, **cast(Any, filter_criteria)
+                db=db,
+                offset=offset,
+                limit=limit,
+                schema_to_select=self.select_schema,
+                **cast(Any, filter_criteria),
             )
 
             items: Dict[str, Any] = {

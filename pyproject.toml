@@ -1,6 +1,6 @@
 [project]
 name = "crudadmin"
-version = "0.3.3"
+version = "0.3.4"
 description = "FastAPI-based admin interface with authentication, event logging and CRUD operations"
 readme = "README.md"
 requires-python = ">=3.9.2"
