@@ -803,6 +803,7 @@ class CRUDAdmin:
         update_schema: Type[BaseModel],
         update_internal_schema: Optional[Type[BaseModel]] = None,
         delete_schema: Optional[Type[BaseModel]] = None,
+        select_schema: Optional[Type[BaseModel]] = None,
         include_in_models: bool = True,
         allowed_actions: Optional[set[str]] = None,
         password_transformer: Optional[Any] = None,
@@ -819,6 +820,7 @@ class CRUDAdmin:
             update_schema: Pydantic schema for update operations
             update_internal_schema: Internal schema for special update cases
             delete_schema: Schema for delete operations
+            select_schema: Optional schema for read operations (excludes fields from queries)
             include_in_models: Show in models list in admin UI
             allowed_actions: **Set of allowed operations:**
                 - **"view"**: Allow viewing records
@@ -835,6 +837,7 @@ class CRUDAdmin:
         Notes:
             - Forms are auto-generated with field types determined from Pydantic schemas
             - Actions controlled by allowed_actions parameter
+            - Use select_schema to exclude problematic fields (e.g., TSVector) from read operations
             - Use password_transformer for models with password fields that need hashing
 
             URL Routes:
@@ -869,6 +872,29 @@ class CRUDAdmin:
                 update_internal_schema=None,
                 delete_schema=None,
                 allowed_actions={"view", "create", "update"}  # No deletion
+            )
+            ```
+
+            Excluding problematic fields (e.g., TSVector):
+            ```python
+            class DocumentCreate(BaseModel):
+                title: str
+                content: str
+                # TSVector field excluded from this schema
+
+            class DocumentSelect(BaseModel):
+                id: int
+                title: str
+                content: str
+                created_at: datetime
+                # search_vector (TSVector) field excluded
+
+            admin.add_view(
+                model=Document,
+                create_schema=DocumentCreate,
+                update_schema=DocumentCreate,
+                select_schema=DocumentSelect,  # TSVector field excluded from reads
+                allowed_actions={"view", "create", "update"}
             )
             ```
 
@@ -1028,6 +1054,7 @@ class CRUDAdmin:
             update_schema=update_schema,
             update_internal_schema=update_internal_schema,
             delete_schema=delete_schema,
+            select_schema=select_schema,
             admin_site=self.admin_site,
             allowed_actions=allowed_actions,
             event_integration=self.event_integration,

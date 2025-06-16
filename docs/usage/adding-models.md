@@ -91,7 +91,40 @@ admin.add_view(
     update_schema=UserUpdate,
     allowed_actions={"view", "create", "update", "delete"}
 )
+
+# With optional select_schema for read operations
+admin.add_view(
+    model=User,
+    create_schema=UserCreate,
+    update_schema=UserUpdate,
+    select_schema=UserSelect,  # Optional: controls which fields appear in list/update views
+    allowed_actions={"view", "create", "update", "delete"}
+)
 ```
+
+### `add_view()` Parameters Overview
+
+The `add_view()` method accepts several parameters to configure your model's admin interface:
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `model` | SQLAlchemy Model | ✅ | The database model to manage |
+| `create_schema` | Pydantic Schema | ✅ | Schema for creating new records |
+| `update_schema` | Pydantic Schema | ✅ | Schema for updating existing records |
+| `select_schema` | Pydantic Schema | ❌ | Schema for read operations - excludes problematic fields |
+| `update_internal_schema` | Pydantic Schema | ❌ | Internal schema for system updates |
+| `delete_schema` | Pydantic Schema | ❌ | Schema for deletion operations |
+| `allowed_actions` | Set[str] | ❌ | Controls available operations ("view", "create", "update", "delete") |
+| `include_in_models` | bool | ❌ | Whether to show in admin navigation (default: True) |
+| `password_transformer` | PasswordTransformer | ❌ | For handling password fields |
+
+!!! tip "Key Benefits of select_schema"
+    Use `select_schema` when your model has:
+    
+    - **TSVector fields** that cause `NotImplementedError`
+    - **Large binary/text fields** that slow down list views
+    - **Sensitive fields** you want to hide from admin users
+    - **Complex computed fields** that break display formatting
 
 ---
 
@@ -411,6 +444,247 @@ class DocumentCreate(BaseModel):
 
 ---
 
+## Handling Problematic Fields
+
+### Using `select_schema` to Exclude Fields from Read Operations
+
+Some database field types can cause issues in admin panels. The most common example is PostgreSQL's `TSVector` type used for full-text search, which can trigger `NotImplementedError` when trying to display records.
+
+The `select_schema` parameter allows you to exclude problematic fields from all read operations while keeping them available for create/update operations.
+
+??? info "When to Use select_schema"
+    Use `select_schema` when you encounter:
+    
+    - **TSVector fields** causing `NotImplementedError` in admin views
+    - **Large binary fields** that slow down list views  
+    - **Computed fields** that don't need to be displayed
+    - **Sensitive fields** that should be hidden from admin users
+    - **Complex JSON fields** that break admin display formatting
+
+### Basic Example: Excluding TSVector Fields
+
+```python
+from sqlalchemy import Column, Integer, String, Text
+from sqlalchemy_utils import TSVectorType
+from pydantic import BaseModel
+from typing import Optional
+from datetime import datetime
+
+# SQLAlchemy model with TSVector for full-text search
+class Document(Base):
+    __tablename__ = "documents"
+    
+    id = Column(Integer, primary_key=True)
+    title = Column(String(200), nullable=False)
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=func.now())
+    
+    # This field causes NotImplementedError in admin views
+    search_vector = Column(TSVectorType('title', 'content'))
+
+# Schemas for create/update (no search_vector)
+class DocumentCreate(BaseModel):
+    title: str = Field(..., min_length=1, max_length=200)
+    content: str = Field(..., min_length=1)
+
+class DocumentUpdate(BaseModel):
+    title: Optional[str] = Field(None, min_length=1, max_length=200)
+    content: Optional[str] = None
+
+# Schema for read operations (excludes problematic field)
+class DocumentSelect(BaseModel):
+    id: int
+    title: str
+    content: str
+    created_at: datetime
+    # search_vector field intentionally excluded!
+
+# Register with admin
+admin.add_view(
+    model=Document,
+    create_schema=DocumentCreate,
+    update_schema=DocumentUpdate,
+    select_schema=DocumentSelect,  # ✅ TSVector excluded from reads
+    allowed_actions={"view", "create", "update", "delete"}
+)
+```
+
+### Advanced Example: Multiple Problematic Fields
+
+```python
+from sqlalchemy import Column, Integer, String, Text, LargeBinary, JSON
+from sqlalchemy_utils import TSVectorType
+from pydantic import BaseModel
+from typing import Optional, Dict, Any
+from datetime import datetime
+
+class Article(Base):
+    __tablename__ = "articles"
+    
+    id = Column(Integer, primary_key=True)
+    title = Column(String(200), nullable=False)
+    content = Column(Text, nullable=False)
+    author_id = Column(Integer, nullable=False)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    
+    # Problematic fields
+    search_vector = Column(TSVectorType('title', 'content'))  # TSVector
+    thumbnail_data = Column(LargeBinary)  # Large binary data
+    metadata = Column(JSON)  # Complex JSON that breaks display
+    internal_notes = Column(Text)  # Sensitive admin-only field
+
+# Create/Update schemas include only safe fields
+class ArticleCreate(BaseModel):
+    title: str = Field(..., min_length=1, max_length=200)
+    content: str = Field(..., min_length=1)
+    author_id: int = Field(..., gt=0)
+
+class ArticleUpdate(BaseModel):
+    title: Optional[str] = Field(None, min_length=1, max_length=200)  
+    content: Optional[str] = None
+
+# Select schema excludes all problematic fields
+class ArticleSelect(BaseModel):
+    id: int
+    title: str
+    content: str
+    author_id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    # Excluded: search_vector, thumbnail_data, metadata, internal_notes
+
+admin.add_view(
+    model=Article,
+    create_schema=ArticleCreate,
+    update_schema=ArticleUpdate,
+    select_schema=ArticleSelect,  # Multiple problematic fields excluded
+    allowed_actions={"view", "create", "update", "delete"}
+)
+```
+
+### Content-Heavy Models
+
+```python
+class BlogPost(Base):
+    __tablename__ = "blog_posts"
+    
+    id = Column(Integer, primary_key=True)
+    title = Column(String(200))
+    slug = Column(String(200), unique=True)
+    excerpt = Column(Text)  # Short description for admin list
+    content = Column(Text)  # Full content - too long for list view
+    published = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=func.now())
+    
+    # Large fields that slow down list views
+    full_content = Column(Text)  # Very long article content
+    raw_html = Column(Text)  # HTML version
+    search_data = Column(TSVectorType('title', 'excerpt', 'content'))
+
+# Lightweight schema for admin list views
+class BlogPostSelect(BaseModel):
+    id: int
+    title: str
+    slug: str
+    excerpt: str  # Show excerpt instead of full content
+    published: bool
+    created_at: datetime
+    # Excluded: content, full_content, raw_html, search_data
+
+class BlogPostCreate(BaseModel):
+    title: str = Field(..., min_length=1, max_length=200)
+    slug: str = Field(..., min_length=1, max_length=200)
+    excerpt: str = Field(..., min_length=1, max_length=500)
+    content: str = Field(..., min_length=1)
+    published: bool = False
+
+admin.add_view(
+    model=BlogPost,
+    create_schema=BlogPostCreate,
+    update_schema=BlogPostCreate,
+    select_schema=BlogPostSelect,  # Fast loading for admin lists
+    allowed_actions={"view", "create", "update", "delete"}
+)
+```
+
+### Security-Sensitive Fields
+
+```python
+class User(Base):
+    __tablename__ = "users"
+    
+    id = Column(Integer, primary_key=True)
+    username = Column(String(50), unique=True)
+    email = Column(String(100), unique=True)
+    role = Column(String(20), default="user")
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=func.now())
+    
+    # Sensitive fields to hide from admin views
+    hashed_password = Column(String(128))  # Password hash
+    reset_token = Column(String(128))  # Password reset token
+    login_attempts = Column(Integer, default=0)  # Security tracking
+    last_login_ip = Column(String(45))  # IP address
+
+# Admin-safe schema excludes sensitive security fields
+class UserAdminSelect(BaseModel):
+    id: int
+    username: str
+    email: str
+    role: str
+    is_active: bool
+    created_at: datetime
+    # Excluded: hashed_password, reset_token, login_attempts, last_login_ip
+
+class UserCreate(BaseModel):
+    username: str = Field(..., min_length=3, max_length=50)
+    email: EmailStr
+    role: str = Field(default="user", pattern="^(admin|user|moderator)$")
+    is_active: bool = True
+    password: str = Field(..., min_length=8)  # Will be hashed automatically
+
+admin.add_view(
+    model=User,
+    create_schema=UserCreate,
+    update_schema=UserUpdate,
+    select_schema=UserAdminSelect,  # Sensitive fields hidden
+    password_transformer=password_transformer,
+    allowed_actions={"view", "create", "update"}
+)
+```
+
+### Key Benefits
+
+??? success "Advantages of using select_schema"
+    **Performance:**
+    - Faster list views by excluding large fields
+    - Reduced database query size and network transfer
+    
+    **Reliability:**
+    - Prevents `NotImplementedError` from problematic field types
+    - Avoids display issues with complex data structures
+    
+    **Security:**
+    - Hides sensitive fields from admin interface
+    - Maintains field access for create/update operations
+    
+    **User Experience:**
+    - Cleaner admin interface with relevant fields only
+    - Better responsive design without wide data columns
+
+### Best Practices
+
+!!! tip "select_schema Guidelines"
+    1. **Always include primary key** (`id`) in select schemas
+    2. **Include display-friendly fields** like names, titles, dates
+    3. **Exclude large binary data** that slows down queries
+    4. **Hide sensitive security fields** like password hashes
+    5. **Test admin views** after adding select_schema to ensure proper display
+    6. **Keep create/update schemas separate** to maintain full field access
+
+---
+
 ## Troubleshooting
 
 ### Common Issues
@@ -466,5 +740,6 @@ Once you've successfully added models to your admin interface:
 - **[Configure Basic Settings](configuration.md)** to customize your admin interface
 - **[Manage Admin Users](admin-users.md)** to set up proper access control
 - **[Learn the Interface](interface.md)** to effectively use your new admin panel
+- **[Handle Problematic Fields](#handling-problematic-fields)** to solve TSVector and performance issues
 
 For more advanced features like custom field widgets and complex relationships, see the [Advanced Section](../advanced/overview.md). 
