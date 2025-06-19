@@ -423,6 +423,14 @@ class ModelView:
 
         self.setup_routes()
 
+    def get_url_prefix(self) -> str:
+        """Get the URL prefix for admin routes, handling root mount path correctly."""
+        if self.admin_site:
+            return (
+                f"/{self.admin_site.mount_path}" if self.admin_site.mount_path else ""
+            )
+        return ""
+
     def _model_is_admin_model(self, model: Type[DeclarativeBase]) -> bool:
         """Check if the given model is one of the admin-specific models."""
         admin_model_names = [
@@ -638,15 +646,16 @@ class ModelView:
 
                         if result:
                             request.state.crud_result = result
+                            model_list_url = (
+                                f"{self.get_url_prefix()}/{self.model.__name__}/"
+                            )
                             if "HX-Request" in request.headers:
                                 return RedirectResponse(
-                                    url=f"/{self.admin_site.mount_path}/{self.model.__name__}/",
-                                    headers={
-                                        "HX-Redirect": f"/{self.admin_site.mount_path}/{self.model.__name__}/"
-                                    },
+                                    url=model_list_url,
+                                    headers={"HX-Redirect": model_list_url},
                                 )
                             return RedirectResponse(
-                                url=f"/{self.admin_site.mount_path}/{self.model.__name__}/",
+                                url=model_list_url,
                                 status_code=303,
                             )
 
@@ -668,7 +677,7 @@ class ModelView:
                 "error": error_message,
                 "field_errors": field_errors,
                 "field_values": field_values,
-                "mount_path": self.admin_site.mount_path,
+                "mount_path": self.admin_site.mount_path if self.admin_site else "",
             }
 
             return self.templates.TemplateResponse(
@@ -827,7 +836,7 @@ class ModelView:
                     "current_page": adjusted_page,
                     "rows_per_page": rows_per_page,
                     "primary_key_info": primary_key_info,
-                    "mount_path": self.admin_site.mount_path,
+                    "mount_path": self.admin_site.mount_path if self.admin_site else "",
                 }
 
                 return self.templates.TemplateResponse(
@@ -1204,8 +1213,11 @@ class ModelView:
                             )
                             await db.commit()
 
+                        model_list_url = (
+                            f"{self.get_url_prefix()}/{self.model.__name__}/"
+                        )
                         return RedirectResponse(
-                            url=f"/{self.admin_site.mount_path}/{self.model.__name__}/",
+                            url=model_list_url,
                             status_code=303,
                         )
 
@@ -1232,7 +1244,7 @@ class ModelView:
                 "error": error_message,
                 "field_errors": field_errors,
                 "field_values": field_values,
-                "mount_path": self.admin_site.mount_path,
+                "mount_path": self.admin_site.mount_path if self.admin_site else "",
                 "id": id,
                 "include_sidebar_and_header": False,
             }

@@ -99,6 +99,30 @@ async def test_crud_admin_with_custom_settings(async_session):
 
 
 @pytest.mark.asyncio
+async def test_crud_admin_root_mount_path(async_session):
+    """Test CRUDAdmin initialization with root mount path."""
+    secret_key = "test-secret-key-for-testing-only-32-chars"
+    db_config = create_test_db_config(async_session)
+
+    admin = CRUDAdmin(
+        session=async_session,
+        SECRET_KEY=secret_key,
+        mount_path="/",
+        db_config=db_config,
+        setup_on_initialization=False,
+    )
+
+    # Test that mount_path is properly set to empty string for root
+    assert admin.mount_path == ""
+
+    # Test that URL prefix is correctly generated
+    assert admin.get_url_prefix() == ""
+
+    # Test that OAuth2 token URL is correctly set for root path
+    assert admin.oauth2_scheme.model.flows.password.tokenUrl == "/login"
+
+
+@pytest.mark.asyncio
 async def test_crud_admin_with_allowed_ips(async_session):
     """Test CRUDAdmin initialization with IP restrictions."""
     secret_key = "test-secret-key-for-testing-only-32-chars"

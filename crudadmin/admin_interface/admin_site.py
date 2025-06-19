@@ -144,6 +144,10 @@ class AdminSite:
 
         self.secure_cookies: bool = secure_cookies
 
+    def get_url_prefix(self) -> str:
+        """Get the URL prefix for admin routes, handling root mount path correctly."""
+        return f"/{self.mount_path}" if self.mount_path else ""
+
     def setup_routes(self) -> None:
         """
         Configure all admin interface routes including auth, dashboard and model views.
@@ -270,16 +274,17 @@ class AdminSite:
 
                     logger.info(f"Session created successfully: {session_id}")
 
-                    response = RedirectResponse(
-                        url=f"/{self.mount_path}/", status_code=303
+                    dashboard_url = (
+                        f"{self.get_url_prefix()}/" if self.mount_path else "/"
                     )
+                    response = RedirectResponse(url=dashboard_url, status_code=303)
 
                     self.session_manager.set_session_cookies(
                         response=response,
                         session_id=session_id,
                         csrf_token=csrf_token,
                         secure=self.secure_cookies,
-                        path=f"/{self.mount_path}",
+                        path=f"{self.get_url_prefix()}/" if self.mount_path else "/",
                     )
 
                     await db.commit()
@@ -340,13 +345,12 @@ class AdminSite:
             if session_id:
                 await self.session_manager.terminate_session(session_id=session_id)
 
-            response = RedirectResponse(
-                url=f"/{self.mount_path}/login", status_code=303
-            )
+            login_url = f"{self.get_url_prefix()}/login"
+            response = RedirectResponse(url=login_url, status_code=303)
 
             self.session_manager.clear_session_cookies(
                 response=response,
-                path=f"/{self.mount_path}",
+                path=f"{self.get_url_prefix()}/" if self.mount_path else "/",
             )
 
             return response
@@ -380,9 +384,10 @@ class AdminSite:
                     )
 
                     if is_valid_session:
-                        return RedirectResponse(
-                            url=f"/{self.mount_path}/", status_code=303
+                        dashboard_url = (
+                            f"{self.get_url_prefix()}/" if self.mount_path else "/"
                         )
+                        return RedirectResponse(url=dashboard_url, status_code=303)
 
             except Exception:
                 pass
