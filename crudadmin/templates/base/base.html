@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}FastAPI Admin{% endblock %}</title>
-    <link rel="icon" type="image/png" href="/{{ mount_path }}/static/favicon.png?v=1">
+    <link rel="icon" type="image/png" href="{% if mount_path %}/{{ mount_path }}{% endif %}/static/favicon.png?v=1">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script src="/{{ mount_path }}/static/htmx.min.js"></script>
+    <script src="{% if mount_path %}/{{ mount_path }}{% endif %}/static/htmx.min.js"></script>
     <style>
         /* Modern CSS Reset */
         *, *::before, *::after {
@@ -278,12 +278,12 @@
     <div class="{% if include_sidebar_and_header %}admin-container{% endif %}">
         {% if include_sidebar_and_header %}
             <header class="admin-header">
-                <a href="/{{ mount_path }}/" class="brand">
-                    <img src="/{{ mount_path }}/static/favicon.png" alt="FastAPI Admin" class="brand-icon">
+                <a href="{% if mount_path %}/{{ mount_path }}{% endif %}/" class="brand">
+                    <img src="{% if mount_path %}/{{ mount_path }}{% endif %}/static/favicon.png" alt="FastAPI Admin" class="brand-icon">
                     FastAPI Admin
                 </a>
                 <div class="flex items-center gap-4">
-                    <a href="/{{ mount_path }}/logout" style="color: white; text-decoration: none; font-weight: 500; transition: color 0.2s" onmouseover="this.style.color='var(--primary-light)'" onmouseout="this.style.color='white'">
+                    <a href="{% if mount_path %}/{{ mount_path }}{% endif %}/logout" style="color: white; text-decoration: none; font-weight: 500; transition: color 0.2s" onmouseover="this.style.color='var(--primary-light)'" onmouseout="this.style.color='white'">
                         Logout
                     </a>
                 </div>
@@ -299,7 +299,7 @@
                         </div>
                         <ul class="sidebar-nav">
                             <li>
-                                <a href="/{{ mount_path }}/" class="sidebar-link active">
+                                <a href="{% if mount_path %}/{{ mount_path }}{% endif %}/" class="sidebar-link active">
                                     Dashboard
                                 </a>
                             </li>
@@ -314,14 +314,14 @@
                         </div>
                         <ul class="sidebar-nav">
                             <li>
-                                <a href="/{{ mount_path }}/management/health" class="sidebar-link">
+                                <a href="{% if mount_path %}/{{ mount_path }}{% endif %}/management/health" class="sidebar-link">
                                     Health Checks
                                     <span class="badge badge-primary">System</span>
                                 </a>
                             </li>
                             {% if track_events %}
                             <li>
-                                <a href="/{{ mount_path }}/management/events" class="sidebar-link">
+                                <a href="{% if mount_path %}/{{ mount_path }}{% endif %}/management/events" class="sidebar-link">
                                     Event Logs
                                     <span class="badge badge-primary">System</span>
                                 </a>
@@ -339,7 +339,7 @@
                         <ul class="sidebar-nav">
                             {% for auth_table_name in auth_table_names %}
                             <li>
-                                <a href="/{{ mount_path }}/{{ auth_table_name }}/" class="sidebar-link">
+                                <a href="{% if mount_path %}/{{ mount_path }}{% endif %}/{{ auth_table_name }}/" class="sidebar-link">
                                     {{ auth_table_name }}
                                     <span class="model-count">{{ auth_model_counts[auth_table_name]|default(0) }}</span>
                                 </a>
@@ -358,7 +358,7 @@
                         <ul class="sidebar-nav">
                             {% for table_name in table_names %}
                             <li>
-                                <a href="/{{ mount_path }}/{{ table_name }}/" class="sidebar-link">
+                                <a href="{% if mount_path %}/{{ mount_path }}{% endif %}/{{ table_name }}/" class="sidebar-link">
                                     {{ table_name }}
                                     <span class="model-count">{{ model_counts[table_name]|default(0) }}</span>
                                 </a>
