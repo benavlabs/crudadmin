@@ -38,7 +38,12 @@ class AdminAuthMiddleware(BaseHTTPMiddleware):
         return not (300 <= response.status_code < 400)
 
     async def dispatch(self, request: Request, call_next):
-        if not request.url.path.startswith(f"/{self.admin_instance.mount_path}/"):
+        expected_prefix = (
+            f"/{self.admin_instance.mount_path}/"
+            if self.admin_instance.mount_path
+            else "/"
+        )
+        if not request.url.path.startswith(expected_prefix):
             return await call_next(request)
 
         is_login_path = request.url.path.endswith("/login")
@@ -58,8 +63,9 @@ class AdminAuthMiddleware(BaseHTTPMiddleware):
 
                 if not session_id:
                     logger.debug("Missing session_id")
+                    login_url = f"{self.admin_instance.get_url_prefix()}/login?error=Please+log+in+to+access+this+page"
                     return RedirectResponse(
-                        url=f"/{self.admin_instance.mount_path}/login?error=Please+log+in+to+access+this+page",
+                        url=login_url,
                         status_code=303,
                     )
 
@@ -72,8 +78,9 @@ class AdminAuthMiddleware(BaseHTTPMiddleware):
 
                     if not session_data:
                         logger.debug("Invalid or expired session")
+                        login_url = f"{self.admin_instance.get_url_prefix()}/login?error=Session+expired"
                         return RedirectResponse(
-                            url=f"/{self.admin_instance.mount_path}/login?error=Session+expired",
+                            url=login_url,
                             status_code=303,
                         )
 
@@ -84,8 +91,9 @@ class AdminAuthMiddleware(BaseHTTPMiddleware):
 
                     if not user:
                         logger.debug("User not found for session")
+                        login_url = f"{self.admin_instance.get_url_prefix()}/login?error=User+not+found"
                         return RedirectResponse(
-                            url=f"/{self.admin_instance.mount_path}/login?error=User+not+found",
+                            url=login_url,
                             status_code=303,
                         )
 
@@ -107,8 +115,9 @@ class AdminAuthMiddleware(BaseHTTPMiddleware):
                         or "/crud/" in request.url.path
                     ):
                         raise
+                    login_url = f"{self.admin_instance.get_url_prefix()}/login?error=Authentication+error"
                     return RedirectResponse(
-                        url=f"/{self.admin_instance.mount_path}/login?error=Authentication+error",
+                        url=login_url,
                         status_code=303,
                     )
 

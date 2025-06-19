@@ -318,7 +318,12 @@ class CRUDAdmin:
         track_events: bool = False,
         track_sessions_in_db: bool = False,
     ) -> None:
-        self.mount_path = mount_path.strip("/") if mount_path else "admin"
+        if mount_path == "/":
+            self.mount_path = ""
+        elif mount_path:
+            self.mount_path = mount_path.strip("/")
+        else:
+            self.mount_path = "admin"
         self.theme = theme or "dark-theme"
         self.track_events = track_events
         self.track_sessions_in_db = track_sessions_in_db
@@ -376,7 +381,9 @@ class CRUDAdmin:
         self.initial_admin = initial_admin
         self.models: Dict[str, ModelConfig] = {}
         self.router = APIRouter(tags=["admin"])
-        self.oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"/{self.mount_path}/login")
+        self.oauth2_scheme = OAuth2PasswordBearer(
+            tokenUrl=f"{self.get_url_prefix()}/login"
+        )
         self.secure_cookies = secure_cookies
 
         session_backend = getattr(self, "_session_backend", "memory")
@@ -433,6 +440,10 @@ class CRUDAdmin:
             self.app.add_middleware(HTTPSRedirectMiddleware, https_port=https_port)
 
         self.app.include_router(self.router)
+
+    def get_url_prefix(self) -> str:
+        """Get the URL prefix for admin routes, handling root mount path correctly."""
+        return f"/{self.mount_path}" if self.mount_path else ""
 
     async def initialize(self) -> None:
         """
