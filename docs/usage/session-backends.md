@@ -695,53 +695,6 @@ ENVIRONMENT=production
 
 ---
 
-## Troubleshooting
-
-### Common Issues
-
-#### Redis Connection Errors
-
-```python
-# Check Redis connectivity
-import redis
-try:
-    r = redis.Redis(host='localhost', port=6379, db=0)
-    r.ping()
-    print("Redis connected successfully")
-except redis.ConnectionError:
-    print("Redis connection failed")
-```
-
-#### Memcached Connection Errors
-
-```bash
-# Test Memcached connectivity
-telnet localhost 11211
-stats
-quit
-```
-
-#### Memory Sessions Not Persisting
-
-Memory sessions are ephemeral by design. Use Redis or Database sessions for persistence.
-
-#### Session Data Lost After Restart
-
-- Memory sessions: Expected behavior
-- Redis sessions: Check Redis persistence configuration
-- Database sessions: Check database connectivity
-
-### Getting Help
-
-If you encounter issues:
-
-1. Check the [API Reference](../api/session.md) for detailed technical documentation
-2. Review [Common Patterns](common-patterns.md) for real-world examples
-3. Enable debug logging to diagnose connection issues
-4. Consult the [Community](../community/overview.md) resources
-
----
-
 ## Next Steps
 
 After configuring your session backend:
