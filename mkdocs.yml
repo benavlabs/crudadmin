@@ -48,6 +48,7 @@ nav:
   - Usage:
     - Overview: usage/overview.md
     - Basic Configuration: usage/configuration.md
+    - Session Backends: usage/session-backends.md
     - Adding Models: usage/adding-models.md
     - Managing Admin Users: usage/admin-users.md
     - Using the Interface: usage/interface.md
