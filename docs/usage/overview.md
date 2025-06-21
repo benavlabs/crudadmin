@@ -8,12 +8,21 @@ This section guides you through everything you need to know about using CRUDAdmi
 Learn how to set up and configure your CRUDAdmin instance for different environments.
 
 - **Creating your first admin interface** with essential settings
-- **Session backend configuration** (Memory, Redis, Memcached, Database, Hybrid)
 - **Security settings** for authentication and access control
 - **Environment-based configuration** for development vs production
 - **FastAPI integration** patterns and best practices
 
-### 2. [Adding Models](adding-models.md)
+### 2. [Session Backends](session-backends.md)
+Master session management with flexible backend options for optimal performance.
+
+- **Memory sessions** for development and testing
+- **Redis sessions** for production and high-traffic applications
+- **Memcached sessions** for high-performance caching
+- **Database sessions** for audit trails and compliance
+- **Hybrid sessions** combining performance with auditability
+- **Dynamic backend switching** and environment-based configuration
+
+### 3. [Adding Models](adding-models.md)
 Master the core functionality of registering your SQLAlchemy models with CRUDAdmin.
 
 - **Model registration** with create, update, and read schemas
@@ -22,7 +31,7 @@ Master the core functionality of registering your SQLAlchemy models with CRUDAdm
 - **Advanced schema configuration** for different operations
 - **Real-world examples** and troubleshooting tips
 
-### 3. [Managing Admin Users](admin-users.md)
+### 4. [Managing Admin Users](admin-users.md)
 Set up authentication and manage who can access your admin interface.
 
 - **Creating admin users** and managing credentials
@@ -30,7 +39,7 @@ Set up authentication and manage who can access your admin interface.
 - **User roles and permissions** (if applicable)
 - **Security best practices** for admin access
 
-### 4. [Using the Interface](interface.md)
+### 5. [Using the Interface](interface.md)
 Navigate and operate the admin interface effectively for daily tasks.
 
 - **Dashboard navigation** and understanding the layout
@@ -39,7 +48,7 @@ Navigate and operate the admin interface effectively for daily tasks.
 - **Bulk operations** for managing multiple records
 - **Form handling** and validation
 
-### 5. [Common Patterns](common-patterns.md)
+### 6. [Common Patterns](common-patterns.md)
 Real-world usage patterns and scenarios you'll encounter in practice.
 
 - **Multi-model relationships** (blog systems, e-commerce catalogs)
@@ -62,6 +71,7 @@ After completing the Usage section, you'll have a solid foundation for building 
 Need to jump to a specific topic? Here are the most commonly accessed sections:
 
 - **[Quick setup example](configuration.md#basic-example)** - Get running in 5 minutes
+- **[Session backends](session-backends.md#redis-sessions)** - Configure Redis for production
 - **[Adding your first model](adding-models.md#basic-model-registration)** - Register a model and start managing data
 - **[Search and filtering](interface.md#search-and-filtering)** - Find records quickly
 - **[Performance tips](common-patterns.md#performance-optimization-patterns)** - Optimize for large datasets
