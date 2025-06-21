@@ -174,19 +174,56 @@ def get_session_storage(
     if backend == "redis":
         from .backends.redis import RedisSessionStorage
 
-        return RedisSessionStorage(**kwargs)
+        # Filter kwargs for Redis backend
+        redis_kwargs = {
+            k: v
+            for k, v in kwargs.items()
+            if k
+            in [
+                "prefix",
+                "expiration",
+                "host",
+                "port",
+                "db",
+                "username",
+                "password",
+                "pool_size",
+                "connect_timeout",
+            ]
+        }
+        return RedisSessionStorage(**redis_kwargs)
+
     elif backend == "memcached":
         from .backends.memcached import MemcachedSessionStorage
 
-        return MemcachedSessionStorage(**kwargs)
+        # Filter kwargs for Memcached backend
+        memcached_kwargs = {
+            k: v
+            for k, v in kwargs.items()
+            if k in ["prefix", "expiration", "host", "port", "pool_size"]
+        }
+        return MemcachedSessionStorage(**memcached_kwargs)
+
     elif backend == "memory":
         from .backends.memory import MemorySessionStorage
 
-        return MemorySessionStorage(**kwargs)
+        # Filter kwargs for Memory backend
+        memory_kwargs = {
+            k: v for k, v in kwargs.items() if k in ["prefix", "expiration"]
+        }
+        return MemorySessionStorage(**memory_kwargs)
+
     elif backend == "database":
         from .backends.database import DatabaseSessionStorage
 
-        return DatabaseSessionStorage(**kwargs)
+        # Filter kwargs for Database backend
+        database_kwargs = {
+            k: v
+            for k, v in kwargs.items()
+            if k in ["prefix", "expiration", "db_config"]
+        }
+        return DatabaseSessionStorage(**database_kwargs)
+
     elif backend == "hybrid":
         from .backends.hybrid import HybridSessionStorage
 
@@ -194,19 +231,64 @@ def get_session_storage(
         if not db_config:
             raise ValueError("db_config is required for hybrid backend")
 
-        redis_kwargs = {k: v for k, v in kwargs.items() if k not in ["db_config"]}
-        from .backends.redis import RedisSessionStorage
+        redis_params = ["db", "username", "password"]
 
-        redis_storage: RedisSessionStorage[T] = RedisSessionStorage(**redis_kwargs)
+        has_redis_params = any(param in kwargs for param in redis_params)
+
+        use_redis = has_redis_params or kwargs.pop("_cache_backend", "redis") == "redis"
+
+        cache_storage: AbstractSessionStorage[T]
+        if use_redis:
+            cache_kwargs = {
+                k: v
+                for k, v in kwargs.items()
+                if k
+                in [
+                    "prefix",
+                    "expiration",
+                    "host",
+                    "port",
+                    "db",
+                    "username",
+                    "password",
+                    "pool_size",
+                    "connect_timeout",
+                ]
+            }
+
+            from .backends.redis import RedisSessionStorage
+
+            cache_storage = RedisSessionStorage(**cache_kwargs)
+        else:
+            cache_kwargs = {
+                k: v
+                for k, v in kwargs.items()
+                if k in ["prefix", "expiration", "host", "port", "pool_size"]
+            }
+
+            from .backends.memcached import MemcachedSessionStorage
+
+            cache_storage = MemcachedSessionStorage(**cache_kwargs)
+
+        database_kwargs = {
+            k: v for k, v in kwargs.items() if k in ["prefix", "expiration"]
+        }
+        database_kwargs["db_config"] = db_config
+
+        hybrid_kwargs = {
+            k: v for k, v in kwargs.items() if k in ["prefix", "expiration"]
+        }
 
         from .backends.database import DatabaseSessionStorage
 
         database_storage: DatabaseSessionStorage[T] = DatabaseSessionStorage(
-            db_config=db_config, **kwargs
+            **database_kwargs
         )
 
         return HybridSessionStorage(
-            redis_storage=redis_storage, database_storage=database_storage, **kwargs
+            redis_storage=cache_storage,
+            database_storage=database_storage,
+            **hybrid_kwargs,
         )
     else:
         raise ValueError(f"Unknown backend: {backend}")
