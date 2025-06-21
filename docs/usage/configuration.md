@@ -83,7 +83,7 @@ admin = CRUDAdmin(
     
     - Use strong, randomly generated secret keys.
     - Use environment variables for all sensitive configuration.
-    - Use a robust session backend like Redis: `uv add "crudadmin[redis]"`
+    - Use a robust session backend like Redis: `uv add "crudadmin[redis]"` (see [Session Backends](session-backends.md))
     - Enable HTTPS and secure cookies to protect data in transit.
     - Set up proper logging and monitoring to detect security events.
 

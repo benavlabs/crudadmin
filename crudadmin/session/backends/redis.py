@@ -28,6 +28,7 @@ class RedisSessionStorage(AbstractSessionStorage[T]):
         host: str = "localhost",
         port: int = 6379,
         db: int = 0,
+        username: Optional[str] = None,
         password: Optional[str] = None,
         pool_size: int = 10,
         connect_timeout: int = 10,
@@ -40,6 +41,7 @@ class RedisSessionStorage(AbstractSessionStorage[T]):
             host: Redis host
             port: Redis port
             db: Redis database number
+            username: Redis username (for ACL authentication, Redis 6.0+)
             password: Redis password
             pool_size: Redis connection pool size
             connect_timeout: Redis connection timeout
@@ -50,6 +52,7 @@ class RedisSessionStorage(AbstractSessionStorage[T]):
             host=host,
             port=port,
             db=db,
+            username=username,
             password=password,
             socket_timeout=connect_timeout,
             socket_connect_timeout=connect_timeout,
