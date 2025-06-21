@@ -502,3 +502,116 @@ async def test_crud_admin_error_handling_invalid_session(async_session):
 
     # The session should be None in the db_config
     assert admin.db_config.session is None
+
+
+@pytest.mark.asyncio
+async def test_crud_admin_session_backend_switching(async_session):
+    """Test that session backend methods work after initialization."""
+    secret_key = "test-secret-key-for-testing-only-32-chars"
+    db_config = create_test_db_config(async_session)
+
+    admin = CRUDAdmin(
+        session=async_session,
+        SECRET_KEY=secret_key,
+        db_config=db_config,
+        setup_on_initialization=False,
+    )
+
+    # Test initial memory backend
+    assert "MemorySessionStorage" in str(type(admin.session_manager.storage))
+
+    # Test switching to database backend
+    admin.use_database_sessions()
+    assert "DatabaseSessionStorage" in str(type(admin.session_manager.storage))
+    assert admin.track_sessions_in_db is True
+
+    # Test switching back to memory
+    admin.use_memory_sessions()
+    assert "MemorySessionStorage" in str(type(admin.session_manager.storage))
+
+    # Test Redis URL parsing
+    parsed = admin._parse_redis_url("redis://user:pass@localhost:6379/2")
+    expected = {
+        "host": "localhost",
+        "port": 6379,
+        "db": 2,
+        "username": "user",
+        "password": "pass",
+    }
+    assert parsed == expected
+
+    # Test Redis URL parsing with defaults
+    parsed_simple = admin._parse_redis_url("redis://localhost")
+    expected_simple = {
+        "host": "localhost",
+        "port": 6379,
+        "db": 0,
+    }
+    assert parsed_simple == expected_simple
+
+    # Test Redis backend switching (if redis is available)
+    try:
+        admin.use_redis_sessions(redis_url="redis://localhost:6379/0")
+        storage_type_name = type(admin.session_manager.storage).__name__
+        assert storage_type_name == "RedisSessionStorage"
+    except ImportError:
+        # Redis not available, which is fine for tests
+        pass
+
+
+@pytest.mark.asyncio
+async def test_crud_admin_backend_parameter_validation(async_session):
+    """Test parameter validation for session backend methods."""
+    secret_key = "test-secret-key-for-testing-only-32-chars"
+    db_config = create_test_db_config(async_session)
+
+    admin = CRUDAdmin(
+        session=async_session,
+        SECRET_KEY=secret_key,
+        db_config=db_config,
+        setup_on_initialization=False,
+    )
+
+    # Test Redis parameter validation
+    try:
+        # Test individual parameters work
+        admin.use_redis_sessions(host="localhost", port=6379, db=1)
+        storage_type_name = type(admin.session_manager.storage).__name__
+        assert storage_type_name == "RedisSessionStorage"
+
+        # Test defaults work
+        admin.use_redis_sessions()
+        assert type(admin.session_manager.storage).__name__ == "RedisSessionStorage"
+
+        # Test conflict detection
+        with pytest.raises(
+            ValueError, match="Cannot specify both redis_url and individual parameters"
+        ):
+            admin.use_redis_sessions(
+                redis_url="redis://localhost:6379", host="localhost"
+            )
+
+    except ImportError:
+        # Redis not available, skip Redis tests
+        pass
+
+    # Test Memcached parameter validation
+    try:
+        # Test individual parameters work
+        admin.use_memcached_sessions(host="localhost", port=11211)
+        storage_type_name = type(admin.session_manager.storage).__name__
+        assert storage_type_name == "MemcachedSessionStorage"
+
+        # Test defaults work
+        admin.use_memcached_sessions()
+        assert type(admin.session_manager.storage).__name__ == "MemcachedSessionStorage"
+
+        # Test conflict detection
+        with pytest.raises(
+            ValueError, match="Cannot specify both servers and individual parameters"
+        ):
+            admin.use_memcached_sessions(servers=["localhost:11211"], host="localhost")
+
+    except ImportError:
+        # Memcached not available, skip Memcached tests
+        pass
