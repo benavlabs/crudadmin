@@ -12,6 +12,7 @@ from typing import (
     Union,
     cast,
 )
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request, UploadFile
 from fastapi.responses import JSONResponse, RedirectResponse, Response
@@ -39,7 +40,7 @@ SelectSchemaType = TypeVar("SelectSchemaType", bound=BaseModel)
 class BulkDeleteRequest(BaseModel):
     """Request model for bulk delete operations containing IDs to delete."""
 
-    ids: List[int]
+    ids: List[Union[int, str]]
 
 
 class PasswordTransformer:
@@ -372,6 +373,11 @@ class ModelView:
         self.model = model
         self.model_key = model.__name__
         self.router = APIRouter()
+        self.admin_model = admin_model
+        self.admin_site = admin_site
+        self.allowed_actions = allowed_actions
+        self.event_integration = event_integration
+        self.password_transformer = password_transformer
 
         get_session: Callable[[], AsyncGenerator[AsyncSession, None]]
         if self._model_is_admin_model(model):
@@ -387,12 +393,6 @@ class ModelView:
         self.update_internal_schema = update_internal_schema
         self.delete_schema = delete_schema
         self.select_schema = select_schema
-
-        self.admin_model = admin_model
-        self.admin_site = admin_site
-        self.allowed_actions = allowed_actions
-        self.event_integration = event_integration
-        self.password_transformer = password_transformer
 
         self.user_service = (
             self.admin_site.admin_user_service if self.admin_site else None
@@ -432,17 +432,32 @@ class ModelView:
         return ""
 
     def _model_is_admin_model(self, model: Type[DeclarativeBase]) -> bool:
-        """Check if the given model is one of the admin-specific models."""
-        admin_model_names = [
-            self.db_config.AdminUser.__name__,
-            self.db_config.AdminSession.__name__,
-        ]
-        if self.db_config.AdminEventLog:
-            admin_model_names.append(self.db_config.AdminEventLog.__name__)
-        if self.db_config.AdminAuditLog:
-            admin_model_names.append(self.db_config.AdminAuditLog.__name__)
+        """Check if a model is considered an admin model."""
+        return self.admin_model or self.model_key.lower() in {"adminuser", "admin_user"}
 
-        return model.__name__ in admin_model_names
+    def _convert_id_to_pk_type(
+        self, id_value: Union[int, str]
+    ) -> Union[int, str, float]:
+        """Convert the ID value to the appropriate type based on the model's primary key type."""
+        if id_value is None:
+            return None
+
+        primary_key_info = self.db_config.get_primary_key_info(self.model)
+        if not primary_key_info:
+            return id_value
+
+        pk_type = primary_key_info.get("type")
+
+        if pk_type is int:
+            return int(id_value) if isinstance(id_value, str) else id_value
+        elif pk_type is str:
+            return str(id_value)
+        elif pk_type is float:
+            return float(id_value) if isinstance(id_value, str) else id_value
+        elif pk_type is UUID:
+            return str(id_value)
+        else:
+            return str(id_value)
 
     def setup_routes(self) -> None:
         """
@@ -1063,12 +1078,14 @@ class ModelView:
 
         async def get_model_update_page_inner(
             request: Request,
-            id: int,
+            id: Union[int, str],
             db: AsyncSession = Depends(self.session),
         ) -> Response:
             """Show a form to update an existing record by `id`."""
+            converted_id = self._convert_id_to_pk_type(id)
+
             item = await self.crud.get(
-                db=db, id=id, schema_to_select=self.select_schema
+                db=db, id=converted_id, schema_to_select=self.select_schema
             )
             if not item:
                 return JSONResponse(
@@ -1118,7 +1135,7 @@ class ModelView:
                 cast(Any, self.admin_site).admin_authentication.get_current_user()
             ),
             event_integration=Depends(lambda: self.event_integration),
-            id: Optional[int] = None,
+            id: Optional[Union[int, str]] = None,
         ) -> Response:
             """Handle POST form submission to update an existing record."""
             assert self.admin_site is not None
@@ -1128,8 +1145,10 @@ class ModelView:
                     status_code=422, content={"message": "No id parameter provided"}
                 )
 
+            converted_id = self._convert_id_to_pk_type(id)
+
             item = await self.crud.get(
-                db=db, id=id, schema_to_select=self.select_schema
+                db=db, id=converted_id, schema_to_select=self.select_schema
             )
             if not item:
                 return JSONResponse(
@@ -1187,7 +1206,7 @@ class ModelView:
                                     AdminUserUpdateInternal(**transformed_data)
                                 )
                                 await self.crud.update(
-                                    db=db, id=id, object=admin_update_schema
+                                    db=db, id=converted_id, object=admin_update_schema
                                 )
                             else:
                                 if self.update_internal_schema:
@@ -1195,21 +1214,25 @@ class ModelView:
                                         **transformed_data
                                     )
                                     await self.crud.update(
-                                        db=db, id=id, object=generic_update_schema
+                                        db=db,
+                                        id=converted_id,
+                                        object=generic_update_schema,
                                     )
                                 else:
                                     dynamic_update_schema = type(
                                         "InternalSchema", (BaseModel,), {}
                                     )(**transformed_data)
                                     await self.crud.update(
-                                        db=db, id=id, object=dynamic_update_schema
+                                        db=db,
+                                        id=converted_id,
+                                        object=dynamic_update_schema,
                                     )
 
                             await db.commit()
                         else:
                             update_schema_instance = self.update_schema(**update_data)
                             await self.crud.update(
-                                db=db, id=id, object=update_schema_instance
+                                db=db, id=converted_id, object=update_schema_instance
                             )
                             await db.commit()
 

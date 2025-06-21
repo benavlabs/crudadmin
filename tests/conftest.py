@@ -1,3 +1,4 @@
+import uuid
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
@@ -10,12 +11,14 @@ from fastapi import Request, Response
 from fastapi.testclient import TestClient
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import (
+    UUID,
     Boolean,
     Column,
     DateTime,
     ForeignKey,
     Integer,
     String,
+    Text,
     make_url,
 )
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
@@ -122,6 +125,79 @@ class UserUpdate(BaseModel):
     username: Optional[str] = None
     email: Optional[str] = None
     is_active: Optional[bool] = None
+
+
+class UUIDModel(Base):
+    """Test model with UUID primary key."""
+
+    __tablename__ = "uuid_test_model"
+    id = Column(UUID(as_uuid=True), primary_key=True, index=True, default=uuid.uuid4)
+    name = Column(String(255))
+    description = Column(Text)
+    created_at = Column(DateTime(timezone=False), server_default=func.now())
+
+
+class EmailQueryConfig(Base):
+    """Model replicating the original user's error case."""
+
+    __tablename__ = "email_query_configs"
+    id = Column(UUID(as_uuid=True), primary_key=True, index=True, default=uuid.uuid4)
+    template_id = Column(String(255))
+    query_name = Column(String(255))
+    query_text = Column(Text)
+    query_type = Column(String(50))
+    created_at = Column(DateTime(timezone=False), server_default=func.now())
+    updated_at = Column(
+        DateTime(timezone=False), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class UUIDModelCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str
+    description: str
+
+
+class UUIDModelRead(BaseModel):
+    id: uuid.UUID
+    name: str
+    description: str
+
+
+class UUIDModelUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+
+
+class UUIDModelUpdateInternal(UUIDModelUpdate):
+    id: uuid.UUID
+
+
+class EmailQueryConfigCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    template_id: str
+    query_name: str
+    query_text: str
+    query_type: str
+
+
+class EmailQueryConfigRead(BaseModel):
+    id: uuid.UUID
+    template_id: str
+    query_name: str
+    query_text: str
+    query_type: str
+
+
+class EmailQueryConfigUpdate(BaseModel):
+    template_id: Optional[str] = None
+    query_name: Optional[str] = None
+    query_text: Optional[str] = None
+    query_type: Optional[str] = None
+
+
+class EmailQueryConfigUpdateInternal(EmailQueryConfigUpdate):
+    id: uuid.UUID
 
 
 def is_docker_running() -> bool:
@@ -305,6 +381,92 @@ def user_read_schema():
 @pytest.fixture
 def user_update_schema():
     return UserUpdate
+
+
+@pytest.fixture
+def uuid_model():
+    return UUIDModel
+
+
+@pytest.fixture
+def email_query_config_model():
+    return EmailQueryConfig
+
+
+@pytest.fixture
+def uuid_model_create_schema():
+    return UUIDModelCreate
+
+
+@pytest.fixture
+def uuid_model_read_schema():
+    return UUIDModelRead
+
+
+@pytest.fixture
+def uuid_model_update_schema():
+    return UUIDModelUpdate
+
+
+@pytest.fixture
+def uuid_model_update_internal_schema():
+    return UUIDModelUpdateInternal
+
+
+@pytest.fixture
+def email_query_config_create_schema():
+    return EmailQueryConfigCreate
+
+
+@pytest.fixture
+def email_query_config_read_schema():
+    return EmailQueryConfigRead
+
+
+@pytest.fixture
+def email_query_config_update_schema():
+    return EmailQueryConfigUpdate
+
+
+@pytest.fixture
+def email_query_config_update_internal_schema():
+    return EmailQueryConfigUpdateInternal
+
+
+@pytest.fixture(scope="function")
+def uuid_test_data() -> list[dict]:
+    return [
+        {
+            "id": "93c025d9-5831-413c-9460-edb3a28cc729",
+            "name": "Test Item 1",
+            "description": "First test item with UUID",
+        },
+        {
+            "id": "550e8400-e29b-41d4-a716-446655440000",
+            "name": "Test Item 2",
+            "description": "Second test item with UUID",
+        },
+    ]
+
+
+@pytest.fixture(scope="function")
+def email_query_config_data() -> list[dict]:
+    return [
+        {
+            "id": "93c025d9-5831-413c-9460-edb3a28cc729",
+            "template_id": "template_1",
+            "query_name": "User Query",
+            "query_text": "SELECT * FROM users",
+            "query_type": "select",
+        },
+        {
+            "id": "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
+            "template_id": "template_2",
+            "query_name": "Admin Query",
+            "query_text": "SELECT * FROM admin_users",
+            "query_type": "select",
+        },
+    ]
 
 
 @pytest_asyncio.fixture(scope="function")
