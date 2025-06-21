@@ -454,6 +454,8 @@
       
         
       
+        
+      
     
     
       
@@ -563,36 +565,45 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#2-adding-models" class="md-nav__link">
+  <a href="#2-session-backends" class="md-nav__link">
     <span class="md-ellipsis">
-      2. Adding Models
+      2. Session Backends
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#3-managing-admin-users" class="md-nav__link">
+  <a href="#3-adding-models" class="md-nav__link">
     <span class="md-ellipsis">
-      3. Managing Admin Users
+      3. Adding Models
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#4-using-the-interface" class="md-nav__link">
+  <a href="#4-managing-admin-users" class="md-nav__link">
     <span class="md-ellipsis">
-      4. Using the Interface
+      4. Managing Admin Users
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#5-common-patterns" class="md-nav__link">
+  <a href="#5-using-the-interface" class="md-nav__link">
     <span class="md-ellipsis">
-      5. Common Patterns
+      5. Using the Interface
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-common-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      6. Common Patterns
     </span>
   </a>
   
@@ -642,6 +653,28 @@
   
   <span class="md-ellipsis">
     Basic Configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../session-backends/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Session Backends
     
   </span>
   
@@ -1201,36 +1234,45 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#2-adding-models" class="md-nav__link">
+  <a href="#2-session-backends" class="md-nav__link">
     <span class="md-ellipsis">
-      2. Adding Models
+      2. Session Backends
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#3-managing-admin-users" class="md-nav__link">
+  <a href="#3-adding-models" class="md-nav__link">
     <span class="md-ellipsis">
-      3. Managing Admin Users
+      3. Adding Models
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#4-using-the-interface" class="md-nav__link">
+  <a href="#4-managing-admin-users" class="md-nav__link">
     <span class="md-ellipsis">
-      4. Using the Interface
+      4. Managing Admin Users
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#5-common-patterns" class="md-nav__link">
+  <a href="#5-using-the-interface" class="md-nav__link">
     <span class="md-ellipsis">
-      5. Common Patterns
+      5. Using the Interface
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-common-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      6. Common Patterns
     </span>
   </a>
   
@@ -1285,12 +1327,21 @@
 <p>Learn how to set up and configure your CRUDAdmin instance for different environments.</p>
 <ul>
 <li><strong>Creating your first admin interface</strong> with essential settings</li>
-<li><strong>Session backend configuration</strong> (Memory, Redis, Memcached, Database, Hybrid)</li>
 <li><strong>Security settings</strong> for authentication and access control</li>
 <li><strong>Environment-based configuration</strong> for development vs production</li>
 <li><strong>FastAPI integration</strong> patterns and best practices</li>
 </ul>
-<h3 id="2-adding-models">2. <a href="../adding-models/">Adding Models</a><a class="headerlink" href="#2-adding-models" title="Permanent link">&para;</a></h3>
+<h3 id="2-session-backends">2. <a href="../session-backends/">Session Backends</a><a class="headerlink" href="#2-session-backends" title="Permanent link">&para;</a></h3>
+<p>Master session management with flexible backend options for optimal performance.</p>
+<ul>
+<li><strong>Memory sessions</strong> for development and testing</li>
+<li><strong>Redis sessions</strong> for production and high-traffic applications</li>
+<li><strong>Memcached sessions</strong> for high-performance caching</li>
+<li><strong>Database sessions</strong> for audit trails and compliance</li>
+<li><strong>Hybrid sessions</strong> combining performance with auditability</li>
+<li><strong>Dynamic backend switching</strong> and environment-based configuration</li>
+</ul>
+<h3 id="3-adding-models">3. <a href="../adding-models/">Adding Models</a><a class="headerlink" href="#3-adding-models" title="Permanent link">&para;</a></h3>
 <p>Master the core functionality of registering your SQLAlchemy models with CRUDAdmin.</p>
 <ul>
 <li><strong>Model registration</strong> with create, update, and read schemas</li>
@@ -1299,7 +1350,7 @@
 <li><strong>Advanced schema configuration</strong> for different operations</li>
 <li><strong>Real-world examples</strong> and troubleshooting tips</li>
 </ul>
-<h3 id="3-managing-admin-users">3. <a href="../admin-users/">Managing Admin Users</a><a class="headerlink" href="#3-managing-admin-users" title="Permanent link">&para;</a></h3>
+<h3 id="4-managing-admin-users">4. <a href="../admin-users/">Managing Admin Users</a><a class="headerlink" href="#4-managing-admin-users" title="Permanent link">&para;</a></h3>
 <p>Set up authentication and manage who can access your admin interface.</p>
 <ul>
 <li><strong>Creating admin users</strong> and managing credentials</li>
@@ -1307,7 +1358,7 @@
 <li><strong>User roles and permissions</strong> (if applicable)</li>
 <li><strong>Security best practices</strong> for admin access</li>
 </ul>
-<h3 id="4-using-the-interface">4. <a href="../interface/">Using the Interface</a><a class="headerlink" href="#4-using-the-interface" title="Permanent link">&para;</a></h3>
+<h3 id="5-using-the-interface">5. <a href="../interface/">Using the Interface</a><a class="headerlink" href="#5-using-the-interface" title="Permanent link">&para;</a></h3>
 <p>Navigate and operate the admin interface effectively for daily tasks.</p>
 <ul>
 <li><strong>Dashboard navigation</strong> and understanding the layout</li>
@@ -1316,7 +1367,7 @@
 <li><strong>Bulk operations</strong> for managing multiple records</li>
 <li><strong>Form handling</strong> and validation</li>
 </ul>
-<h3 id="5-common-patterns">5. <a href="../common-patterns/">Common Patterns</a><a class="headerlink" href="#5-common-patterns" title="Permanent link">&para;</a></h3>
+<h3 id="6-common-patterns">6. <a href="../common-patterns/">Common Patterns</a><a class="headerlink" href="#6-common-patterns" title="Permanent link">&para;</a></h3>
 <p>Real-world usage patterns and scenarios you'll encounter in practice.</p>
 <ul>
 <li><strong>Multi-model relationships</strong> (blog systems, e-commerce catalogs)</li>
@@ -1337,6 +1388,7 @@
 <p>Need to jump to a specific topic? Here are the most commonly accessed sections:</p>
 <ul>
 <li><strong><a href="../configuration/#basic-example">Quick setup example</a></strong> - Get running in 5 minutes</li>
+<li><strong><a href="../session-backends/#redis-sessions">Session backends</a></strong> - Configure Redis for production</li>
 <li><strong><a href="../adding-models/#basic-model-registration">Adding your first model</a></strong> - Register a model and start managing data</li>
 <li><strong><a href="../interface/#search-and-filtering">Search and filtering</a></strong> - Find records quickly</li>
 <li><strong><a href="../common-patterns/#performance-optimization-patterns">Performance tips</a></strong> - Optimize for large datasets</li>
