@@ -3,6 +3,7 @@
 import pytest
 
 from crudadmin import CRUDAdmin
+from crudadmin.session import backends as session_backends
 from tests.crud.test_admin import create_test_db_config
 
 
@@ -25,17 +26,23 @@ class TestRedisSessionParameters:
         try:
             # Test basic URL
             admin.use_redis_sessions(redis_url="redis://localhost:6379/0")
-            assert "RedisSessionStorage" in str(type(admin.session_manager.storage))
+            assert isinstance(
+                admin.session_manager.storage, session_backends.RedisSessionStorage
+            )
 
             # Test URL with password
             admin.use_redis_sessions(redis_url="redis://user:pass@localhost:6379/1")
-            assert "RedisSessionStorage" in str(type(admin.session_manager.storage))
+            assert isinstance(
+                admin.session_manager.storage, session_backends.RedisSessionStorage
+            )
 
             # Test complex URL
             admin.use_redis_sessions(
                 redis_url="redis://admin:secret123@redis.example.com:6380/2"
             )
-            assert "RedisSessionStorage" in str(type(admin.session_manager.storage))
+            assert isinstance(
+                admin.session_manager.storage, session_backends.RedisSessionStorage
+            )
 
         except ImportError:
             pytest.skip("Redis not available")
@@ -56,23 +63,33 @@ class TestRedisSessionParameters:
         try:
             # Test basic parameters
             admin.use_redis_sessions(host="localhost", port=6379, db=0)
-            assert "RedisSessionStorage" in str(type(admin.session_manager.storage))
+            assert isinstance(
+                admin.session_manager.storage, session_backends.RedisSessionStorage
+            )
 
             # Test with password
             admin.use_redis_sessions(
                 host="localhost", port=6379, db=1, password="secret"
             )
-            assert "RedisSessionStorage" in str(type(admin.session_manager.storage))
+            assert isinstance(
+                admin.session_manager.storage, session_backends.RedisSessionStorage
+            )
 
             # Test partial parameters (others should use defaults)
             admin.use_redis_sessions(host="custom-host")
-            assert "RedisSessionStorage" in str(type(admin.session_manager.storage))
+            assert isinstance(
+                admin.session_manager.storage, session_backends.RedisSessionStorage
+            )
 
             admin.use_redis_sessions(port=6380)
-            assert "RedisSessionStorage" in str(type(admin.session_manager.storage))
+            assert isinstance(
+                admin.session_manager.storage, session_backends.RedisSessionStorage
+            )
 
             admin.use_redis_sessions(db=3)
-            assert "RedisSessionStorage" in str(type(admin.session_manager.storage))
+            assert isinstance(
+                admin.session_manager.storage, session_backends.RedisSessionStorage
+            )
 
         except ImportError:
             pytest.skip("Redis not available")
@@ -92,7 +109,9 @@ class TestRedisSessionParameters:
 
         try:
             admin.use_redis_sessions()
-            assert "RedisSessionStorage" in str(type(admin.session_manager.storage))
+            assert isinstance(
+                admin.session_manager.storage, session_backends.RedisSessionStorage
+            )
         except ImportError:
             pytest.skip("Redis not available")
 
@@ -172,13 +191,18 @@ class TestRedisSessionParameters:
             admin.use_redis_sessions(
                 redis_url="redis://localhost:6379/0", pool_size=20, connect_timeout=10
             )
-            assert "RedisSessionStorage" in str(type(admin.session_manager.storage))
+
+            assert isinstance(
+                admin.session_manager.storage, session_backends.RedisSessionStorage
+            )
 
             # Test with additional parameters via individual params
             admin.use_redis_sessions(
                 host="localhost", port=6379, db=0, pool_size=15, connect_timeout=5
             )
-            assert "RedisSessionStorage" in str(type(admin.session_manager.storage))
+            assert isinstance(
+                admin.session_manager.storage, session_backends.RedisSessionStorage
+            )
 
         except ImportError:
             pytest.skip("Redis not available")
@@ -384,15 +408,21 @@ class TestMemcachedSessionParameters:
         try:
             # Test single server
             admin.use_memcached_sessions(servers=["localhost:11211"])
-            assert "MemcachedSessionStorage" in str(type(admin.session_manager.storage))
+            assert isinstance(
+                admin.session_manager.storage, session_backends.MemcachedSessionStorage
+            )
 
             # Test multiple servers
             admin.use_memcached_sessions(servers=["localhost:11211", "server2:11211"])
-            assert "MemcachedSessionStorage" in str(type(admin.session_manager.storage))
+            assert isinstance(
+                admin.session_manager.storage, session_backends.MemcachedSessionStorage
+            )
 
             # Test custom ports
             admin.use_memcached_sessions(servers=["localhost:11212", "server2:11213"])
-            assert "MemcachedSessionStorage" in str(type(admin.session_manager.storage))
+            assert isinstance(
+                admin.session_manager.storage, session_backends.MemcachedSessionStorage
+            )
 
         except ImportError:
             pytest.skip("Memcached not available")
@@ -413,22 +443,32 @@ class TestMemcachedSessionParameters:
         try:
             # Test basic parameters
             admin.use_memcached_sessions(host="localhost", port=11211)
-            assert "MemcachedSessionStorage" in str(type(admin.session_manager.storage))
+            assert isinstance(
+                admin.session_manager.storage, session_backends.MemcachedSessionStorage
+            )
 
             # Test custom host
             admin.use_memcached_sessions(host="memcached.example.com", port=11211)
-            assert "MemcachedSessionStorage" in str(type(admin.session_manager.storage))
+            assert isinstance(
+                admin.session_manager.storage, session_backends.MemcachedSessionStorage
+            )
 
             # Test custom port
             admin.use_memcached_sessions(host="localhost", port=11212)
-            assert "MemcachedSessionStorage" in str(type(admin.session_manager.storage))
+            assert isinstance(
+                admin.session_manager.storage, session_backends.MemcachedSessionStorage
+            )
 
             # Test partial parameters
             admin.use_memcached_sessions(host="custom-host")
-            assert "MemcachedSessionStorage" in str(type(admin.session_manager.storage))
+            assert isinstance(
+                admin.session_manager.storage, session_backends.MemcachedSessionStorage
+            )
 
             admin.use_memcached_sessions(port=11213)
-            assert "MemcachedSessionStorage" in str(type(admin.session_manager.storage))
+            assert isinstance(
+                admin.session_manager.storage, session_backends.MemcachedSessionStorage
+            )
 
         except ImportError:
             pytest.skip("Memcached not available")
@@ -448,7 +488,9 @@ class TestMemcachedSessionParameters:
 
         try:
             admin.use_memcached_sessions()
-            assert "MemcachedSessionStorage" in str(type(admin.session_manager.storage))
+            assert isinstance(
+                admin.session_manager.storage, session_backends.MemcachedSessionStorage
+            )
         except ImportError:
             pytest.skip("Memcached not available")
 
@@ -510,11 +552,15 @@ class TestMemcachedSessionParameters:
         try:
             # Test with additional parameters via servers
             admin.use_memcached_sessions(servers=["localhost:11211"], pool_size=20)
-            assert "MemcachedSessionStorage" in str(type(admin.session_manager.storage))
+            assert isinstance(
+                admin.session_manager.storage, session_backends.MemcachedSessionStorage
+            )
 
             # Test with additional parameters via individual params
             admin.use_memcached_sessions(host="localhost", port=11211, pool_size=15)
-            assert "MemcachedSessionStorage" in str(type(admin.session_manager.storage))
+            assert isinstance(
+                admin.session_manager.storage, session_backends.MemcachedSessionStorage
+            )
 
         except ImportError:
             pytest.skip("Memcached not available")
@@ -602,20 +648,27 @@ class TestSessionManagerRecreation:
         # Switch to database sessions
         admin.use_database_sessions()
         assert admin.track_sessions_in_db is True
-        assert "DatabaseSessionStorage" in str(type(admin.session_manager.storage))
+        assert isinstance(
+            admin.session_manager.storage, session_backends.DatabaseSessionStorage
+        )
 
         # Switch to memory sessions (should reset flag)
         admin.use_memory_sessions()
         assert admin.track_sessions_in_db is False
-        assert "MemorySessionStorage" in str(type(admin.session_manager.storage))
+        assert isinstance(
+            admin.session_manager.storage, session_backends.MemorySessionStorage
+        )
 
         # Switch to Redis with explicit tracking
         try:
             admin.use_redis_sessions(host="localhost", track_sessions_in_db=True)
             assert admin.track_sessions_in_db is True
             # Should be HybridSessionStorage when Redis + DB tracking
-            storage_name = type(admin.session_manager.storage).__name__
-            assert storage_name in ["HybridSessionStorage", "RedisSessionStorage"]
+            storage_name = type(admin.session_manager.storage)
+            assert storage_name in [
+                session_backends.HybridSessionStorage,
+                session_backends.RedisSessionStorage,
+            ]
         except ImportError:
             pytest.skip("Redis not available")
 
@@ -639,7 +692,9 @@ class TestBackwardCompatibility:
         try:
             # Old way should still work
             admin.use_redis_sessions("redis://localhost:6379/0")
-            assert "RedisSessionStorage" in str(type(admin.session_manager.storage))
+            assert isinstance(
+                admin.session_manager.storage, session_backends.RedisSessionStorage
+            )
         except ImportError:
             pytest.skip("Redis not available")
 
@@ -659,7 +714,9 @@ class TestBackwardCompatibility:
         try:
             # Old way should still work
             admin.use_memcached_sessions(["localhost:11211"])
-            assert "MemcachedSessionStorage" in str(type(admin.session_manager.storage))
+            assert isinstance(
+                admin.session_manager.storage, session_backends.MemcachedSessionStorage
+            )
         except ImportError:
             pytest.skip("Memcached not available")
 
