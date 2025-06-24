@@ -158,7 +158,7 @@ admin = CRUDAdmin(session=get_session, SECRET_KEY="key")  # Memory backend (defa
 
 ### Production with Redis
 ```python
-from crudadmin.session.configs import RedisConfig
+from crudadmin import CRUDAdmin, RedisConfig
 
 # Using configuration object (recommended)
 redis_config = RedisConfig(host="localhost", port=6379, db=0)
@@ -189,7 +189,7 @@ admin = CRUDAdmin(
 
 ### Production with Security Features
 ```python
-from crudadmin.session.configs import RedisConfig
+from crudadmin import CRUDAdmin, RedisConfig
 
 # Configure Redis backend
 redis_config = RedisConfig(

@@ -505,7 +505,7 @@ from ecommerce_schemas import (
 )
 
 # Configure for e-commerce scale
-from crudadmin.session.configs import RedisConfig
+from crudadmin import CRUDAdmin, RedisConfig
 
 redis_config = RedisConfig(url="redis://localhost:6379")
 crud_admin = CRUDAdmin(
@@ -953,7 +953,7 @@ class AdminConfig:
 
 # Use in setup
 def setup_admin():
-    from crudadmin.session.configs import RedisConfig
+    from crudadmin import CRUDAdmin, RedisConfig
     
     config = AdminConfig()
     
@@ -991,7 +991,7 @@ from crudadmin import CRUDAdmin
 import os
 
 # Production security configuration with built-in IP restrictions
-from crudadmin.session.configs import RedisConfig
+from crudadmin import CRUDAdmin, RedisConfig
 
 redis_config = RedisConfig(url=os.getenv("REDIS_URL"))
 

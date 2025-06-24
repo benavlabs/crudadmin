@@ -232,7 +232,7 @@ app.mount("/admin", admin.app)
 ### Production Configuration with Security
 
 ```python
-from crudadmin.session.configs import RedisConfig
+from crudadmin import CRUDAdmin, RedisConfig
 
 # Configure Redis backend
 redis_config = RedisConfig(url="redis://localhost:6379")
@@ -295,7 +295,7 @@ admin.add_view(
 ### Session Backend Configuration
 
 ```python
-from crudadmin.session.configs import RedisConfig, MemcachedConfig
+from crudadmin import CRUDAdmin, RedisConfig, MemcachedConfig
 
 # Redis Sessions (Recommended for Production)
 redis_config = RedisConfig(
