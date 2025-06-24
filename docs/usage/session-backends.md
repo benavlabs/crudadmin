@@ -84,7 +84,7 @@ pip install "crudadmin[redis]"
 ### Basic Configuration
 
 ```python
-from crudadmin.session.configs import RedisConfig
+from crudadmin import CRUDAdmin, RedisConfig
 
 # Method 1: Using configuration object (recommended)
 redis_config = RedisConfig(host="localhost", port=6379, db=0)
@@ -116,7 +116,7 @@ admin = CRUDAdmin(
 ### Redis with Authentication
 
 ```python
-from crudadmin.session.configs import RedisConfig
+from crudadmin import CRUDAdmin, RedisConfig
 
 # URL with password
 redis_config = RedisConfig(url="redis://user:password@localhost:6379/1")
@@ -160,7 +160,7 @@ admin = CRUDAdmin(
 
 ```python
 import os
-from crudadmin.session.configs import RedisConfig
+from crudadmin import CRUDAdmin, RedisConfig
 
 # Environment-based configuration
 redis_config = RedisConfig(
@@ -183,7 +183,7 @@ admin = CRUDAdmin(
 ### Advanced Redis Parameters
 
 ```python
-from crudadmin.session.configs import RedisConfig
+from crudadmin import RedisConfig
 
 # Full configuration with all options
 redis_config = RedisConfig(
@@ -219,8 +219,7 @@ admin = CRUDAdmin(
 For comprehensive Redis configuration:
 
 ```python
-from crudadmin import CRUDAdmin
-from crudadmin.session.configs import RedisConfig
+from crudadmin import CRUDAdmin, RedisConfig
 
 # Basic configuration
 redis_config = RedisConfig(
@@ -273,8 +272,7 @@ admin = CRUDAdmin(
 Redis URLs support the standard format including usernames through RedisConfig:
 
 ```python
-from crudadmin import CRUDAdmin
-from crudadmin.session.configs import RedisConfig
+from crudadmin import CRUDAdmin, RedisConfig
 
 # Basic Redis URL
 redis_config = RedisConfig(url="redis://localhost:6379/0")
@@ -323,7 +321,7 @@ Redis supports two authentication methods:
 
 1. **Legacy AUTH (Redis < 6.0)**: Uses only password
    ```python
-   from crudadmin.session.configs import RedisConfig
+   from crudadmin import CRUDAdmin, RedisConfig
    
    # URL format
    redis_config = RedisConfig(url="redis://:password@localhost:6379/0")
@@ -346,7 +344,7 @@ Redis supports two authentication methods:
 
 2. **ACL Authentication (Redis 6.0+)**: Uses username and password
    ```python
-   from crudadmin.session.configs import RedisConfig
+   from crudadmin import CRUDAdmin, RedisConfig
    
    # URL format
    redis_config = RedisConfig(url="redis://username:password@localhost:6379/0")
@@ -388,7 +386,7 @@ pip install "crudadmin[memcached]"
 ### Basic Configuration
 
 ```python
-from crudadmin.session.configs import MemcachedConfig
+from crudadmin import CRUDAdmin, MemcachedConfig
 
 # Method 1: Server list
 memcached_config = MemcachedConfig(servers=["localhost:11211"])
@@ -417,7 +415,7 @@ admin = CRUDAdmin(
 ### Multiple Servers
 
 ```python
-from crudadmin.session.configs import MemcachedConfig
+from crudadmin import CRUDAdmin, MemcachedConfig
 
 # Multiple servers (first server used due to aiomcache limitations)
 memcached_config = MemcachedConfig(servers=[
@@ -435,7 +433,7 @@ admin = CRUDAdmin(
 
 ```python
 import os
-from crudadmin.session.configs import MemcachedConfig
+from crudadmin import CRUDAdmin, MemcachedConfig
 
 # Environment-based configuration
 memcached_config = MemcachedConfig(
@@ -501,7 +499,7 @@ Combine the performance of Redis/Memcached with the audit capabilities of databa
 ### Redis + Database Hybrid
 
 ```python
-from crudadmin.session.configs import RedisConfig
+from crudadmin import CRUDAdmin, RedisConfig
 
 # Redis for performance + Database for audit trail
 redis_config = RedisConfig(
@@ -523,7 +521,7 @@ admin = CRUDAdmin(
 ### Memcached + Database Hybrid
 
 ```python
-from crudadmin.session.configs import MemcachedConfig
+from crudadmin import CRUDAdmin, MemcachedConfig
 
 # Memcached for performance + Database for audit trail
 memcached_config = MemcachedConfig(
@@ -563,7 +561,7 @@ admin = CRUDAdmin(
 
 ```python
 import os
-from crudadmin.session.configs import RedisConfig
+from crudadmin import CRUDAdmin, RedisConfig
 
 # Configure backend based on environment
 environment = os.getenv("ENVIRONMENT", "development")
@@ -608,6 +606,8 @@ else:
 ### Simple Development Setup
 
 ```python
+from crudadmin import CRUDAdmin
+
 # No external dependencies required
 admin = CRUDAdmin(
     session=get_session,
@@ -620,7 +620,7 @@ admin = CRUDAdmin(
 
 ```python
 import os
-from crudadmin.session.configs import RedisConfig
+from crudadmin import CRUDAdmin, RedisConfig
 
 redis_config = RedisConfig(
     host=os.environ["REDIS_HOST"],
@@ -643,7 +643,7 @@ admin = CRUDAdmin(
 
 ```python
 import os
-from crudadmin.session.configs import RedisConfig
+from crudadmin import CRUDAdmin, RedisConfig
 
 # Redis cluster with connection pooling
 redis_config = RedisConfig(
@@ -697,7 +697,7 @@ volumes:
 CRUDAdmin configuration objects include comprehensive validation:
 
 ```python
-from crudadmin.session.configs import RedisConfig, MemcachedConfig
+from crudadmin import RedisConfig, MemcachedConfig
 
 # ✅ URL takes precedence when both URL and individual params are set
 redis_config = RedisConfig(
@@ -731,7 +731,7 @@ except ValueError as e:
 ### Error Handling
 
 ```python
-from crudadmin.session.configs import RedisConfig
+from crudadmin import CRUDAdmin, RedisConfig
 
 try:
     redis_config = RedisConfig(
@@ -771,6 +771,8 @@ except ConnectionError:
 ### Session Cleanup
 
 ```python
+from crudadmin import CRUDAdmin
+
 # Configure automatic cleanup
 admin = CRUDAdmin(
     session=get_session,
@@ -783,7 +785,7 @@ admin = CRUDAdmin(
 ### Connection Pooling
 
 ```python
-from crudadmin.session.configs import RedisConfig
+from crudadmin import CRUDAdmin, RedisConfig
 
 # Redis with optimized connection pooling
 redis_config = RedisConfig(
@@ -804,6 +806,8 @@ admin = CRUDAdmin(
 ### Session Limits
 
 ```python
+from crudadmin import CRUDAdmin
+
 # Prevent memory exhaustion
 admin = CRUDAdmin(
     session=get_session,
@@ -881,7 +885,7 @@ Then use them in your configuration:
 
 ```python
 import os
-from crudadmin.session.configs import RedisConfig
+from crudadmin import CRUDAdmin, RedisConfig
 
 # Create configuration from environment variables
 redis_config = RedisConfig(
