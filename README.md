@@ -28,6 +28,9 @@
 
 **Documentation**: [https://benavlabs.github.io/crudadmin/](https://benavlabs.github.io/crudadmin/)
 
+> \[!IMPORTANT\]  
+> **v0.4.0 Breaking Changes**: Session backend configuration has been completely redesigned. The old method-based API (`admin.use_redis_sessions()`, etc.) has been removed in favor of a cleaner constructor-based approach. **Existing code will need updates.** See the [v0.4.0 release notes](https://github.com/benavlabs/crudadmin/releases) for migration guide and examples.
+
 > \[!WARNING\]  
 > CRUDAdmin is still experimental. While actively developed and tested, APIs may change between versions. Upgrade with caution in production environments, always carefully reading the changelog.
 
