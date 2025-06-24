@@ -232,9 +232,22 @@ app.mount("/admin", admin.app)
 ### Production Configuration with Security
 
 ```python
+from crudadmin.session.configs import RedisConfig
+
+# Configure Redis backend
+redis_config = RedisConfig(url="redis://localhost:6379")
+
 admin = CRUDAdmin(
     session=get_session,
     SECRET_KEY=os.environ["ADMIN_SECRET_KEY"],
+    
+    # Session backend
+    session_backend="redis",
+    redis_config=redis_config,
+    
+    # Session management settings
+    max_sessions_per_user=3,
+    session_timeout_minutes=15,
     
     # Security features
     allowed_ips=["10.0.0.1"],
@@ -242,17 +255,10 @@ admin = CRUDAdmin(
     secure_cookies=True,
     enforce_https=True,
     
-    # Session management
-    max_sessions_per_user=3,
-    session_timeout_minutes=15,
-    
     # Event tracking
     track_events=True,
     track_sessions_in_db=True,
     admin_db_url="postgresql+asyncpg://user:pass@localhost/admin"
-    
-).use_redis_sessions(
-    redis_url="redis://localhost:6379"
 )
 ```
 
@@ -289,24 +295,37 @@ admin.add_view(
 ### Session Backend Configuration
 
 ```python
+from crudadmin.session.configs import RedisConfig, MemcachedConfig
+
 # Redis Sessions (Recommended for Production)
-admin.use_redis_sessions(
-    redis_url="redis://localhost:6379",
+redis_config = RedisConfig(
+    url="redis://localhost:6379",
     password="redis-password"
 )
-
-# Memcached Sessions
-admin.use_memcached_sessions(
-    servers=["localhost:11211"]
-)
-
-# Hybrid Sessions (Redis + Database)
 admin = CRUDAdmin(
     session=get_session,
     SECRET_KEY=SECRET_KEY,
+    session_backend="redis",
+    redis_config=redis_config
+)
+
+# Memcached Sessions
+memcached_config = MemcachedConfig(servers=["localhost:11211"])
+admin = CRUDAdmin(
+    session=get_session,
+    SECRET_KEY=SECRET_KEY,
+    session_backend="memcached",
+    memcached_config=memcached_config
+)
+
+# Hybrid Sessions (Redis + Database)
+redis_config = RedisConfig(url="redis://localhost:6379")
+admin = CRUDAdmin(
+    session=get_session,
+    SECRET_KEY=SECRET_KEY,
+    session_backend="redis",
+    redis_config=redis_config,
     track_sessions_in_db=True
-).use_redis_sessions(
-    redis_url="redis://localhost:6379"
 )
 ```
 

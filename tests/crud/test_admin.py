@@ -505,32 +505,36 @@ async def test_crud_admin_error_handling_invalid_session(async_session):
 
 
 @pytest.mark.asyncio
-async def test_crud_admin_session_backend_switching(async_session):
-    """Test that session backend methods work after initialization."""
+async def test_crud_admin_session_backend_configuration(async_session):
+    """Test that different session backends can be configured via constructor."""
     secret_key = "test-secret-key-for-testing-only-32-chars"
     db_config = create_test_db_config(async_session)
 
-    admin = CRUDAdmin(
+    # Test memory backend (default)
+    admin_memory = CRUDAdmin(
         session=async_session,
         SECRET_KEY=secret_key,
         db_config=db_config,
         setup_on_initialization=False,
     )
+    assert "MemorySessionStorage" in str(type(admin_memory.session_manager.storage))
 
-    # Test initial memory backend
-    assert "MemorySessionStorage" in str(type(admin.session_manager.storage))
+    # Test database backend
+    admin_db = CRUDAdmin(
+        session=async_session,
+        SECRET_KEY=secret_key,
+        db_config=db_config,
+        setup_on_initialization=False,
+        session_backend="database",
+    )
+    assert "DatabaseSessionStorage" in str(type(admin_db.session_manager.storage))
+    assert admin_db.track_sessions_in_db is True
 
-    # Test switching to database backend
-    admin.use_database_sessions()
-    assert "DatabaseSessionStorage" in str(type(admin.session_manager.storage))
-    assert admin.track_sessions_in_db is True
+    # Test Redis URL parsing with new config objects
+    from crudadmin.session.configs import RedisConfig
 
-    # Test switching back to memory
-    admin.use_memory_sessions()
-    assert "MemorySessionStorage" in str(type(admin.session_manager.storage))
-
-    # Test Redis URL parsing
-    parsed = admin._parse_redis_url("redis://user:pass@localhost:6379/2")
+    redis_config = RedisConfig(url="redis://user:pass@localhost:6379/2")
+    parsed = redis_config.to_dict()
     expected = {
         "host": "localhost",
         "port": 6379,
@@ -541,7 +545,8 @@ async def test_crud_admin_session_backend_switching(async_session):
     assert parsed == expected
 
     # Test Redis URL parsing with defaults
-    parsed_simple = admin._parse_redis_url("redis://localhost")
+    redis_config_simple = RedisConfig(url="redis://localhost")
+    parsed_simple = redis_config_simple.to_dict()
     expected_simple = {
         "host": "localhost",
         "port": 6379,
@@ -549,10 +554,18 @@ async def test_crud_admin_session_backend_switching(async_session):
     }
     assert parsed_simple == expected_simple
 
-    # Test Redis backend switching (if redis is available)
+    # Test Redis backend configuration (if redis is available)
     try:
-        admin.use_redis_sessions(redis_url="redis://localhost:6379/0")
-        storage_type_name = type(admin.session_manager.storage).__name__
+        redis_config = RedisConfig(url="redis://localhost:6379/0")
+        admin_redis = CRUDAdmin(
+            session=async_session,
+            SECRET_KEY=secret_key,
+            db_config=db_config,
+            setup_on_initialization=False,
+            session_backend="redis",
+            redis_config=redis_config,
+        )
+        storage_type_name = type(admin_redis.session_manager.storage).__name__
         assert storage_type_name == "RedisSessionStorage"
     except ImportError:
         # Redis not available, which is fine for tests
@@ -561,35 +574,45 @@ async def test_crud_admin_session_backend_switching(async_session):
 
 @pytest.mark.asyncio
 async def test_crud_admin_backend_parameter_validation(async_session):
-    """Test parameter validation for session backend methods."""
+    """Test parameter validation for session backend constructor parameters."""
     secret_key = "test-secret-key-for-testing-only-32-chars"
     db_config = create_test_db_config(async_session)
 
-    admin = CRUDAdmin(
-        session=async_session,
-        SECRET_KEY=secret_key,
-        db_config=db_config,
-        setup_on_initialization=False,
-    )
-
     # Test Redis parameter validation
     try:
+        from crudadmin.session.configs import MemcachedConfig, RedisConfig
+
         # Test individual parameters work
-        admin.use_redis_sessions(host="localhost", port=6379, db=1)
-        storage_type_name = type(admin.session_manager.storage).__name__
+        redis_config = RedisConfig(host="localhost", port=6379, db=1)
+        admin_redis_individual = CRUDAdmin(
+            session=async_session,
+            SECRET_KEY=secret_key,
+            db_config=db_config,
+            setup_on_initialization=False,
+            session_backend="redis",
+            redis_config=redis_config,
+        )
+        storage_type_name = type(
+            admin_redis_individual.session_manager.storage
+        ).__name__
         assert storage_type_name == "RedisSessionStorage"
 
         # Test defaults work
-        admin.use_redis_sessions()
-        assert type(admin.session_manager.storage).__name__ == "RedisSessionStorage"
+        admin_redis_defaults = CRUDAdmin(
+            session=async_session,
+            SECRET_KEY=secret_key,
+            db_config=db_config,
+            setup_on_initialization=False,
+            session_backend="redis",
+        )
+        assert (
+            type(admin_redis_defaults.session_manager.storage).__name__
+            == "RedisSessionStorage"
+        )
 
-        # Test conflict detection
-        with pytest.raises(
-            ValueError, match="Cannot specify both redis_url and individual parameters"
-        ):
-            admin.use_redis_sessions(
-                redis_url="redis://localhost:6379", host="localhost"
-            )
+        # Test validation works
+        with pytest.raises(ValueError):
+            RedisConfig(port=70000)  # Invalid port range
 
     except ImportError:
         # Redis not available, skip Redis tests
@@ -598,19 +621,36 @@ async def test_crud_admin_backend_parameter_validation(async_session):
     # Test Memcached parameter validation
     try:
         # Test individual parameters work
-        admin.use_memcached_sessions(host="localhost", port=11211)
-        storage_type_name = type(admin.session_manager.storage).__name__
+        memcached_config = MemcachedConfig(host="localhost", port=11211)
+        admin_memcached_individual = CRUDAdmin(
+            session=async_session,
+            SECRET_KEY=secret_key,
+            db_config=db_config,
+            setup_on_initialization=False,
+            session_backend="memcached",
+            memcached_config=memcached_config,
+        )
+        storage_type_name = type(
+            admin_memcached_individual.session_manager.storage
+        ).__name__
         assert storage_type_name == "MemcachedSessionStorage"
 
         # Test defaults work
-        admin.use_memcached_sessions()
-        assert type(admin.session_manager.storage).__name__ == "MemcachedSessionStorage"
+        admin_memcached_defaults = CRUDAdmin(
+            session=async_session,
+            SECRET_KEY=secret_key,
+            db_config=db_config,
+            setup_on_initialization=False,
+            session_backend="memcached",
+        )
+        assert (
+            type(admin_memcached_defaults.session_manager.storage).__name__
+            == "MemcachedSessionStorage"
+        )
 
-        # Test conflict detection
-        with pytest.raises(
-            ValueError, match="Cannot specify both servers and individual parameters"
-        ):
-            admin.use_memcached_sessions(servers=["localhost:11211"], host="localhost")
+        # Test validation works
+        with pytest.raises(ValueError):
+            MemcachedConfig(port=70000)  # Invalid port range
 
     except ImportError:
         # Memcached not available, skip Memcached tests

@@ -1,22 +1,27 @@
 import hashlib
 import json
 import logging
-from typing import Optional, TypeVar
-
-try:
-    from aiomcache import Client as MemcachedClient
-except ImportError:
-    raise ImportError(
-        "The aiomcache package is not installed. "
-        "Please install it with 'pip install aiomcache'"
-    ) from None
+from typing import TYPE_CHECKING, Optional, TypeVar
 
 from pydantic import BaseModel
 
 from ..storage import AbstractSessionStorage
 
+if TYPE_CHECKING:
+    import aiomcache
+
 T = TypeVar("T", bound=BaseModel)
 logger = logging.getLogger(__name__)
+
+try:
+    import aiomcache
+
+    MemcachedClient = aiomcache.Client
+    MEMCACHED_AVAILABLE = True
+except ImportError:
+    aiomcache = None  # type: ignore
+    MemcachedClient = None  # type: ignore
+    MEMCACHED_AVAILABLE = False
 
 
 class MemcachedSessionStorage(AbstractSessionStorage[T]):
@@ -37,15 +42,17 @@ class MemcachedSessionStorage(AbstractSessionStorage[T]):
             expiration: Default session expiration in seconds
             host: Memcached host
             port: Memcached port
-            pool_size: Memcached connection pool size
+            pool_size: Connection pool size
         """
+        if not MEMCACHED_AVAILABLE:
+            raise ImportError(
+                "The aiomcache package is not installed. "
+                "Please install it with 'pip install aiomcache' to use MemcachedSessionStorage."
+            )
+
         super().__init__(prefix=prefix, expiration=expiration)
 
-        self.client = MemcachedClient(
-            host=host,
-            port=port,
-            pool_size=pool_size,
-        )
+        self.client = aiomcache.Client(host, port, pool_size=pool_size)
 
         self.user_sessions_prefix = f"{prefix}user:"
 

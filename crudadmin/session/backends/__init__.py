@@ -2,9 +2,33 @@
 
 from .database import DatabaseSessionStorage
 from .hybrid import HybridSessionStorage
-from .memcached import MemcachedSessionStorage
 from .memory import MemorySessionStorage
-from .redis import RedisSessionStorage
+
+
+def __getattr__(name: str):
+    """Lazy loading for optional session backends."""
+    if name == "MemcachedSessionStorage":
+        try:
+            from .memcached import MemcachedSessionStorage
+
+            return MemcachedSessionStorage
+        except ImportError as e:
+            raise ImportError(
+                "MemcachedSessionStorage requires 'aiomcache' package. "
+                "Install with: pip install 'crudadmin[memcached]'"
+            ) from e
+    elif name == "RedisSessionStorage":
+        try:
+            from .redis import RedisSessionStorage
+
+            return RedisSessionStorage
+        except ImportError as e:
+            raise ImportError(
+                "RedisSessionStorage requires 'redis' package. "
+                "Install with: pip install 'crudadmin[redis]'"
+            ) from e
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
+
 
 __all__ = (
     "MemorySessionStorage",

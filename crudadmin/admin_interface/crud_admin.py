@@ -42,6 +42,7 @@ from ..admin_user.schemas import (
 from ..admin_user.service import AdminUserService
 from ..core.db import AdminBase, DatabaseConfig
 from ..session import SessionManager
+from ..session.configs import MemcachedConfig, RedisConfig
 from ..session.schemas import SessionData
 from ..session.storage import AbstractSessionStorage, get_session_storage
 from .admin_site import AdminSite
@@ -126,6 +127,9 @@ class CRUDAdmin:
         https_port: HTTPS port for redirects, default 443
         track_events: Enable event logging, default False
         track_sessions_in_db: Enable session tracking in database, default False
+        session_backend: Backend type ("memory", "redis", "memcached", "database")
+        redis_config: Redis configuration (RedisConfig instance, dict, or None)
+        memcached_config: Memcached configuration (MemcachedConfig instance, dict, or None)
 
     Raises:
         ValueError: If mount_path is invalid or theme is unsupported
@@ -212,6 +216,71 @@ class CRUDAdmin:
                 "username": "admin",
                 "password": "very_secure_password_123",
                 "is_superuser": True
+            }
+        )
+        ```
+
+        Session configuration with Redis and Memcached:
+        ```python
+        from crudadmin.session.configs import RedisConfig, MemcachedConfig
+
+        # Redis backend configuration
+        redis_config = RedisConfig(
+            host="redis.example.com",
+            port=6379,
+            db=1,
+            username="redis_user",
+            password="redis_password",
+            pool_size=10,
+            connect_timeout=5
+        )
+
+        admin = CRUDAdmin(
+            session=get_session,
+            SECRET_KEY=SECRET_KEY,
+            session_backend="redis",
+            redis_config=redis_config,
+            # Session management settings
+            max_sessions_per_user=3,
+            session_timeout_minutes=15,
+            cleanup_interval_minutes=5
+        )
+
+        # Or using a Redis URL
+        redis_config = RedisConfig(url="redis://user:pass@redis.example.com:6379/1")
+        admin = CRUDAdmin(
+            session=get_session,
+            SECRET_KEY=SECRET_KEY,
+            session_backend="redis",
+            redis_config=redis_config
+        )
+
+        # Memcached configuration
+        memcached_config = MemcachedConfig(
+            host="memcached.example.com",
+            port=11211,
+            pool_size=5
+        )
+
+        admin = CRUDAdmin(
+            session=get_session,
+            SECRET_KEY=SECRET_KEY,
+            session_backend="memcached",
+            memcached_config=memcached_config
+        )
+
+        # Or using dictionaries (still validated)
+        admin = CRUDAdmin(
+            session=get_session,
+            SECRET_KEY=SECRET_KEY,
+            session_backend="redis",
+            max_sessions_per_user=3,
+            session_timeout_minutes=15,
+            redis_config={
+                "host": "redis.example.com",
+                "port": 6379,
+                "db": 1,
+                "password": "redis_password"
             }
         )
         ```
@@ -317,6 +386,9 @@ class CRUDAdmin:
         https_port: int = 443,
         track_events: bool = False,
         track_sessions_in_db: bool = False,
+        session_backend: str = "memory",
+        redis_config: Optional[Union[RedisConfig, Dict[str, Any]]] = None,
+        memcached_config: Optional[Union[MemcachedConfig, Dict[str, Any]]] = None,
     ) -> None:
         if mount_path == "/":
             self.mount_path = ""
@@ -326,7 +398,10 @@ class CRUDAdmin:
             self.mount_path = "admin"
         self.theme = theme or "dark-theme"
         self.track_events = track_events
-        self.track_sessions_in_db = track_sessions_in_db
+        if session_backend == "database":
+            self.track_sessions_in_db = True
+        else:
+            self.track_sessions_in_db = track_sessions_in_db
 
         self.templates_directory = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "..", "templates"
@@ -386,25 +461,31 @@ class CRUDAdmin:
         )
         self.secure_cookies = secure_cookies
 
-        session_backend = getattr(self, "_session_backend", "memory")
-        backend_kwargs = getattr(self, "_session_backend_kwargs", {})
+        self._session_backend = session_backend
+        self._session_backend_kwargs = self._configure_session_backend(
+            session_backend=session_backend,
+            redis_config=redis_config,
+            memcached_config=memcached_config,
+        )
 
         if self.track_sessions_in_db:
-            if session_backend == "redis":
+            if self._session_backend == "redis":
                 actual_backend = "hybrid"
-                backend_kwargs["db_config"] = self.db_config
+                self._session_backend_kwargs["db_config"] = self.db_config
             else:
                 actual_backend = "database"
-                backend_kwargs["db_config"] = self.db_config
+                self._session_backend_kwargs["db_config"] = self.db_config
         else:
-            actual_backend = session_backend
+            actual_backend = self._session_backend
+            if actual_backend == "database":
+                self._session_backend_kwargs["db_config"] = self.db_config
 
         storage: AbstractSessionStorage[SessionData] = get_session_storage(
             backend=actual_backend,
             model_type=SessionData,
             prefix="session:",
             expiration=session_timeout_minutes * 60,
-            **backend_kwargs,
+            **self._session_backend_kwargs,
         )
 
         self.session_manager = SessionManager(
@@ -1230,326 +1311,56 @@ class CRUDAdmin:
                 )
                 raise
 
-    def use_redis_sessions(
+    def _configure_session_backend(
         self,
-        redis_url: Optional[str] = None,
-        host: Optional[str] = None,
-        port: Optional[int] = None,
-        db: Optional[int] = None,
-        username: Optional[str] = None,
-        password: Optional[str] = None,
-        **kwargs: Any,
-    ) -> "CRUDAdmin":
-        """Configure Redis session backend.
+        session_backend: str,
+        redis_config: Optional[Union[RedisConfig, Dict[str, Any]]] = None,
+        memcached_config: Optional[Union[MemcachedConfig, Dict[str, Any]]] = None,
+    ) -> Dict[str, Any]:
+        """Configure session backend parameters based on constructor arguments.
 
-        You can configure Redis connection using either a URL or individual parameters,
-        but not both.
+        This method handles the logic for configuring different session backends
+        with proper parameter validation and defaults.
 
         Args:
-            redis_url: Redis connection URL (e.g., "redis://user:pass@localhost:6379/0")
-            host: Redis host (default: "localhost")
-            port: Redis port (default: 6379)
-            db: Redis database number (default: 0)
-            username: Redis username for ACL authentication (Redis 6.0+, default: None)
-            password: Redis password (default: None)
-            **kwargs: Additional Redis configuration options (pool_size, connect_timeout, etc.)
+            session_backend: Backend type ("memory", "redis", "memcached", "database")
+            redis_config: Redis configuration object or dictionary
+            memcached_config: Memcached configuration object or dictionary
 
         Returns:
-            Self for method chaining
+            Dictionary of backend configuration parameters
 
         Raises:
-            ValueError: If both redis_url and individual parameters are provided
-
-        Examples:
-            Using URL:
-            ```python
-            admin.use_redis_sessions(redis_url="redis://myuser:mypass@localhost:6379/1")
-            ```
-
-            Using individual parameters:
-            ```python
-            admin.use_redis_sessions(host="localhost", port=6379, db=1, username="myuser", password="secret")
-            ```
+            ValueError: If configuration parameters are invalid
         """
-        self._session_backend = "redis"
+        backend_kwargs = {}
 
-        individual_params = [host, port, db, username, password]
-        has_individual_params = any(param is not None for param in individual_params)
-
-        if redis_url is not None and has_individual_params:
-            raise ValueError(
-                "Cannot specify both redis_url and individual parameters (host, port, db, username, password). "
-                "Use either redis_url='redis://...' OR individual parameters like host='localhost'."
-            )
-
-        if redis_url is not None:
-            parsed_redis_kwargs = self._parse_redis_url(redis_url)
-        elif has_individual_params:
-            parsed_redis_kwargs = {
-                "host": host or "localhost",
-                "port": port or 6379,
-                "db": db or 0,
-            }
-            if username is not None:
-                parsed_redis_kwargs["username"] = username
-            if password is not None:
-                parsed_redis_kwargs["password"] = password
-        else:
-            parsed_redis_kwargs = {
-                "host": "localhost",
-                "port": 6379,
-                "db": 0,
-            }
-
-        if "track_sessions_in_db" in kwargs:
-            self.track_sessions_in_db = kwargs.pop("track_sessions_in_db")
-        else:
-            self.track_sessions_in_db = False
-
-        parsed_redis_kwargs.update(kwargs)
-        self._session_backend_kwargs = parsed_redis_kwargs
-
-        if hasattr(self, "session_manager"):
-            self._recreate_session_manager()
-
-        return self
-
-    def use_memcached_sessions(
-        self,
-        servers: Optional[List[str]] = None,
-        host: Optional[str] = None,
-        port: Optional[int] = None,
-        **kwargs: Any,
-    ) -> "CRUDAdmin":
-        """Configure Memcached session backend.
-
-        You can configure Memcached connection using either a servers list or individual parameters,
-        but not both.
-
-        Args:
-            servers: List of memcached server addresses (e.g., ["localhost:11211", "server2:11211"])
-            host: Memcached host (default: "localhost")
-            port: Memcached port (default: 11211)
-            **kwargs: Additional Memcached configuration options (pool_size, etc.)
-
-        Returns:
-            Self for method chaining
-
-        Raises:
-            ValueError: If both servers and individual parameters are provided
-
-        Examples:
-            Using servers list:
-            ```python
-            admin.use_memcached_sessions(servers=["localhost:11211", "server2:11211"])
-            ```
-
-            Using individual parameters:
-            ```python
-            admin.use_memcached_sessions(host="localhost", port=11211)
-            ```
-
-        Note:
-            aiomcache currently supports only single server connections,
-            so only the first server in the list will be used.
-        """
-        individual_params = [host, port]
-        has_individual_params = any(param is not None for param in individual_params)
-
-        if servers is not None and has_individual_params:
-            raise ValueError(
-                "Cannot specify both servers and individual parameters (host, port). "
-                "Use either servers=['host:port', ...] OR individual parameters like host='localhost'."
-            )
-
-        if servers is not None:
-            parsed_memcached_kwargs = self._parse_memcached_servers(servers)
-        elif has_individual_params:
-            parsed_memcached_kwargs = {
-                "host": host or "localhost",
-                "port": port or 11211,
-            }
-        else:
-            parsed_memcached_kwargs = {
-                "host": "localhost",
-                "port": 11211,
-            }
-
-        if "track_sessions_in_db" in kwargs:
-            self.track_sessions_in_db = kwargs.pop("track_sessions_in_db")
-        else:
-            self.track_sessions_in_db = False
-
-        parsed_memcached_kwargs.update(kwargs)
-
-        self._session_backend = "memcached"
-        self._session_backend_kwargs = parsed_memcached_kwargs
-
-        if hasattr(self, "session_manager"):
-            self._recreate_session_manager()
-
-        return self
-
-    def use_memory_sessions(self, **kwargs: Any) -> "CRUDAdmin":
-        """Configure in-memory session backend.
-
-        Args:
-            **kwargs: Additional memory storage configuration options
-                     Note: track_sessions_in_db is ignored for memory sessions
-
-        Returns:
-            Self for method chaining
-        """
-        kwargs.pop("track_sessions_in_db", None)
-
-        self._session_backend = "memory"
-        self._session_backend_kwargs = kwargs
-        self.track_sessions_in_db = False
-
-        if hasattr(self, "session_manager"):
-            self._recreate_session_manager()
-
-        return self
-
-    def use_database_sessions(self, **kwargs: Any) -> "CRUDAdmin":
-        """Configure database session backend.
-
-        This enables session storage in the AdminSession table for full
-        admin dashboard visibility.
-
-        Args:
-            **kwargs: Additional database storage configuration options
-
-        Returns:
-            Self for method chaining
-        """
-        self._session_backend = "database"
-        self._session_backend_kwargs = kwargs
-        self.track_sessions_in_db = True
-
-        if hasattr(self, "session_manager"):
-            self._recreate_session_manager()
-
-        return self
-
-    def _parse_redis_url(self, redis_url: str) -> Dict[str, Any]:
-        """Parse Redis URL to extract connection parameters.
-
-        Args:
-            redis_url: Redis connection URL (e.g., redis://user:pass@localhost:6379/0)
-
-        Returns:
-            Dictionary of Redis connection parameters
-        """
-        from urllib.parse import urlparse
-
-        parsed = urlparse(redis_url)
-
-        redis_kwargs = {
-            "host": parsed.hostname or "localhost",
-            "port": parsed.port or 6379,
-            "db": int(parsed.path.lstrip("/"))
-            if parsed.path and parsed.path != "/"
-            else 0,
-        }
-
-        if parsed.username:
-            redis_kwargs["username"] = parsed.username
-
-        if parsed.password:
-            redis_kwargs["password"] = parsed.password
-
-        return redis_kwargs
-
-    def _parse_memcached_servers(self, servers: List[str]) -> Dict[str, Any]:
-        """Parse Memcached servers list to extract connection parameters.
-
-        Args:
-            servers: List of server addresses (e.g., ["localhost:11211", "server2:11211"])
-
-        Returns:
-            Dictionary of Memcached connection parameters
-
-        Note:
-            aiomcache currently supports only single server connections,
-            so we use the first server in the list.
-        """
-        if not servers:
-            return {"host": "localhost", "port": 11211}
-
-        server = servers[0]
-
-        if ":" in server:
-            host, port_str = server.split(":", 1)
-            try:
-                port = int(port_str)
-            except ValueError:
-                port = 11211
-        else:
-            host = server
-            port = 11211
-
-        return {"host": host, "port": port}
-
-    def _recreate_session_manager(self) -> None:
-        """Recreate session manager with current backend configuration."""
-        session_backend = getattr(self, "_session_backend", "memory")
-        backend_kwargs = getattr(self, "_session_backend_kwargs", {})
-
-        if self.track_sessions_in_db:
-            if session_backend in ["redis", "memcached"]:
-                actual_backend = "hybrid"
-                backend_kwargs["db_config"] = self.db_config
-                backend_kwargs["_cache_backend"] = session_backend
+        if session_backend == "redis":
+            if redis_config is not None:
+                if isinstance(redis_config, RedisConfig):
+                    backend_kwargs.update(redis_config.to_dict())
+                elif isinstance(redis_config, dict):
+                    redis_config_obj = RedisConfig(**redis_config)
+                    backend_kwargs.update(redis_config_obj.to_dict())
+                else:
+                    raise ValueError(
+                        "redis_config must be RedisConfig instance or dict"
+                    )
             else:
-                actual_backend = "database"
-                backend_kwargs["db_config"] = self.db_config
-        else:
-            actual_backend = session_backend
+                backend_kwargs.update({"host": "localhost", "port": 6379, "db": 0})
 
-        session_timeout_minutes = 30  # default
-        if hasattr(self, "session_manager"):
-            session_timeout_minutes = int(
-                self.session_manager.session_timeout.total_seconds() / 60
-            )
+        elif session_backend == "memcached":
+            if memcached_config is not None:
+                if isinstance(memcached_config, MemcachedConfig):
+                    backend_kwargs.update(memcached_config.to_dict())
+                elif isinstance(memcached_config, dict):
+                    memcached_config_obj = MemcachedConfig(**memcached_config)
+                    backend_kwargs.update(memcached_config_obj.to_dict())
+                else:
+                    raise ValueError(
+                        "memcached_config must be MemcachedConfig instance or dict"
+                    )
+            else:
+                backend_kwargs.update({"host": "localhost", "port": 11211})
 
-        storage: AbstractSessionStorage[SessionData] = get_session_storage(
-            backend=actual_backend,
-            model_type=SessionData,
-            prefix="session:",
-            expiration=session_timeout_minutes * 60,
-            **backend_kwargs,
-        )
-
-        if hasattr(self, "session_manager"):
-            max_sessions = self.session_manager.max_sessions
-            cleanup_interval_minutes = int(
-                self.session_manager.cleanup_interval.total_seconds() / 60
-            )
-            csrf_token_bytes = self.session_manager.csrf_token_bytes
-            rate_limiter = self.session_manager.rate_limiter
-            login_max_attempts = self.session_manager.login_max_attempts
-            login_window_minutes = int(
-                self.session_manager.login_window.total_seconds() / 60
-            )
-        else:
-            max_sessions = 5
-            cleanup_interval_minutes = 15
-            csrf_token_bytes = 32
-            rate_limiter = None
-            login_max_attempts = 5
-            login_window_minutes = 15
-
-        self.session_manager = SessionManager(
-            session_storage=storage,
-            max_sessions_per_user=max_sessions,
-            session_timeout_minutes=session_timeout_minutes,
-            cleanup_interval_minutes=cleanup_interval_minutes,
-            csrf_token_bytes=csrf_token_bytes,
-            rate_limiter=rate_limiter,
-            login_max_attempts=login_max_attempts,
-            login_window_minutes=login_window_minutes,
-        )
-
-        if hasattr(self, "admin_authentication"):
-            self.admin_authentication.session_manager = self.session_manager
+        return backend_kwargs

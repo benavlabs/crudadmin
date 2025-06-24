@@ -1,21 +1,27 @@
 import json
 import logging
-from typing import Optional, TypeVar
-
-try:
-    from redis.asyncio import Redis
-    from redis.exceptions import RedisError
-except ImportError:
-    raise ImportError(
-        "The redis package is not installed. Please install it with 'pip install redis'"
-    ) from None
+from typing import TYPE_CHECKING, Optional, TypeVar
 
 from pydantic import BaseModel
 
 from ..storage import AbstractSessionStorage
 
+if TYPE_CHECKING:
+    from redis.asyncio import Redis
+    from redis.exceptions import RedisError
+
 T = TypeVar("T", bound=BaseModel)
 logger = logging.getLogger(__name__)
+
+try:
+    from redis.asyncio import Redis
+    from redis.exceptions import RedisError
+
+    REDIS_AVAILABLE = True
+except ImportError:
+    Redis = None  # type: ignore
+    RedisError = None  # type: ignore
+    REDIS_AVAILABLE = False
 
 
 class RedisSessionStorage(AbstractSessionStorage[T]):
@@ -46,6 +52,14 @@ class RedisSessionStorage(AbstractSessionStorage[T]):
             pool_size: Redis connection pool size
             connect_timeout: Redis connection timeout
         """
+        if not REDIS_AVAILABLE:
+            raise ImportError(
+                "The redis package is not installed. "
+                "Please install it with 'pip install redis' to use RedisSessionStorage."
+            )
+
+        self.RedisError = RedisError
+
         super().__init__(prefix=prefix, expiration=expiration)
 
         self.client = Redis(
@@ -116,7 +130,7 @@ class RedisSessionStorage(AbstractSessionStorage[T]):
             await pipeline.execute()
             logger.debug(f"Created session {session_id} with expiration {exp}s")
             return session_id
-        except RedisError as e:
+        except self.RedisError as e:
             logger.error(f"Error creating session: {e}")
             raise
 
@@ -148,7 +162,7 @@ class RedisSessionStorage(AbstractSessionStorage[T]):
                 logger.error(f"Error parsing session data: {e}")
                 return None
 
-        except RedisError as e:
+        except self.RedisError as e:
             logger.error(f"Error getting session: {e}")
             raise
 
@@ -206,7 +220,7 @@ class RedisSessionStorage(AbstractSessionStorage[T]):
             await pipeline.execute()
             return True
 
-        except RedisError as e:
+        except self.RedisError as e:
             logger.error(f"Error updating session: {e}")
             raise
 
@@ -244,7 +258,7 @@ class RedisSessionStorage(AbstractSessionStorage[T]):
 
             result = await pipeline.execute()
             return bool(result[0] > 0)
-        except RedisError as e:
+        except self.RedisError as e:
             logger.error(f"Error deleting session: {e}")
             raise
 
@@ -285,7 +299,7 @@ class RedisSessionStorage(AbstractSessionStorage[T]):
             results = await pipeline.execute()
             return bool(results[0])
 
-        except RedisError as e:
+        except self.RedisError as e:
             logger.error(f"Error extending session: {e}")
             raise
 
@@ -306,7 +320,7 @@ class RedisSessionStorage(AbstractSessionStorage[T]):
         try:
             exists_result = await self.client.exists(key)
             return bool(exists_result)
-        except RedisError as e:
+        except self.RedisError as e:
             logger.error(f"Error checking session existence: {e}")
             raise
 
@@ -327,7 +341,7 @@ class RedisSessionStorage(AbstractSessionStorage[T]):
         try:
             members = await self.client.smembers(user_sessions_key)
             return [m.decode("utf-8") if isinstance(m, bytes) else m for m in members]
-        except RedisError as e:
+        except self.RedisError as e:
             logger.error(f"Error getting user sessions: {e}")
             raise
 
@@ -379,6 +393,6 @@ class RedisSessionStorage(AbstractSessionStorage[T]):
             logger.debug(f"Deleted {deleted_count} keys matching pattern '{pattern}'")
             return deleted_count
 
-        except RedisError as e:
+        except self.RedisError as e:
             logger.error(f"Error deleting keys with pattern '{pattern}': {e}")
             raise

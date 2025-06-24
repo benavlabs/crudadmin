@@ -150,32 +150,70 @@ Navigate to `/admin` to access your admin interface with:
 
 ### Development (Default)
 ```python
-admin = CRUDAdmin(session=get_session, SECRET_KEY="key")  # Memory backend
+admin = CRUDAdmin(session=get_session, SECRET_KEY="key")  # Memory backend (default)
 ```
 
 ### Production with Redis
 ```python
-admin = CRUDAdmin(session=get_session, SECRET_KEY="key").use_redis_sessions(
-    redis_url="redis://localhost:6379"
+from crudadmin.session.configs import RedisConfig
+
+# Using configuration object (recommended)
+redis_config = RedisConfig(host="localhost", port=6379, db=0)
+admin = CRUDAdmin(
+    session=get_session, 
+    SECRET_KEY="key",
+    session_backend="redis",
+    redis_config=redis_config
+)
+
+# Or using a dictionary
+admin = CRUDAdmin(
+    session=get_session, 
+    SECRET_KEY="key",
+    session_backend="redis",
+    redis_config={"host": "localhost", "port": 6379, "db": 0}
+)
+
+# Or using Redis URL
+redis_config = RedisConfig(url="redis://localhost:6379/0")
+admin = CRUDAdmin(
+    session=get_session, 
+    SECRET_KEY="key",
+    session_backend="redis",
+    redis_config=redis_config
 )
 ```
 
 ### Production with Security Features
 ```python
+from crudadmin.session.configs import RedisConfig
+
+# Configure Redis backend
+redis_config = RedisConfig(
+    host="localhost",
+    port=6379,
+    db=0,
+    password="your-redis-password"
+)
+
 admin = CRUDAdmin(
     session=get_session,
     SECRET_KEY=SECRET_KEY,
+    # Session backend configuration
+    session_backend="redis",
+    redis_config=redis_config,
+    # Session management settings
+    max_sessions_per_user=3,
+    session_timeout_minutes=15,
+    cleanup_interval_minutes=5,
     # Security features
     allowed_ips=["10.0.0.1"],
     allowed_networks=["192.168.1.0/24"],
     secure_cookies=True,
     enforce_https=True,
-    # Session management
-    max_sessions_per_user=3,
-    session_timeout_minutes=15,
     # Event tracking
     track_events=True
-).use_redis_sessions(redis_url="redis://localhost:6379")
+)
 ```
 
 ## Backend Options

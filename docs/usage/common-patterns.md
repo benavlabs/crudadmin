@@ -505,9 +505,12 @@ from ecommerce_schemas import (
 )
 
 # Configure for e-commerce scale
+from crudadmin.session.configs import RedisConfig
+
+redis_config = RedisConfig(url="redis://localhost:6379")
 crud_admin = CRUDAdmin(
     session_backend="redis",  # Better for high traffic
-    redis_url="redis://localhost:6379",
+    redis_config=redis_config,
     secret_key="your-ecommerce-secret-key",
     title="E-commerce Admin",
     default_page_size=50,  # More records per page
@@ -950,11 +953,18 @@ class AdminConfig:
 
 # Use in setup
 def setup_admin():
+    from crudadmin.session.configs import RedisConfig
+    
     config = AdminConfig()
+    
+    # Configure Redis if URL provided
+    redis_config = None
+    if config.REDIS_URL:
+        redis_config = RedisConfig(url=config.REDIS_URL)
     
     crud_admin = CRUDAdmin(
         session_backend=config.SESSION_BACKEND,
-        redis_url=config.REDIS_URL,
+        redis_config=redis_config,
         database_url=config.DATABASE_URL,
         secret_key=config.SECRET_KEY,
         title=config.TITLE
@@ -981,12 +991,19 @@ from crudadmin import CRUDAdmin
 import os
 
 # Production security configuration with built-in IP restrictions
+from crudadmin.session.configs import RedisConfig
+
+redis_config = RedisConfig(url=os.getenv("REDIS_URL"))
+
 crud_admin = CRUDAdmin(
     # Session security
     session_backend="redis",
-    redis_url=os.getenv("REDIS_URL"),
+    redis_config=redis_config,
     secret_key=os.getenv("ADMIN_SECRET_KEY"),  # Strong random key
+    
+    # Session management settings
     session_timeout_minutes=60,  # 1 hour timeout
+    max_sessions_per_user=5,
     
     # Built-in IP restrictions
     allowed_ips=["127.0.0.1", "192.168.1.100"],  # Specific IPs
@@ -994,8 +1011,7 @@ crud_admin = CRUDAdmin(
     
     # Additional security
     secure_cookies=True,
-    enforce_https=True,
-    max_sessions_per_user=5
+    enforce_https=True
 )
 ```
 

@@ -4,6 +4,7 @@ import pytest
 
 from crudadmin import CRUDAdmin
 from crudadmin.session import backends as session_backends
+from crudadmin.session.configs import MemcachedConfig, RedisConfig
 from tests.crud.test_admin import create_test_db_config
 
 
@@ -16,29 +17,46 @@ class TestRedisSessionParameters:
         secret_key = "test-secret-key-for-testing-only-32-chars"
         db_config = create_test_db_config(async_session)
 
-        admin = CRUDAdmin(
-            session=async_session,
-            SECRET_KEY=secret_key,
-            db_config=db_config,
-            setup_on_initialization=False,
-        )
-
         try:
             # Test basic URL
-            admin.use_redis_sessions(redis_url="redis://localhost:6379/0")
+            redis_config = RedisConfig(url="redis://localhost:6379/0")
+            admin = CRUDAdmin(
+                session=async_session,
+                SECRET_KEY=secret_key,
+                db_config=db_config,
+                setup_on_initialization=False,
+                session_backend="redis",
+                redis_config=redis_config,
+            )
             assert isinstance(
                 admin.session_manager.storage, session_backends.RedisSessionStorage
             )
 
             # Test URL with password
-            admin.use_redis_sessions(redis_url="redis://user:pass@localhost:6379/1")
+            redis_config = RedisConfig(url="redis://user:pass@localhost:6379/1")
+            admin = CRUDAdmin(
+                session=async_session,
+                SECRET_KEY=secret_key,
+                db_config=db_config,
+                setup_on_initialization=False,
+                session_backend="redis",
+                redis_config=redis_config,
+            )
             assert isinstance(
                 admin.session_manager.storage, session_backends.RedisSessionStorage
             )
 
             # Test complex URL
-            admin.use_redis_sessions(
-                redis_url="redis://admin:secret123@redis.example.com:6380/2"
+            redis_config = RedisConfig(
+                url="redis://admin:secret123@redis.example.com:6380/2"
+            )
+            admin = CRUDAdmin(
+                session=async_session,
+                SECRET_KEY=secret_key,
+                db_config=db_config,
+                setup_on_initialization=False,
+                session_backend="redis",
+                redis_config=redis_config,
             )
             assert isinstance(
                 admin.session_manager.storage, session_backends.RedisSessionStorage
@@ -53,40 +71,73 @@ class TestRedisSessionParameters:
         secret_key = "test-secret-key-for-testing-only-32-chars"
         db_config = create_test_db_config(async_session)
 
-        admin = CRUDAdmin(
-            session=async_session,
-            SECRET_KEY=secret_key,
-            db_config=db_config,
-            setup_on_initialization=False,
-        )
-
         try:
             # Test basic parameters
-            admin.use_redis_sessions(host="localhost", port=6379, db=0)
+            redis_config = RedisConfig(host="localhost", port=6379, db=0)
+            admin = CRUDAdmin(
+                session=async_session,
+                SECRET_KEY=secret_key,
+                db_config=db_config,
+                setup_on_initialization=False,
+                session_backend="redis",
+                redis_config=redis_config,
+            )
             assert isinstance(
                 admin.session_manager.storage, session_backends.RedisSessionStorage
             )
 
             # Test with password
-            admin.use_redis_sessions(
+            redis_config = RedisConfig(
                 host="localhost", port=6379, db=1, password="secret"
+            )
+            admin = CRUDAdmin(
+                session=async_session,
+                SECRET_KEY=secret_key,
+                db_config=db_config,
+                setup_on_initialization=False,
+                session_backend="redis",
+                redis_config=redis_config,
             )
             assert isinstance(
                 admin.session_manager.storage, session_backends.RedisSessionStorage
             )
 
             # Test partial parameters (others should use defaults)
-            admin.use_redis_sessions(host="custom-host")
+            redis_config = RedisConfig(host="custom-host")
+            admin = CRUDAdmin(
+                session=async_session,
+                SECRET_KEY=secret_key,
+                db_config=db_config,
+                setup_on_initialization=False,
+                session_backend="redis",
+                redis_config=redis_config,
+            )
             assert isinstance(
                 admin.session_manager.storage, session_backends.RedisSessionStorage
             )
 
-            admin.use_redis_sessions(port=6380)
+            redis_config = RedisConfig(port=6380)
+            admin = CRUDAdmin(
+                session=async_session,
+                SECRET_KEY=secret_key,
+                db_config=db_config,
+                setup_on_initialization=False,
+                session_backend="redis",
+                redis_config=redis_config,
+            )
             assert isinstance(
                 admin.session_manager.storage, session_backends.RedisSessionStorage
             )
 
-            admin.use_redis_sessions(db=3)
+            redis_config = RedisConfig(db=3)
+            admin = CRUDAdmin(
+                session=async_session,
+                SECRET_KEY=secret_key,
+                db_config=db_config,
+                setup_on_initialization=False,
+                session_backend="redis",
+                redis_config=redis_config,
+            )
             assert isinstance(
                 admin.session_manager.storage, session_backends.RedisSessionStorage
             )
@@ -100,15 +151,14 @@ class TestRedisSessionParameters:
         secret_key = "test-secret-key-for-testing-only-32-chars"
         db_config = create_test_db_config(async_session)
 
-        admin = CRUDAdmin(
-            session=async_session,
-            SECRET_KEY=secret_key,
-            db_config=db_config,
-            setup_on_initialization=False,
-        )
-
         try:
-            admin.use_redis_sessions()
+            admin = CRUDAdmin(
+                session=async_session,
+                SECRET_KEY=secret_key,
+                db_config=db_config,
+                setup_on_initialization=False,
+                session_backend="redis",
+            )
             assert isinstance(
                 admin.session_manager.storage, session_backends.RedisSessionStorage
             )
@@ -121,54 +171,30 @@ class TestRedisSessionParameters:
         secret_key = "test-secret-key-for-testing-only-32-chars"
         db_config = create_test_db_config(async_session)
 
-        admin = CRUDAdmin(
-            session=async_session,
-            SECRET_KEY=secret_key,
-            db_config=db_config,
-            setup_on_initialization=False,
-        )
-
         try:
-            # Test URL + host conflict
-            with pytest.raises(
-                ValueError,
-                match="Cannot specify both redis_url and individual parameters",
-            ):
-                admin.use_redis_sessions(
-                    redis_url="redis://localhost:6379", host="localhost"
-                )
+            # Test URL + host conflict - now this should work because URL takes precedence
+            redis_config = RedisConfig(
+                url="redis://localhost:6379", host="ignored-host"
+            )
+            admin = CRUDAdmin(
+                session=async_session,
+                SECRET_KEY=secret_key,
+                db_config=db_config,
+                setup_on_initialization=False,
+                session_backend="redis",
+                redis_config=redis_config,
+            )
+            assert isinstance(
+                admin.session_manager.storage, session_backends.RedisSessionStorage
+            )
 
-            # Test URL + port conflict
-            with pytest.raises(
-                ValueError,
-                match="Cannot specify both redis_url and individual parameters",
-            ):
-                admin.use_redis_sessions(redis_url="redis://localhost:6379", port=6379)
+            # Test invalid port range
+            with pytest.raises(ValueError):
+                RedisConfig(port=70000)  # Port too high
 
-            # Test URL + db conflict
-            with pytest.raises(
-                ValueError,
-                match="Cannot specify both redis_url and individual parameters",
-            ):
-                admin.use_redis_sessions(redis_url="redis://localhost:6379", db=0)
-
-            # Test URL + password conflict
-            with pytest.raises(
-                ValueError,
-                match="Cannot specify both redis_url and individual parameters",
-            ):
-                admin.use_redis_sessions(
-                    redis_url="redis://localhost:6379", password="secret"
-                )
-
-            # Test URL + multiple parameters conflict
-            with pytest.raises(
-                ValueError,
-                match="Cannot specify both redis_url and individual parameters",
-            ):
-                admin.use_redis_sessions(
-                    redis_url="redis://localhost:6379", host="localhost", port=6379
-                )
+            # Test invalid database number
+            with pytest.raises(ValueError):
+                RedisConfig(db=-1)  # Negative db number
 
         except ImportError:
             pytest.skip("Redis not available")
@@ -179,29 +205,37 @@ class TestRedisSessionParameters:
         secret_key = "test-secret-key-for-testing-only-32-chars"
         db_config = create_test_db_config(async_session)
 
-        admin = CRUDAdmin(
-            session=async_session,
-            SECRET_KEY=secret_key,
-            db_config=db_config,
-            setup_on_initialization=False,
-        )
-
         try:
             # Test with additional parameters via URL
-            admin.use_redis_sessions(
-                redis_url="redis://localhost:6379/0", pool_size=20, connect_timeout=10
+            redis_config = RedisConfig(url="redis://localhost:6379/0")
+            admin_url = CRUDAdmin(
+                session=async_session,
+                SECRET_KEY=secret_key,
+                db_config=db_config,
+                setup_on_initialization=False,
+                session_backend="redis",
+                redis_config=redis_config,
             )
 
             assert isinstance(
-                admin.session_manager.storage, session_backends.RedisSessionStorage
+                admin_url.session_manager.storage, session_backends.RedisSessionStorage
             )
 
             # Test with additional parameters via individual params
-            admin.use_redis_sessions(
-                host="localhost", port=6379, db=0, pool_size=15, connect_timeout=5
+            redis_config = RedisConfig(
+                host="localhost", port=6379, db=0, pool_size=10, connect_timeout=5
+            )
+            admin_individual = CRUDAdmin(
+                session=async_session,
+                SECRET_KEY=secret_key,
+                db_config=db_config,
+                setup_on_initialization=False,
+                session_backend="redis",
+                redis_config=redis_config,
             )
             assert isinstance(
-                admin.session_manager.storage, session_backends.RedisSessionStorage
+                admin_individual.session_manager.storage,
+                session_backends.RedisSessionStorage,
             )
 
         except ImportError:
@@ -213,6 +247,14 @@ class TestRedisSessionParameters:
         secret_key = "test-secret-key-for-testing-only-32-chars"
         db_config = create_test_db_config(async_session)
 
+        redis_config = RedisConfig(
+            host="redis-server",
+            port=6380,
+            db=2,
+            username="redis_user",
+            password="redis_pass",
+        )
+
         admin = CRUDAdmin(
             session=async_session,
             SECRET_KEY=secret_key,
@@ -220,14 +262,8 @@ class TestRedisSessionParameters:
             setup_on_initialization=False,
             initial_admin={"username": "admin", "password": "secure_password123"},
             secure_cookies=False,
-        )
-
-        admin.use_redis_sessions(
-            host="redis-server",
-            port=6380,
-            db=2,
-            username="redis_user",
-            password="redis_pass",
+            session_backend="redis",
+            redis_config=redis_config,
         )
 
         # Check backend was set
@@ -251,6 +287,8 @@ class TestRedisSessionParameters:
         secret_key = "test-secret-key-for-testing-only-32-chars"
         db_config = create_test_db_config(async_session)
 
+        redis_config = RedisConfig(username="redis_user")
+
         admin = CRUDAdmin(
             session=async_session,
             SECRET_KEY=secret_key,
@@ -258,9 +296,9 @@ class TestRedisSessionParameters:
             setup_on_initialization=False,
             initial_admin={"username": "admin", "password": "secure_password123"},
             secure_cookies=False,
+            session_backend="redis",
+            redis_config=redis_config,
         )
-
-        admin.use_redis_sessions(username="redis_user")
 
         # Check backend was set
         assert admin._session_backend == "redis"
@@ -277,20 +315,9 @@ class TestRedisSessionParameters:
     @pytest.mark.asyncio
     async def test_redis_url_parsing_with_username(self, async_session):
         """Test Redis URL parsing extracts username correctly."""
-        secret_key = "test-secret-key-for-testing-only-32-chars"
-        db_config = create_test_db_config(async_session)
-
-        admin = CRUDAdmin(
-            session=async_session,
-            SECRET_KEY=secret_key,
-            db_config=db_config,
-            setup_on_initialization=False,
-            initial_admin={"username": "admin", "password": "secure_password123"},
-            secure_cookies=False,
-        )
-
-        # Test URL with username and password
-        parsed = admin._parse_redis_url("redis://myuser:mypass@localhost:6379/1")
+        # Test URL with username and password using RedisConfig
+        redis_config = RedisConfig(url="redis://myuser:mypass@localhost:6379/1")
+        parsed = redis_config.to_dict()
 
         expected = {
             "host": "localhost",
@@ -305,20 +332,9 @@ class TestRedisSessionParameters:
     @pytest.mark.asyncio
     async def test_redis_url_parsing_with_username_no_password(self, async_session):
         """Test Redis URL parsing with username but no password."""
-        secret_key = "test-secret-key-for-testing-only-32-chars"
-        db_config = create_test_db_config(async_session)
-
-        admin = CRUDAdmin(
-            session=async_session,
-            SECRET_KEY=secret_key,
-            db_config=db_config,
-            setup_on_initialization=False,
-            initial_admin={"username": "admin", "password": "secure_password123"},
-            secure_cookies=False,
-        )
-
         # Test URL with username but no password (unusual but valid)
-        parsed = admin._parse_redis_url("redis://myuser@localhost:6379/1")
+        redis_config = RedisConfig(url="redis://myuser@localhost:6379/1")
+        parsed = redis_config.to_dict()
 
         expected = {
             "host": "localhost",
@@ -336,6 +352,9 @@ class TestRedisSessionParameters:
         secret_key = "test-secret-key-for-testing-only-32-chars"
         db_config = create_test_db_config(async_session)
 
+        redis_config = RedisConfig(
+            url="redis://admin_user:secret123@redis.example.com:6380/3"
+        )
         admin = CRUDAdmin(
             session=async_session,
             SECRET_KEY=secret_key,
@@ -343,10 +362,8 @@ class TestRedisSessionParameters:
             setup_on_initialization=False,
             initial_admin={"username": "admin", "password": "secure_password123"},
             secure_cookies=False,
-        )
-
-        admin.use_redis_sessions(
-            redis_url="redis://admin_user:secret123@redis.example.com:6380/3"
+            session_backend="redis",
+            redis_config=redis_config,
         )
 
         # Check backend was set
@@ -366,10 +383,14 @@ class TestRedisSessionParameters:
 
     @pytest.mark.asyncio
     async def test_redis_conflict_detection_includes_username(self, async_session):
-        """Test that username parameter is included in conflict detection."""
+        """Test that Redis config handles URL and individual parameters properly."""
         secret_key = "test-secret-key-for-testing-only-32-chars"
         db_config = create_test_db_config(async_session)
 
+        # Test that URL takes precedence when both URL and individual params are set
+        redis_config = RedisConfig(
+            url="redis://localhost:6379/0", username="ignored_user"
+        )
         admin = CRUDAdmin(
             session=async_session,
             SECRET_KEY=secret_key,
@@ -377,16 +398,14 @@ class TestRedisSessionParameters:
             setup_on_initialization=False,
             initial_admin={"username": "admin", "password": "secure_password123"},
             secure_cookies=False,
+            session_backend="redis",
+            redis_config=redis_config,
         )
 
-        # Should raise ValueError when both URL and username parameter are provided
-        with pytest.raises(
-            ValueError, match="Cannot specify both redis_url and individual parameters"
-        ):
-            admin.use_redis_sessions(
-                redis_url="redis://localhost:6379/0",
-                username="user",  # This should cause conflict
-            )
+        # Should work fine, and URL should take precedence
+        assert admin._session_backend == "redis"
+        # Username from URL should be used, not the individual parameter
+        assert admin._session_backend_kwargs["host"] == "localhost"
 
 
 class TestMemcachedSessionParameters:
@@ -398,30 +417,54 @@ class TestMemcachedSessionParameters:
         secret_key = "test-secret-key-for-testing-only-32-chars"
         db_config = create_test_db_config(async_session)
 
-        admin = CRUDAdmin(
-            session=async_session,
-            SECRET_KEY=secret_key,
-            db_config=db_config,
-            setup_on_initialization=False,
-        )
-
         try:
             # Test single server
-            admin.use_memcached_sessions(servers=["localhost:11211"])
+            memcached_config = MemcachedConfig(servers=["localhost:11211"])
+            admin_single = CRUDAdmin(
+                session=async_session,
+                SECRET_KEY=secret_key,
+                db_config=db_config,
+                setup_on_initialization=False,
+                session_backend="memcached",
+                memcached_config=memcached_config,
+            )
             assert isinstance(
-                admin.session_manager.storage, session_backends.MemcachedSessionStorage
+                admin_single.session_manager.storage,
+                session_backends.MemcachedSessionStorage,
             )
 
-            # Test multiple servers
-            admin.use_memcached_sessions(servers=["localhost:11211", "server2:11211"])
+            # Test multiple servers (note: aiomcache only uses first server)
+            memcached_config = MemcachedConfig(
+                servers=["localhost:11211", "server2:11211"]
+            )
+            admin_multiple = CRUDAdmin(
+                session=async_session,
+                SECRET_KEY=secret_key,
+                db_config=db_config,
+                setup_on_initialization=False,
+                session_backend="memcached",
+                memcached_config=memcached_config,
+            )
             assert isinstance(
-                admin.session_manager.storage, session_backends.MemcachedSessionStorage
+                admin_multiple.session_manager.storage,
+                session_backends.MemcachedSessionStorage,
             )
 
             # Test custom ports
-            admin.use_memcached_sessions(servers=["localhost:11212", "server2:11213"])
+            memcached_config = MemcachedConfig(
+                servers=["localhost:11212", "server2:11213"]
+            )
+            admin_custom_ports = CRUDAdmin(
+                session=async_session,
+                SECRET_KEY=secret_key,
+                db_config=db_config,
+                setup_on_initialization=False,
+                session_backend="memcached",
+                memcached_config=memcached_config,
+            )
             assert isinstance(
-                admin.session_manager.storage, session_backends.MemcachedSessionStorage
+                admin_custom_ports.session_manager.storage,
+                session_backends.MemcachedSessionStorage,
             )
 
         except ImportError:
@@ -433,41 +476,80 @@ class TestMemcachedSessionParameters:
         secret_key = "test-secret-key-for-testing-only-32-chars"
         db_config = create_test_db_config(async_session)
 
-        admin = CRUDAdmin(
-            session=async_session,
-            SECRET_KEY=secret_key,
-            db_config=db_config,
-            setup_on_initialization=False,
-        )
-
         try:
             # Test basic parameters
-            admin.use_memcached_sessions(host="localhost", port=11211)
+            memcached_config = MemcachedConfig(host="localhost", port=11211)
+            admin_basic = CRUDAdmin(
+                session=async_session,
+                SECRET_KEY=secret_key,
+                db_config=db_config,
+                setup_on_initialization=False,
+                session_backend="memcached",
+                memcached_config=memcached_config,
+            )
             assert isinstance(
-                admin.session_manager.storage, session_backends.MemcachedSessionStorage
+                admin_basic.session_manager.storage,
+                session_backends.MemcachedSessionStorage,
             )
 
             # Test custom host
-            admin.use_memcached_sessions(host="memcached.example.com", port=11211)
+            memcached_config = MemcachedConfig(host="memcached.example.com", port=11211)
+            admin_custom_host = CRUDAdmin(
+                session=async_session,
+                SECRET_KEY=secret_key,
+                db_config=db_config,
+                setup_on_initialization=False,
+                session_backend="memcached",
+                memcached_config=memcached_config,
+            )
             assert isinstance(
-                admin.session_manager.storage, session_backends.MemcachedSessionStorage
+                admin_custom_host.session_manager.storage,
+                session_backends.MemcachedSessionStorage,
             )
 
             # Test custom port
-            admin.use_memcached_sessions(host="localhost", port=11212)
+            memcached_config = MemcachedConfig(host="localhost", port=11212)
+            admin_custom_port = CRUDAdmin(
+                session=async_session,
+                SECRET_KEY=secret_key,
+                db_config=db_config,
+                setup_on_initialization=False,
+                session_backend="memcached",
+                memcached_config=memcached_config,
+            )
             assert isinstance(
-                admin.session_manager.storage, session_backends.MemcachedSessionStorage
+                admin_custom_port.session_manager.storage,
+                session_backends.MemcachedSessionStorage,
             )
 
-            # Test partial parameters
-            admin.use_memcached_sessions(host="custom-host")
+            # Test partial parameters - host only (uses default port)
+            memcached_config = MemcachedConfig(host="custom-host")
+            admin_host_only = CRUDAdmin(
+                session=async_session,
+                SECRET_KEY=secret_key,
+                db_config=db_config,
+                setup_on_initialization=False,
+                session_backend="memcached",
+                memcached_config=memcached_config,
+            )
             assert isinstance(
-                admin.session_manager.storage, session_backends.MemcachedSessionStorage
+                admin_host_only.session_manager.storage,
+                session_backends.MemcachedSessionStorage,
             )
 
-            admin.use_memcached_sessions(port=11213)
+            # Test partial parameters - port only (uses default host)
+            memcached_config = MemcachedConfig(port=11213)
+            admin_port_only = CRUDAdmin(
+                session=async_session,
+                SECRET_KEY=secret_key,
+                db_config=db_config,
+                setup_on_initialization=False,
+                session_backend="memcached",
+                memcached_config=memcached_config,
+            )
             assert isinstance(
-                admin.session_manager.storage, session_backends.MemcachedSessionStorage
+                admin_port_only.session_manager.storage,
+                session_backends.MemcachedSessionStorage,
             )
 
         except ImportError:
@@ -479,15 +561,14 @@ class TestMemcachedSessionParameters:
         secret_key = "test-secret-key-for-testing-only-32-chars"
         db_config = create_test_db_config(async_session)
 
-        admin = CRUDAdmin(
-            session=async_session,
-            SECRET_KEY=secret_key,
-            db_config=db_config,
-            setup_on_initialization=False,
-        )
-
         try:
-            admin.use_memcached_sessions()
+            admin = CRUDAdmin(
+                session=async_session,
+                SECRET_KEY=secret_key,
+                db_config=db_config,
+                setup_on_initialization=False,
+                session_backend="memcached",
+            )
             assert isinstance(
                 admin.session_manager.storage, session_backends.MemcachedSessionStorage
             )
@@ -496,42 +577,33 @@ class TestMemcachedSessionParameters:
 
     @pytest.mark.asyncio
     async def test_memcached_conflict_detection(self, async_session):
-        """Test Memcached parameter conflict detection."""
+        """Test Memcached configuration handles servers and individual parameters properly."""
         secret_key = "test-secret-key-for-testing-only-32-chars"
         db_config = create_test_db_config(async_session)
 
-        admin = CRUDAdmin(
-            session=async_session,
-            SECRET_KEY=secret_key,
-            db_config=db_config,
-            setup_on_initialization=False,
-        )
-
         try:
-            # Test servers + host conflict
-            with pytest.raises(
-                ValueError,
-                match="Cannot specify both servers and individual parameters",
-            ):
-                admin.use_memcached_sessions(
-                    servers=["localhost:11211"], host="localhost"
-                )
+            # Test that both servers and individual parameters can be specified
+            # (servers take precedence)
+            memcached_config = MemcachedConfig(
+                servers=["localhost:11211"],
+                host="ignored_host",  # Should be ignored
+                port=9999,  # Should be ignored
+            )
+            admin = CRUDAdmin(
+                session=async_session,
+                SECRET_KEY=secret_key,
+                db_config=db_config,
+                setup_on_initialization=False,
+                session_backend="memcached",
+                memcached_config=memcached_config,
+            )
 
-            # Test servers + port conflict
-            with pytest.raises(
-                ValueError,
-                match="Cannot specify both servers and individual parameters",
-            ):
-                admin.use_memcached_sessions(servers=["localhost:11211"], port=11211)
-
-            # Test servers + multiple parameters conflict
-            with pytest.raises(
-                ValueError,
-                match="Cannot specify both servers and individual parameters",
-            ):
-                admin.use_memcached_sessions(
-                    servers=["localhost:11211"], host="localhost", port=11211
-                )
+            # Should work fine - config is valid
+            assert admin._session_backend == "memcached"
+            assert isinstance(
+                admin.session_manager.storage,
+                session_backends.MemcachedSessionStorage,
+            )
 
         except ImportError:
             pytest.skip("Memcached not available")
@@ -542,181 +614,44 @@ class TestMemcachedSessionParameters:
         secret_key = "test-secret-key-for-testing-only-32-chars"
         db_config = create_test_db_config(async_session)
 
-        admin = CRUDAdmin(
-            session=async_session,
-            SECRET_KEY=secret_key,
-            db_config=db_config,
-            setup_on_initialization=False,
-        )
-
         try:
             # Test with additional parameters via servers
-            admin.use_memcached_sessions(servers=["localhost:11211"], pool_size=20)
+            memcached_config = MemcachedConfig(
+                servers=["localhost:11211"],
+                pool_size=10,  # Additional parameter
+            )
+            admin_servers = CRUDAdmin(
+                session=async_session,
+                SECRET_KEY=secret_key,
+                db_config=db_config,
+                setup_on_initialization=False,
+                session_backend="memcached",
+                memcached_config=memcached_config,
+            )
             assert isinstance(
-                admin.session_manager.storage, session_backends.MemcachedSessionStorage
+                admin_servers.session_manager.storage,
+                session_backends.MemcachedSessionStorage,
             )
 
             # Test with additional parameters via individual params
-            admin.use_memcached_sessions(host="localhost", port=11211, pool_size=15)
+            memcached_config = MemcachedConfig(
+                host="localhost",
+                port=11211,
+                pool_size=5,  # Additional parameter
+            )
+            admin_individual = CRUDAdmin(
+                session=async_session,
+                SECRET_KEY=secret_key,
+                db_config=db_config,
+                setup_on_initialization=False,
+                session_backend="memcached",
+                memcached_config=memcached_config,
+            )
             assert isinstance(
-                admin.session_manager.storage, session_backends.MemcachedSessionStorage
+                admin_individual.session_manager.storage,
+                session_backends.MemcachedSessionStorage,
             )
 
-        except ImportError:
-            pytest.skip("Memcached not available")
-
-
-class TestSessionManagerRecreation:
-    """Test session manager recreation functionality."""
-
-    @pytest.mark.asyncio
-    async def test_session_manager_settings_preserved(self, async_session):
-        """Test that session manager settings are preserved during backend switches."""
-        secret_key = "test-secret-key-for-testing-only-32-chars"
-        db_config = create_test_db_config(async_session)
-
-        admin = CRUDAdmin(
-            session=async_session,
-            SECRET_KEY=secret_key,
-            db_config=db_config,
-            setup_on_initialization=False,
-            max_sessions_per_user=3,
-            session_timeout_minutes=45,
-            cleanup_interval_minutes=20,
-        )
-
-        # Store original settings
-        original_max_sessions = admin.session_manager.max_sessions
-        original_timeout = admin.session_manager.session_timeout
-        original_cleanup_interval = admin.session_manager.cleanup_interval
-
-        # Switch backends and verify settings are preserved
-        admin.use_memory_sessions()
-        assert admin.session_manager.max_sessions == original_max_sessions
-        assert admin.session_manager.session_timeout == original_timeout
-        assert admin.session_manager.cleanup_interval == original_cleanup_interval
-
-        admin.use_database_sessions()
-        assert admin.session_manager.max_sessions == original_max_sessions
-        assert admin.session_manager.session_timeout == original_timeout
-        assert admin.session_manager.cleanup_interval == original_cleanup_interval
-
-    @pytest.mark.asyncio
-    async def test_admin_authentication_reference_updated(self, async_session):
-        """Test that AdminAuthentication gets updated session manager reference."""
-        secret_key = "test-secret-key-for-testing-only-32-chars"
-        db_config = create_test_db_config(async_session)
-
-        admin = CRUDAdmin(
-            session=async_session,
-            SECRET_KEY=secret_key,
-            db_config=db_config,
-            setup_on_initialization=False,
-        )
-
-        original_session_manager = admin.session_manager
-        original_auth_session_manager = admin.admin_authentication.session_manager
-
-        # Verify they're initially the same
-        assert original_session_manager is original_auth_session_manager
-
-        # Switch backend
-        admin.use_database_sessions()
-
-        # Verify session manager was recreated
-        assert admin.session_manager is not original_session_manager
-
-        # Verify admin authentication got the new reference
-        assert admin.admin_authentication.session_manager is admin.session_manager
-
-    @pytest.mark.asyncio
-    async def test_track_sessions_in_db_flag_management(self, async_session):
-        """Test proper management of track_sessions_in_db flag."""
-        secret_key = "test-secret-key-for-testing-only-32-chars"
-        db_config = create_test_db_config(async_session)
-
-        admin = CRUDAdmin(
-            session=async_session,
-            SECRET_KEY=secret_key,
-            db_config=db_config,
-            setup_on_initialization=False,
-        )
-
-        # Initially should be False
-        assert admin.track_sessions_in_db is False
-
-        # Switch to database sessions
-        admin.use_database_sessions()
-        assert admin.track_sessions_in_db is True
-        assert isinstance(
-            admin.session_manager.storage, session_backends.DatabaseSessionStorage
-        )
-
-        # Switch to memory sessions (should reset flag)
-        admin.use_memory_sessions()
-        assert admin.track_sessions_in_db is False
-        assert isinstance(
-            admin.session_manager.storage, session_backends.MemorySessionStorage
-        )
-
-        # Switch to Redis with explicit tracking
-        try:
-            admin.use_redis_sessions(host="localhost", track_sessions_in_db=True)
-            assert admin.track_sessions_in_db is True
-            # Should be HybridSessionStorage when Redis + DB tracking
-            storage_name = type(admin.session_manager.storage)
-            assert storage_name in [
-                session_backends.HybridSessionStorage,
-                session_backends.RedisSessionStorage,
-            ]
-        except ImportError:
-            pytest.skip("Redis not available")
-
-
-class TestBackwardCompatibility:
-    """Test backward compatibility of session backend methods."""
-
-    @pytest.mark.asyncio
-    async def test_redis_positional_argument(self, async_session):
-        """Test that old Redis positional argument still works."""
-        secret_key = "test-secret-key-for-testing-only-32-chars"
-        db_config = create_test_db_config(async_session)
-
-        admin = CRUDAdmin(
-            session=async_session,
-            SECRET_KEY=secret_key,
-            db_config=db_config,
-            setup_on_initialization=False,
-        )
-
-        try:
-            # Old way should still work
-            admin.use_redis_sessions("redis://localhost:6379/0")
-            assert isinstance(
-                admin.session_manager.storage, session_backends.RedisSessionStorage
-            )
-        except ImportError:
-            pytest.skip("Redis not available")
-
-    @pytest.mark.asyncio
-    async def test_memcached_positional_argument(self, async_session):
-        """Test that old Memcached positional argument still works."""
-        secret_key = "test-secret-key-for-testing-only-32-chars"
-        db_config = create_test_db_config(async_session)
-
-        admin = CRUDAdmin(
-            session=async_session,
-            SECRET_KEY=secret_key,
-            db_config=db_config,
-            setup_on_initialization=False,
-        )
-
-        try:
-            # Old way should still work
-            admin.use_memcached_sessions(["localhost:11211"])
-            assert isinstance(
-                admin.session_manager.storage, session_backends.MemcachedSessionStorage
-            )
         except ImportError:
             pytest.skip("Memcached not available")
 
@@ -727,17 +662,7 @@ class TestURLParsing:
     @pytest.mark.asyncio
     async def test_redis_url_parsing(self, async_session):
         """Test Redis URL parsing edge cases."""
-        secret_key = "test-secret-key-for-testing-only-32-chars"
-        db_config = create_test_db_config(async_session)
-
-        admin = CRUDAdmin(
-            session=async_session,
-            SECRET_KEY=secret_key,
-            db_config=db_config,
-            setup_on_initialization=False,
-        )
-
-        # Test various URL formats
+        # Test various URL formats using RedisConfig
         test_cases = [
             ("redis://localhost", {"host": "localhost", "port": 6379, "db": 0}),
             ("redis://localhost:6379", {"host": "localhost", "port": 6379, "db": 0}),
@@ -760,7 +685,8 @@ class TestURLParsing:
         ]
 
         for redis_url, expected in test_cases:
-            parsed = admin._parse_redis_url(redis_url)
+            redis_config = RedisConfig(url=redis_url)
+            parsed = redis_config.to_dict()
             assert parsed == expected, (
                 f"Failed parsing {redis_url}, got {parsed}, expected {expected}"
             )
@@ -768,17 +694,7 @@ class TestURLParsing:
     @pytest.mark.asyncio
     async def test_memcached_servers_parsing(self, async_session):
         """Test Memcached servers parsing edge cases."""
-        secret_key = "test-secret-key-for-testing-only-32-chars"
-        db_config = create_test_db_config(async_session)
-
-        admin = CRUDAdmin(
-            session=async_session,
-            SECRET_KEY=secret_key,
-            db_config=db_config,
-            setup_on_initialization=False,
-        )
-
-        # Test various server formats
+        # Test various server formats using MemcachedConfig
         test_cases = [
             (["localhost"], {"host": "localhost", "port": 11211}),
             (["localhost:11211"], {"host": "localhost", "port": 11211}),
@@ -796,11 +712,16 @@ class TestURLParsing:
         ]
 
         for servers, expected in test_cases:
-            parsed = admin._parse_memcached_servers(servers)
-            assert parsed == expected, (
-                f"Failed parsing {servers}, got {parsed}, expected {expected}"
+            memcached_config = MemcachedConfig(servers=servers)
+            parsed = memcached_config.to_dict()
+            # Compare only host and port from parsed result
+            extracted = {"host": parsed["host"], "port": parsed["port"]}
+            assert extracted == expected, (
+                f"Failed parsing {servers}, got {extracted}, expected {expected}"
             )
 
-        # Test empty servers list
-        parsed = admin._parse_memcached_servers([])
-        assert parsed == {"host": "localhost", "port": 11211}
+        # Test empty servers list (should use defaults)
+        memcached_config = MemcachedConfig(servers=[])
+        parsed = memcached_config.to_dict()
+        extracted = {"host": parsed["host"], "port": parsed["port"]}
+        assert extracted == {"host": "localhost", "port": 11211}
