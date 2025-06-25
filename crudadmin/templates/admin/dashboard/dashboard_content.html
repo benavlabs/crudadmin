@@ -97,7 +97,7 @@
         {% if "AdminUser" in auth_table_names %}
             <div class="module">
                 <div class="module-info">
-                    <a href="/{{ mount_path }}/AdminUser" class="module-title">Admin Users</a>
+                    <a href="{{ url_prefix }}/AdminUser" class="module-title">Admin Users</a>
                     <div class="module-stats">
                         <span>Active Users:</span>
                         <span class="stats-badge">{{ auth_model_counts["AdminUser"]|default(0) }}</span>
@@ -109,7 +109,7 @@
         {% if "AdminSession" in auth_table_names %}
             <div class="module">
                 <div class="module-info">
-                    <a href="/{{ mount_path }}/AdminSession" class="module-title">Sessions</a>
+                    <a href="{{ url_prefix }}/AdminSession" class="module-title">Sessions</a>
                     <div class="module-stats">
                         <span>Active Sessions:</span>
                         <span class="stats-badge" title="Total / Active">
@@ -127,7 +127,7 @@
         {% for table_name in table_names %}
             <div class="module">
                 <div class="module-info">
-                    <a href="/{{ mount_path }}/{{ table_name }}" class="module-title">{{ table_name }}</a>
+                    <a href="{{ url_prefix }}/{{ table_name }}" class="module-title">{{ table_name }}</a>
                     <div class="module-stats">
                         <span>Total Records:</span>
                         <span class="stats-badge">{{ model_counts[table_name]|default(0) }}</span>

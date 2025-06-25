@@ -5,7 +5,7 @@
 {% set include_sidebar_and_header = True %}
 
 {% block content %}
-    <div id="dynamic-content" hx-get="/{{ mount_path }}/dashboard-content" hx-trigger="load" hx-swap="outerHTML">
+    <div id="dynamic-content" hx-get="{{ url_prefix }}/dashboard-content" hx-trigger="load" hx-swap="outerHTML">
         <div class="loading-state">
             <div class="card">
                 <div class="loading-message">Loading dashboard content...</div>
@@ -22,12 +22,12 @@
         align-items: center;
         min-height: 200px;
     }
-    
+
     .loading-message {
         color: var(--text-secondary-light);
         font-size: 1.1rem;
     }
-    
+
     .dark-theme .loading-message {
         color: var(--text-secondary-dark);
     }

@@ -8,7 +8,7 @@
                <span class="event-timestamp">{{ event.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</span>
            </div>
        </div>
-       
+
        <div class="event-summary" onclick="toggleDetails(this)">
            <div class="summary-grid">
                <div class="summary-item">
@@ -94,21 +94,21 @@
 
 <div class="pagination">
     <button class="pagination-button"
-            hx-get="/{{ mount_path }}/management/events/content"
+            hx-get="{{ url_prefix }}/management/events/content"
             hx-target="#events-content"
             hx-include="[name='event-type'],[name='status'],[name='start-date'],[name='end-date']"
             hx-vals='js:{"page": "{{ page - 1 }}"}'
             {% if page <= 1 %}disabled{% endif %}>
         Previous
     </button>
-    
+
     <div class="pagination-info">
         Page {{ page }} of {{ total_pages }}
     </div>
-    
+
     <button class="pagination-button"
-            hx-get="/{{ mount_path }}/management/events/content"
-            hx-target="#events-content" 
+            hx-get="{{ url_prefix }}/management/events/content"
+            hx-target="#events-content"
             hx-include="[name='event-type'],[name='status'],[name='start-date'],[name='end-date']"
             hx-vals='js:{"page": "{{ page + 1 }}"}'
             {% if page >= total_pages %}disabled{% endif %}>
@@ -120,7 +120,7 @@
     .event-card {
         margin-bottom: 1rem;
     }
-    
+
     .header-info {
         display: flex;
         align-items: center;

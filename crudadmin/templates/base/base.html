@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}FastAPI Admin{% endblock %}</title>
-    <link rel="icon" type="image/png" href="{% if mount_path %}/{{ mount_path }}{% endif %}/static/favicon.png?v=1">
+    <link rel="icon" type="image/png" href="{{ url_prefix }}/static/favicon.png?v=1">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script src="{% if mount_path %}/{{ mount_path }}{% endif %}/static/htmx.min.js"></script>
+    <script src="{{ url_prefix }}/static/htmx.min.js"></script>
     <style>
         /* Modern CSS Reset */
         *, *::before, *::after {
@@ -22,31 +22,31 @@
             --primary-dark: #00796B;
             --primary-light: #B2DFDB;
             --accent-color: #607D8B;
-            
+
             /* Light Theme */
             --bg-primary-light: #ffffff;
             --bg-secondary-light: #f7f7f7;
             --text-primary-light: #333333;
             --text-secondary-light: #666666;
             --border-light: #e0e0e0;
-            
+
             /* Dark Theme */
             --bg-primary-dark: #1e2129;
             --bg-secondary-dark: #282c34;
             --text-primary-dark: #ffffff;
             --text-secondary-dark: #b0b0b0;
             --border-dark: #3a3f4c;
-            
+
             /* Status Colors */
             --success-color: #4CAF50;
             --danger-color: #f44336;
             --warning-color: #ff9800;
-            
+
             /* Layout */
             --header-height: 64px;
             --sidebar-width: 260px;
             --content-max-width: 1200px;
-            
+
             /* Components */
             --border-radius-sm: 4px;
             --border-radius-md: 8px;
@@ -274,21 +274,21 @@
 </head>
 <body class="{{ theme|default('dark-theme', true) }}">
     {% set include_sidebar_and_header = include_sidebar_and_header | default(false) %}
-    
+
     <div class="{% if include_sidebar_and_header %}admin-container{% endif %}">
         {% if include_sidebar_and_header %}
             <header class="admin-header">
-                <a href="{% if mount_path %}/{{ mount_path }}{% endif %}/" class="brand">
-                    <img src="{% if mount_path %}/{{ mount_path }}{% endif %}/static/favicon.png" alt="FastAPI Admin" class="brand-icon">
+                <a href="{{ url_prefix }}/" class="brand">
+                    <img src="{{ url_prefix }}/static/favicon.png" alt="FastAPI Admin" class="brand-icon">
                     FastAPI Admin
                 </a>
                 <div class="flex items-center gap-4">
-                    <a href="{% if mount_path %}/{{ mount_path }}{% endif %}/logout" style="color: white; text-decoration: none; font-weight: 500; transition: color 0.2s" onmouseover="this.style.color='var(--primary-light)'" onmouseout="this.style.color='white'">
+                    <a href="{{ url_prefix }}/logout" style="color: white; text-decoration: none; font-weight: 500; transition: color 0.2s" onmouseover="this.style.color='var(--primary-light)'" onmouseout="this.style.color='white'">
                         Logout
                     </a>
                 </div>
             </header>
-            
+
             <aside class="admin-sidebar">
                 <nav>
                     <!-- Dashboard Section -->
@@ -299,7 +299,7 @@
                         </div>
                         <ul class="sidebar-nav">
                             <li>
-                                <a href="{% if mount_path %}/{{ mount_path }}{% endif %}/" class="sidebar-link active">
+                                <a href="{{ url_prefix }}/" class="sidebar-link active">
                                     Dashboard
                                 </a>
                             </li>
@@ -314,14 +314,14 @@
                         </div>
                         <ul class="sidebar-nav">
                             <li>
-                                <a href="{% if mount_path %}/{{ mount_path }}{% endif %}/management/health" class="sidebar-link">
+                                <a href="{{ url_prefix }}/management/health" class="sidebar-link">
                                     Health Checks
                                     <span class="badge badge-primary">System</span>
                                 </a>
                             </li>
                             {% if track_events %}
                             <li>
-                                <a href="{% if mount_path %}/{{ mount_path }}{% endif %}/management/events" class="sidebar-link">
+                                <a href="{{ url_prefix }}/management/events" class="sidebar-link">
                                     Event Logs
                                     <span class="badge badge-primary">System</span>
                                 </a>
@@ -339,7 +339,7 @@
                         <ul class="sidebar-nav">
                             {% for auth_table_name in auth_table_names %}
                             <li>
-                                <a href="{% if mount_path %}/{{ mount_path }}{% endif %}/{{ auth_table_name }}/" class="sidebar-link">
+                                <a href="{{ url_prefix }}/{{ auth_table_name }}/" class="sidebar-link">
                                     {{ auth_table_name }}
                                     <span class="model-count">{{ auth_model_counts[auth_table_name]|default(0) }}</span>
                                 </a>
@@ -358,7 +358,7 @@
                         <ul class="sidebar-nav">
                             {% for table_name in table_names %}
                             <li>
-                                <a href="{% if mount_path %}/{{ mount_path }}{% endif %}/{{ table_name }}/" class="sidebar-link">
+                                <a href="{{ url_prefix }}/{{ table_name }}/" class="sidebar-link">
                                     {{ table_name }}
                                     <span class="model-count">{{ model_counts[table_name]|default(0) }}</span>
                                 </a>
@@ -370,7 +370,7 @@
                 </nav>
             </aside>
         {% endif %}
-        
+
         <main class="admin-main">
             {% block content %}{% endblock %}
         </main>
@@ -380,7 +380,7 @@
         function initializeSidebar() {
             const currentPath = window.location.pathname;
             const sidebarLinks = document.querySelectorAll('.sidebar-link');
-            
+
             sidebarLinks.forEach(link => {
                 if (link.getAttribute('href') === currentPath) {
                     link.classList.add('active');
@@ -394,12 +394,12 @@
             document.querySelectorAll('.sidebar-section-header').forEach(header => {
                 const section = header.parentElement;
                 const sectionId = header.querySelector('.sidebar-section-title').textContent;
-                
+
                 // Restore state from localStorage
                 if (localStorage.getItem(`sidebar-${sectionId}`) === 'collapsed') {
                     section.classList.add('collapsed');
                 }
-                
+
                 // Update localStorage on toggle
                 header.addEventListener('click', () => {
                     const isCollapsed = section.classList.contains('collapsed');

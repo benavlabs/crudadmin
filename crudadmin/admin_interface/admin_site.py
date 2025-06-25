@@ -248,7 +248,7 @@ class AdminSite:
                         {
                             "request": request,
                             "error": "Invalid credentials. Please try again.",
-                            "mount_path": self.mount_path,
+                            "url_prefix": self.get_url_prefix(),
                             "theme": self.theme,
                         },
                     )
@@ -301,7 +301,7 @@ class AdminSite:
                         {
                             "request": request,
                             "error": f"Error creating session: {str(e)}",
-                            "mount_path": self.mount_path,
+                            "url_prefix": self.get_url_prefix(),
                             "theme": self.theme,
                         },
                     )
@@ -313,7 +313,7 @@ class AdminSite:
                     {
                         "request": request,
                         "error": "An error occurred during login. Please try again.",
-                        "mount_path": self.mount_path,
+                        "url_prefix": self.get_url_prefix(),
                         "theme": self.theme,
                     },
                 )
@@ -397,7 +397,7 @@ class AdminSite:
                 "auth/login.html",
                 {
                     "request": request,
-                    "mount_path": self.mount_path,
+                    "url_prefix": self.get_url_prefix(),
                     "theme": self.theme,
                     "error": error,
                 },
@@ -477,7 +477,7 @@ class AdminSite:
             "table_names": self.models.keys(),
             "auth_model_counts": auth_model_counts,
             "model_counts": model_counts,
-            "mount_path": self.mount_path,
+            "url_prefix": self.get_url_prefix(),
             "track_events": self.event_integration is not None,
             "theme": self.theme,
         }

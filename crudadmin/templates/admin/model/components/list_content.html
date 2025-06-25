@@ -5,7 +5,7 @@
                 <tr>
                     <th class="checkbox-cell">
                         <div class="checkbox-wrapper">
-                            <input type="checkbox" 
+                            <input type="checkbox"
                                    class="custom-checkbox"
                                    name="select-all"
                                    onchange="handleSelectAll(this)">
@@ -17,7 +17,7 @@
                                 {{ header }}
                                 <button class="sort-btn"
                                         title="Toggle sort"
-                                        hx-get="/{{ mount_path }}/{{ model_name }}/get_model_list"
+                                        hx-get="{{ url_prefix }}/{{ model_name }}/get_model_list"
                                         hx-target="#model-list"
                                         hx-include="[name='rows-per-page-select'],[name='column-to-search'],[name='search-input']"
                                         hx-vals='js:{"sort_by": "{{ header }}", "sort_order": "{% if sort_column == header and sort_order == "asc" %}desc{% else %}asc{% endif %}", "page": "1"}'
@@ -48,7 +48,7 @@
                     <tr>
                         <td class="checkbox-cell">
                             <div class="checkbox-wrapper">
-                                <input type="checkbox" 
+                                <input type="checkbox"
                                        class="custom-checkbox"
                                        name="rowSelect"
                                        value="{{ row[primary_key_info.name] }}"
