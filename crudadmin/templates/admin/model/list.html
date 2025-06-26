@@ -126,7 +126,7 @@
         font-size: 0.875rem;
     }
 
-    .dark-theme .column-select select, 
+    .dark-theme .column-select select,
     .dark-theme .search-input {
         background: var(--bg-secondary-dark);
         border-color: var(--border-dark);
@@ -351,24 +351,24 @@
         <h1 class="page-title">{{ model_name }} Administration</h1>
         <div class="action-buttons">
             {% if 'create' in allowed_actions %}
-            <a href="/{{ mount_path }}/{{ model_name }}/create" 
+            <a href="{{ url_prefix }}/{{ model_name }}/create"
                class="add-button action-button"
                id="createButton"
-               hx-get="/{{ mount_path }}/{{ model_name }}/create_page" 
+               hx-get="{{ url_prefix }}/{{ model_name }}/create_page"
                hx-target="body">
                 + Add {{ model_name }}
             </a>
             {% endif %}
-            
+
             {% if 'update' in allowed_actions %}
-            <a href="#" 
+            <a href="#"
                class="update-button action-button hidden"
                id="updateButton"
                onclick="handleUpdate()">
                 ✎ Update
             </a>
             {% endif %}
-            
+
             {% if 'delete' in allowed_actions %}
             <button class="delete-button action-button hidden"
                     id="deleteButton"
@@ -383,8 +383,8 @@
     <div class="search-container">
         <div class="search-group">
             <div class="column-select">
-                <select name="column-to-search" 
-                        hx-get="/{{ mount_path }}/{{ model_name }}/get_model_list" 
+                <select name="column-to-search"
+                        hx-get="{{ url_prefix }}/{{ model_name }}/get_model_list"
                         hx-target="#model-list"
                         hx-trigger="change"
                         hx-include="[name='search-input']">
@@ -395,16 +395,16 @@
                     {% endfor %}
                 </select>
             </div>
-            <input type="text" 
+            <input type="text"
                    name="search-input"
                    class="search-input"
                    placeholder="Search..."
-                   hx-get="/{{ mount_path }}/{{ model_name }}/get_model_list"
+                   hx-get="{{ url_prefix }}/{{ model_name }}/get_model_list"
                    hx-target="#model-list"
                    hx-trigger="keyup changed delay:500ms, search"
                    hx-include="[name='column-to-search']">
             <button class="search-button"
-                    hx-get="/{{ mount_path }}/{{ model_name }}/get_model_list"
+                    hx-get="{{ url_prefix }}/{{ model_name }}/get_model_list"
                     hx-target="#model-list"
                     hx-include="[name='column-to-search'],[name='search-input']">
                 Search
@@ -423,7 +423,7 @@
         const createButton = document.getElementById('createButton');
         const updateButton = document.getElementById('updateButton');
         const deleteButton = document.getElementById('deleteButton');
-        
+
         if (checkedBoxes.length === 0) {
             if (createButton) createButton.classList.remove('hidden');
             if (updateButton) updateButton.classList.add('hidden');
@@ -447,12 +447,12 @@
 
     function handleRowSelect() {
         updateActionButtons();
-        
+
         // Update "select all" checkbox
         const allCheckboxes = document.querySelectorAll('input[name="rowSelect"]');
         const checkedBoxes = document.querySelectorAll('input[name="rowSelect"]:checked');
         const selectAllCheckbox = document.querySelector('input[name="select-all"]');
-        
+
         selectAllCheckbox.checked = allCheckboxes.length === checkedBoxes.length;
     }
 
@@ -460,12 +460,12 @@
         if (!type) {
             return value;
         }
-        
+
         // Normalize the type by removing SQL-specific prefixes/suffixes and converting to lowercase
         const baseType = type.toString().toLowerCase()
             .replace(/(sql|types|py|_type|\(.*\))/g, '')
             .trim();
-        
+
         switch(baseType) {
             // Integer types
             case 'int':
@@ -478,7 +478,7 @@
                 }
                 return intValue;
 
-            // Float types    
+            // Float types
             case 'float':
             case 'real':
             case 'double':
@@ -490,7 +490,7 @@
                 }
                 return floatValue;
 
-            // Boolean types    
+            // Boolean types
             case 'bool':
             case 'boolean':
                 if (typeof value === 'boolean') return value;
@@ -500,7 +500,7 @@
                 }
                 return ['true', '1'].includes(strValue);
 
-            // UUID types    
+            // UUID types
             case 'uuid':
                 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
                 if (!uuidRegex.test(value)) {
@@ -516,7 +516,7 @@
             case 'char':
                 return String(value);
 
-            // Default case for unknown types    
+            // Default case for unknown types
             default:
                 return value;
         }
@@ -535,15 +535,15 @@
 
         const modelList = document.getElementById('model-list');
         const pkType = modelList.dataset.pkType;
-        
+
         // Get current page and rows per page
         const paginationInfo = document.querySelector('.pagination-info');
         const currentPageMatch = paginationInfo?.textContent.match(/Page (\d+) of/);
         const currentPage = currentPageMatch ? currentPageMatch[1] : '1';
-        
+
         const rowsPerPageSelect = document.querySelector('[name="rows-per-page-select"]');
         const rowsPerPage = rowsPerPageSelect ? rowsPerPageSelect.value : '10';
-        
+
         // Convert and validate IDs
         const ids = Array.from(checkedBoxes).map(box => {
             const rawValue = box.value.trim();
@@ -561,18 +561,18 @@
         console.log('Sending delete request for IDs:', ids);
 
         try {
-            const response = await fetch(`/{{ mount_path }}/{{ model_name }}/bulk-delete?page=${currentPage}&rows-per-page-select=${rowsPerPage}`, {
+            const response = await fetch(`{{ url_prefix }}/{{ model_name }}/bulk-delete?page=${currentPage}&rows-per-page-select=${rowsPerPage}`, {
                 method: 'DELETE',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ 
+                body: JSON.stringify({
                     ids: ids,
                     page: parseInt(currentPage),
                     rows_per_page: parseInt(rowsPerPage)
                 })
             });
-            
+
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.detail?.[0]?.msg || 'Error deleting items');
@@ -584,7 +584,7 @@
             htmx.process(tempDiv);
             modelList.replaceWith(tempDiv.firstElementChild);
             updateActionButtons();
-            
+
         } catch (error) {
             alert(error.message || 'Failed to delete items');
         }
@@ -593,7 +593,7 @@
     function handleUpdate() {
         const checkedBox = document.querySelector('input[name="rowSelect"]:checked');
         const id = checkedBox.value;
-        window.location.href = `/{{ mount_path }}/{{ model_name }}/update/${id}`;
+        window.location.href = `{{ url_prefix }}/{{ model_name }}/update/${id}`;
     }
 
     // Initialize event listeners when content is loaded or updated

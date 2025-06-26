@@ -31,7 +31,7 @@
         .dark-theme .field-error {
             color: #F87171;
         }
-        
+
         .admin-content {
             padding: 2rem;
             max-width: 1400px;
@@ -271,7 +271,7 @@
         </div>
         {% endif %}
 
-        <form method="post" action="/{{ mount_path }}/{{ model_name }}/form_update/{{ id }}" enctype="multipart/form-data">
+        <form method="post" action="{{ url_prefix }}/{{ model_name }}/form_update/{{ id }}" enctype="multipart/form-data">
             <div class="field-section">
                 {% for field in form_fields %}
                 <div class="form-group">
@@ -363,7 +363,7 @@
 
             <!-- Form Actions -->
             <div class="form-actions">
-                <a href="/{{ mount_path }}/{{ model_name }}/" class="btn btn-secondary">Cancel</a>
+                <a href="{{ url_prefix }}/{{ model_name }}/" class="btn btn-secondary">Cancel</a>
                 <button type="submit" class="btn btn-primary">Update {{ model_name }}</button>
             </div>
         </form>

@@ -627,7 +627,7 @@ class CRUDAdmin:
                     "event_types": [e.value for e in EventType],
                     "statuses": [s.value for s in EventStatus],
                     "users": users["data"],
-                    "mount_path": self.mount_path,
+                    "url_prefix": self.get_url_prefix(),
                 }
             )
 
@@ -767,7 +767,7 @@ class CRUDAdmin:
                         "events": enriched_events,
                         "page": page,
                         "total_pages": total_pages,
-                        "mount_path": self.mount_path,
+                        "url_prefix": self.get_url_prefix(),
                         "start_date": start_date,
                         "end_date": end_date,
                         "selected_type": event_type,
@@ -785,7 +785,7 @@ class CRUDAdmin:
                         "events": [],
                         "page": 1,
                         "total_pages": 1,
-                        "mount_path": self.mount_path,
+                        "url_prefix": self.get_url_prefix(),
                     },
                 )
 

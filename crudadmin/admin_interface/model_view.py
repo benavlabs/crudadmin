@@ -692,7 +692,7 @@ class ModelView:
                 "error": error_message,
                 "field_errors": field_errors,
                 "field_values": field_values,
-                "mount_path": self.admin_site.mount_path if self.admin_site else "",
+                "url_prefix": self.get_url_prefix(),
             }
 
             return self.templates.TemplateResponse(
@@ -851,7 +851,7 @@ class ModelView:
                     "current_page": adjusted_page,
                     "rows_per_page": rows_per_page,
                     "primary_key_info": primary_key_info,
-                    "mount_path": self.admin_site.mount_path if self.admin_site else "",
+                    "url_prefix": self.get_url_prefix(),
                 }
 
                 return self.templates.TemplateResponse(
@@ -1002,7 +1002,7 @@ class ModelView:
                 "rows_per_page": rows_per_page,
                 "selected_column": search_column,
                 "primary_key_info": primary_key_info,
-                "mount_path": self.admin_site.mount_path if self.admin_site else "",
+                "url_prefix": self.get_url_prefix(),
                 "sort_column": sort_column,
                 "sort_order": sort_order,
                 "allowed_actions": self.allowed_actions,
@@ -1046,14 +1046,13 @@ class ModelView:
         async def model_create_page(request: Request) -> Response:
             """Show a blank form for creating a new record."""
             form_fields = _get_form_fields_from_schema(self.create_schema)
-            mount_path = self.admin_site.mount_path if self.admin_site else ""
             return self.templates.TemplateResponse(
                 template,
                 {
                     "request": request,
                     "model_name": self.model_key,
                     "form_fields": form_fields,
-                    "mount_path": mount_path,
+                    "url_prefix": self.get_url_prefix(),
                 },
             )
 
@@ -1098,14 +1097,13 @@ class ModelView:
                 if field_name in item:
                     field["value"] = item[field_name]
 
-            mount_path = self.admin_site.mount_path if self.admin_site else ""
             return self.templates.TemplateResponse(
                 template,
                 {
                     "request": request,
                     "model_name": self.model_key,
                     "form_fields": form_fields,
-                    "mount_path": mount_path,
+                    "url_prefix": self.get_url_prefix(),
                     "id": id,
                 },
             )
@@ -1267,7 +1265,7 @@ class ModelView:
                 "error": error_message,
                 "field_errors": field_errors,
                 "field_values": field_values,
-                "mount_path": self.admin_site.mount_path if self.admin_site else "",
+                "url_prefix": self.get_url_prefix(),
                 "id": id,
                 "include_sidebar_and_header": False,
             }

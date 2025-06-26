@@ -31,7 +31,7 @@
         .dark-theme .field-error {
             color: #F87171;
         }
-        
+
         .create-form-container .admin-content {
             padding: 2rem;
             max-width: 1400px;
@@ -258,7 +258,7 @@
         </div>
         {% endif %}
 
-        <form method="post" action="/{{ mount_path }}/{{ model_name }}/form_create" enctype="multipart/form-data">
+        <form method="post" action="{{ url_prefix }}/{{ model_name }}/form_create" enctype="multipart/form-data">
             <div class="create-form">
                 <div class="field-section">
                     {% for field in form_fields %}
@@ -281,7 +281,7 @@
                             {% endif %}
                         </div>
                         {% endif %}
-                        
+
                         <!-- Field Input -->
                         {% if field.type == "select" %}
                             <select class="form-control{% if field.name in field_errors %} error{% endif %}"
@@ -296,7 +296,7 @@
                                 </option>
                                 {% endfor %}
                             </select>
-                        
+
                         {% elif field.type == "checkbox" %}
                             <div class="checkbox-wrapper">
                                 <input class="form-control{% if field.name in field_errors %} error{% endif %}"
@@ -308,14 +308,14 @@
                                 <span class="checkbox-label">{{ field.description }}</span>
                                 {% endif %}
                             </div>
-                        
+
                         {% elif field.type == "json" %}
                             <textarea class="form-control{% if field.name in field_errors %} error{% endif %}"
                                 id="{{ field.name }}"
                                 name="{{ field.name }}"
                                 {% if field.required %}required{% endif %}
                                 placeholder="Enter JSON data">{{ field_values[field.name] if field_values and field.name in field_values else '' }}</textarea>
-                        
+
                         {% else %}
                             <input class="form-control{% if field.name in field_errors %} error{% endif %}"
                                 type="{{ field.type }}"
@@ -331,7 +331,7 @@
                                 value="{{ field_values[field.name] if field_values and field.name in field_values else '' }}"
                                 placeholder="{{ field.examples | first | default ('Enter ' + field.title | default(field.name) | capitalize) }}">
                         {% endif %}
-                        
+
                         {% if field.name in field_errors %}
                         <div class="field-error">
                             {{ field_errors[field.name] }}
@@ -349,7 +349,7 @@
 
                 <!-- Form Actions -->
                 <div class="form-actions">
-                    <a href="/{{ mount_path }}/{{ model_name }}/" class="btn btn-secondary">Cancel</a>
+                    <a href="{{ url_prefix }}/{{ model_name }}/" class="btn btn-secondary">Cancel</a>
                     <button type="submit" class="btn btn-primary">Create {{ model_name }}</button>
                 </div>
             </div>

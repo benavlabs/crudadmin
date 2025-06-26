@@ -288,16 +288,16 @@
         .filter-grid {
             grid-template-columns: 1fr;
         }
-        
+
         .detail-item {
             grid-template-columns: 1fr;
             gap: 0.25rem;
         }
-        
+
         .filter-actions {
             flex-direction: column;
         }
-        
+
         .filter-button {
             width: 100%;
         }
@@ -309,7 +309,7 @@
         <div class="dashboard-header">
             <h1 class="page-title">Event Logs</h1>
         </div>
-        
+
         <div class="filter-section">
             <div class="filter-grid">
                 <div class="filter-group">
@@ -323,7 +323,7 @@
                         {% endfor %}
                     </select>
                 </div>
-                
+
                 <div class="filter-group">
                     <label class="filter-label" for="event-type">Event Type</label>
                     <select id="event-type" name="event_type" class="filter-control">
@@ -350,19 +350,19 @@
 
                 <div class="filter-group">
                     <label class="filter-label" for="start-date">Start Date</label>
-                    <input type="date" 
+                    <input type="date"
                            id="start-date"
-                           name="start_date" 
-                           class="filter-control" 
+                           name="start_date"
+                           class="filter-control"
                            value="{{ start_date }}">
                 </div>
 
                 <div class="filter-group">
                     <label class="filter-label" for="end-date">End Date</label>
-                    <input type="date" 
+                    <input type="date"
                            id="end-date"
-                           name="end_date" 
-                           class="filter-control" 
+                           name="end_date"
+                           class="filter-control"
                            value="{{ end_date }}">
                 </div>
             </div>
@@ -377,8 +377,8 @@
             </div>
         </div>
 
-        <div id="events-content" 
-             hx-get="/{{ mount_path }}/management/events/content"
+        <div id="events-content"
+             hx-get="{{ url_prefix }}/management/events/content"
              hx-trigger="load">
             <div class="event-grid">
                 <div class="event-card">
@@ -405,14 +405,14 @@ function getFilterValues() {
 function applyFilters() {
     const filters = getFilterValues();
     const queryParams = new URLSearchParams();
-    
+
     Object.entries(filters).forEach(([key, value]) => {
         if (value) {
             queryParams.append(key, value);
         }
     });
 
-    const url = `/{{ mount_path }}/management/events/content?${queryParams.toString()}`;
+    const url = `{{ url_prefix }}/management/events/content?${queryParams.toString()}`;
     htmx.ajax('GET', url, {
         target: '#events-content',
         swap: 'innerHTML'
