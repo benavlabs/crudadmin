@@ -1046,7 +1046,6 @@ class ModelView:
         async def model_create_page(request: Request) -> Response:
             """Show a blank form for creating a new record."""
             form_fields = _get_form_fields_from_schema(self.create_schema)
-            mount_path = self.admin_site.mount_path if self.admin_site else ""
             return self.templates.TemplateResponse(
                 template,
                 {
