@@ -89,7 +89,8 @@ dev = [
     "httptools>=0.6.4",
     "httpx>=0.28.1",
     "sqlalchemy[mypy]>=2.0.36",
-    "sqlalchemy-utils>=0.41.2"
+    "sqlalchemy-utils>=0.41.2",
+    "pre-commit>=3.5.0"
 ]
 
 docs = [

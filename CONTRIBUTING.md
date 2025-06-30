@@ -49,6 +49,31 @@ CRUDAdmin uses pytest for testing. Run tests using:
 uv run pytest
 ```
 
+### Pre-commit Hooks
+CRUDAdmin uses pre-commit to automatically check code quality before each commit. It helps enforce
+linting, formatting, and type checking.
+
+After installing the development dependencies:
+
+```sh
+uv run pre-commit install
+```
+
+This will set up thee Git hooks to run automatically before every commit.
+
+*Running hooks Manually*
+To run all hooks on all files:
+```sh
+uv run pre-commit run --all-files
+```
+
+This will run:
+- `ruff` fot linting and formatting
+- `mypy` for type checking
+- basic formatting checks (trailing whitespace, EOF, file size)
+
+Make sure all pre-commit checks pass before submitting a PR.
+
 ### Linting
 Use mypy for type checking:
 ```sh
