@@ -52,7 +52,7 @@ class TestCreateAdminEventLog:
         repr_str = repr(instance)
         assert "AdminEventLog" in repr_str
         assert "id=1" in repr_str
-        assert "event_type=create" in repr_str  # Enum value is stored as string
+        assert any(s in repr_str for s in ("event_type=create", "event_type=EventType.CREATE"))
         assert "user_id=123" in repr_str
 
     def test_create_admin_event_log_returns_existing_class(self):
