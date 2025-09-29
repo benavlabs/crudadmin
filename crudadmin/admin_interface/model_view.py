@@ -605,7 +605,11 @@ class ModelView:
                             form_data[key] = raw_value
                             field_values[key] = raw_value
                         else:
-                            form_data[key] = field.get("default")
+                            if field["type"] == "checkbox":
+                                form_data[key] = False
+                                field_values[key] = False
+                            else:
+                                form_data[key] = field.get("default")
 
                     try:
                         if self.password_transformer is not None:
@@ -1162,6 +1166,13 @@ class ModelView:
                 form_data = await request.form()
                 update_data: Dict[str, Any] = {}
                 has_updates = False
+
+                for field in form_fields:
+                    key = field["name"]
+                    if field["type"] == "checkbox" and key not in form_data:
+                        update_data[key] = False
+                        field_values[key] = False
+                        has_updates = True
 
                 for key, raw_val in form_data.items():
                     if isinstance(raw_val, UploadFile):
