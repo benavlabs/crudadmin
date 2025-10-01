@@ -339,8 +339,15 @@ class RedisSessionStorage(AbstractSessionStorage[T]):
         user_sessions_key = self.get_user_sessions_key(user_id)
 
         try:
-            members = await self.client.smembers(user_sessions_key)
-            return [m.decode("utf-8") if isinstance(m, bytes) else m for m in members]
+            members = self.client.smembers(user_sessions_key)
+            if not hasattr(members, "__await__"):
+                raise TypeError(
+                    f"Expected awaitable from smembers, got {type(members)}"
+                )
+            members_await = await members
+            return [
+                m.decode("utf-8") if isinstance(m, bytes) else m for m in members_await
+            ]
         except self.RedisError as e:
             logger.error(f"Error getting user sessions: {e}")
             raise

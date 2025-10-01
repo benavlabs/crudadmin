@@ -9,13 +9,17 @@ repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.12.1
     hooks:
-      - id: ruff
-        args: ["check", "crudadmin", "--fix"]
+      - id: ruff-check
+        args: ["crudadmin", "--fix"]
       - id: ruff-format
         args: ["crudadmin"]
 
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.16.1
+  - repo: local
     hooks:
       - id: mypy
-        args: ["crudadmin", "--strict"]
+        name: mypy
+        entry: uv run mypy crudadmin/
+        language: system
+        types: [python]
+        pass_filenames: false
+        args: [--config-file=pyproject.toml]

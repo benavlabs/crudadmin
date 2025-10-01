@@ -17,11 +17,9 @@ class TestSessionManagerIntegration:
     @pytest.fixture
     def session_manager_with_mocks(self, mock_session_storage, mock_csrf_storage):
         """Create a session manager with mock storage."""
-        with (
-            patch(
-                "crudadmin.session.manager.get_session_storage",
-                return_value=mock_session_storage,
-            ),
+        with patch(
+            "crudadmin.session.manager.get_session_storage",
+            return_value=mock_session_storage,
         ):
             manager = SessionManager(session_storage=mock_session_storage)
             manager.csrf_storage = mock_csrf_storage
