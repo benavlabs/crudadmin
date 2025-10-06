@@ -960,6 +960,8 @@ class ModelView:
                             filter_criteria[f"{search_column}__ilike"] = (
                                 f"%{search_value}%"
                             )
+                        elif python_type is UUID:
+                            filter_criteria[search_column] = str(search_value)
                     except (ValueError, TypeError):
                         pass
 
