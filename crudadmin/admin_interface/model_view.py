@@ -1092,10 +1092,12 @@ class ModelView:
                 )
 
             form_fields = _get_form_fields_from_schema(self.update_schema)
+            field_values: Dict[str, Any] = {}
             for field in form_fields:
                 field_name = field["name"]
                 if field_name in item:
                     field["value"] = item[field_name]
+                    field_values[field_name] = item[field_name]
 
             return self.templates.TemplateResponse(
                 template,
@@ -1103,6 +1105,7 @@ class ModelView:
                     "request": request,
                     "model_name": self.model_key,
                     "form_fields": form_fields,
+                    "field_values": field_values,
                     "url_prefix": self.get_url_prefix(),
                     "id": id,
                 },
