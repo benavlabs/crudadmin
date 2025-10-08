@@ -1121,6 +1121,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#pre-commit-hooks" class="md-nav__link">
+    <span class="md-ellipsis">
+      Pre-commit Hooks
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#linting" class="md-nav__link">
     <span class="md-ellipsis">
       Linting
@@ -1342,6 +1351,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#pre-commit-hooks" class="md-nav__link">
+    <span class="md-ellipsis">
+      Pre-commit Hooks
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#linting" class="md-nav__link">
     <span class="md-ellipsis">
       Linting
@@ -1448,13 +1466,29 @@
 <p>CRUDAdmin uses pytest for testing. Run tests using:
 <div class="language-sh highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>uv<span class="w"> </span>run<span class="w"> </span>pytest
 </span></code></pre></div></p>
+<h3 id="pre-commit-hooks">Pre-commit Hooks<a class="headerlink" href="#pre-commit-hooks" title="Permanent link">&para;</a></h3>
+<p>CRUDAdmin uses pre-commit to automatically check code quality before each commit. It helps enforce
+linting, formatting, and type checking.</p>
+<p>After installing the development dependencies:</p>
+<div class="language-sh highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>uv<span class="w"> </span>run<span class="w"> </span>pre-commit<span class="w"> </span>install
+</span></code></pre></div>
+<p>This will set up thee Git hooks to run automatically before every commit.</p>
+<p><em>Running hooks Manually</em>
+To run all hooks on all files:
+<div class="language-sh highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>uv<span class="w"> </span>run<span class="w"> </span>pre-commit<span class="w"> </span>run<span class="w"> </span>--all-files
+</span></code></pre></div></p>
+<p>This will run:
+- <code>ruff</code> fot linting and formatting
+- <code>mypy</code> for type checking
+- basic formatting checks (trailing whitespace, EOF, file size)</p>
+<p>Make sure all pre-commit checks pass before submitting a PR.</p>
 <h3 id="linting">Linting<a class="headerlink" href="#linting" title="Permanent link">&para;</a></h3>
 <p>Use mypy for type checking:
-<div class="language-sh highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>uv<span class="w"> </span>run<span class="w"> </span>mypy<span class="w"> </span>crudadmin
+<div class="language-sh highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>uv<span class="w"> </span>run<span class="w"> </span>mypy<span class="w"> </span>crudadmin
 </span></code></pre></div></p>
 <p>Use ruff for style:
-<div class="language-sh highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>uv<span class="w"> </span>run<span class="w"> </span>ruff<span class="w"> </span>check<span class="w"> </span>--fix
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>uv<span class="w"> </span>run<span class="w"> </span>ruff<span class="w"> </span>format
+<div class="language-sh highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>uv<span class="w"> </span>run<span class="w"> </span>ruff<span class="w"> </span>check<span class="w"> </span>--fix
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>uv<span class="w"> </span>run<span class="w"> </span>ruff<span class="w"> </span>format
 </span></code></pre></div></p>
 <p>Ensure your code passes linting before submitting.</p>
 <h2 id="submitting-your-contributions">Submitting Your Contributions<a class="headerlink" href="#submitting-your-contributions" title="Permanent link">&para;</a></h2>
