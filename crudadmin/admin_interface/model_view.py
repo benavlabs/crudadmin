@@ -597,7 +597,24 @@ class ModelView:
                     for field in form_fields:
                         key = field["name"]
                         raw_value = form_data_raw.getlist(key)
-                        if len(raw_value) == 1:
+
+                        if field["type"] == "checkbox":
+                            if raw_value and len(raw_value) == 1:
+                                value_str = raw_value[0]
+                                if value_str == "true":
+                                    form_data[key] = True
+                                    field_values[key] = True
+                                elif value_str == "false":
+                                    form_data[key] = False
+                                    field_values[key] = False
+                                else:
+                                    form_data[key] = bool(value_str)
+                                    field_values[key] = bool(value_str)
+                            else:
+                                has_default = field.get("default") is not None
+                                form_data[key] = None if has_default else False
+                                field_values[key] = None if has_default else False
+                        elif len(raw_value) == 1:
                             value = raw_value[0]
                             form_data[key] = value if value else field.get("default")
                             field_values[key] = value
@@ -1167,6 +1184,27 @@ class ModelView:
                 form_data = await request.form()
                 update_data: Dict[str, Any] = {}
                 has_updates = False
+
+                for field in form_fields:
+                    key = field["name"]
+                    if field["type"] == "checkbox":
+                        raw_values = form_data.getlist(key)
+                        if raw_values and len(raw_values) == 1:
+                            value_str = raw_values[0]
+                            if value_str == "true":
+                                update_data[key] = True
+                                field_values[key] = True
+                            elif value_str == "false":
+                                update_data[key] = False
+                                field_values[key] = False
+                            else:
+                                update_data[key] = bool(value_str)
+                                field_values[key] = bool(value_str)
+                            has_updates = True
+                        elif field.get("default") is None:
+                            update_data[key] = False
+                            field_values[key] = False
+                            has_updates = True
 
                 for key, raw_val in form_data.items():
                     if isinstance(raw_val, UploadFile):
