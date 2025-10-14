@@ -456,14 +456,12 @@ class AdminSite:
         for model_name, model_data in self.admin_authentication.auth_models.items():
             crud_obj = cast(FastCRUD, model_data["crud"])
             if model_name == "AdminSession":
-                total_count = await crud_obj.count(self.db_config.admin_session)
-                active_count = await crud_obj.count(
-                    self.db_config.admin_session, is_active=True
-                )
+                total_count = await crud_obj.count(admin_db)
+                active_count = await crud_obj.count(admin_db, is_active=True)
                 auth_model_counts[model_name] = total_count
                 auth_model_counts[f"{model_name}_active"] = active_count
             else:
-                count = await crud_obj.count(self.db_config.admin_session)
+                count = await crud_obj.count(admin_db)
                 auth_model_counts[model_name] = count
 
         model_counts: Dict[str, int] = {}
