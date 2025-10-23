@@ -455,7 +455,7 @@ class ModelView:
         elif pk_type is float:
             return float(id_value) if isinstance(id_value, str) else id_value
         elif pk_type is UUID:
-            return str(id_value)
+            return UUID(id_value)
         else:
             return str(id_value)
 
