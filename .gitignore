@@ -172,7 +172,6 @@ cython_debug/
 
 .ruff_cache
 
-uv.lock
 
 local_test
 crudadmin_data/
