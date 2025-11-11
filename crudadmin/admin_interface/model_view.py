@@ -437,7 +437,7 @@ class ModelView:
 
     def _convert_id_to_pk_type(
         self, id_value: Union[int, str]
-    ) -> Union[int, str, float]:
+    ) -> Union[int, str, float, UUID, None]:
         """Convert the ID value to the appropriate type based on the model's primary key type."""
         if id_value is None:
             return None
@@ -455,7 +455,7 @@ class ModelView:
         elif pk_type is float:
             return float(id_value) if isinstance(id_value, str) else id_value
         elif pk_type is UUID:
-            return str(id_value)
+            return UUID(str(id_value))
         else:
             return str(id_value)
 
