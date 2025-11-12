@@ -39,7 +39,7 @@ dependencies = [
     "user-agents>=2.2.0",
     "aiosqlite>=0.20.0",
     "greenlet>=3.1.1",
-    "fastcrud>=0.15.12",
+    "fastcrud>=0.19.1",
 ]
 
 [tool.hatch.build.targets.sdist]
@@ -127,6 +127,9 @@ markers = [
 ]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+filterwarnings = [
+    "ignore::DeprecationWarning:testcontainers",
+]
 
 [tool.ruff]
 line-length = 88
