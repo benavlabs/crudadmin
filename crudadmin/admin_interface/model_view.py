@@ -26,6 +26,7 @@ from sqlalchemy.orm import DeclarativeBase
 from ..core.db import DatabaseConfig
 from ..event import EventType, log_admin_action
 from .helper import _get_form_fields_from_schema
+from .relationships import detect_relationships, RelationshipInfo, RelationshipType
 
 EndpointCallable = Callable[..., Coroutine[Any, Any, Response]]
 
@@ -410,6 +411,9 @@ class ModelView:
 
         self.crud: FastCRUD[Any, Any, Any, Any, Any, Any] = FastCRUD(self.model)
 
+        # Detect relationships on the model
+        self.relationships: Dict[str, RelationshipInfo] = detect_relationships(self.model)
+
         self.endpoints_template = EndpointCreator(
             session=self.session,
             model=self.model,
@@ -437,7 +441,7 @@ class ModelView:
 
     def _convert_id_to_pk_type(
         self, id_value: Union[int, str]
-    ) -> Union[int, str, float, UUID, None]:
+    ) -> Union[int, str, float]:
         """Convert the ID value to the appropriate type based on the model's primary key type."""
         if id_value is None:
             return None
@@ -455,7 +459,7 @@ class ModelView:
         elif pk_type is float:
             return float(id_value) if isinstance(id_value, str) else id_value
         elif pk_type is UUID:
-            return UUID(str(id_value))
+            return str(id_value)
         else:
             return str(id_value)
 
@@ -541,6 +545,23 @@ class ModelView:
                 response_model=None,
             )
 
+        # Relationship routes (if relationships exist on this model)
+        if self.relationships:
+            self.router.add_api_route(
+                "/related/{id}/{relationship_name}",
+                self.get_related_data_endpoint(),
+                methods=["GET"],
+                include_in_schema=False,
+                response_model=None,
+            )
+            self.router.add_api_route(
+                "/relationship-options/{relationship_name}",
+                self.get_relationship_options_endpoint(),
+                methods=["GET"],
+                include_in_schema=False,
+                response_model=None,
+            )
+
     def form_create_endpoint(self, template: str) -> EndpointCallable:
         """
         Create endpoint for handling form submissions to create new model records.
@@ -597,24 +618,7 @@ class ModelView:
                     for field in form_fields:
                         key = field["name"]
                         raw_value = form_data_raw.getlist(key)
-
-                        if field["type"] == "checkbox":
-                            if raw_value and len(raw_value) == 1:
-                                value_str = raw_value[0]
-                                if value_str == "true":
-                                    form_data[key] = True
-                                    field_values[key] = True
-                                elif value_str == "false":
-                                    form_data[key] = False
-                                    field_values[key] = False
-                                else:
-                                    form_data[key] = bool(value_str)
-                                    field_values[key] = bool(value_str)
-                            else:
-                                has_default = field.get("default") is not None
-                                form_data[key] = None if has_default else False
-                                field_values[key] = None if has_default else False
-                        elif len(raw_value) == 1:
+                        if len(raw_value) == 1:
                             value = raw_value[0]
                             form_data[key] = value if value else field.get("default")
                             field_values[key] = value
@@ -856,7 +860,11 @@ class ModelView:
                     "total_count": items_result.get("total_count", 0),
                 }
 
-                table_columns = [column.key for column in self.model.__table__.columns]
+                # Use select_schema fields if available, otherwise fall back to model columns
+                if self.select_schema:
+                    table_columns = list(self.select_schema.model_fields.keys())
+                else:
+                    table_columns = [column.key for column in self.model.__table__.columns]
                 primary_key_info = self.db_config.get_primary_key_info(self.model)
 
                 context: Dict[str, Any] = {
@@ -869,6 +877,7 @@ class ModelView:
                     "rows_per_page": rows_per_page,
                     "primary_key_info": primary_key_info,
                     "url_prefix": self.get_url_prefix(),
+                    "relationships": self.relationships,
                 }
 
                 return self.templates.TemplateResponse(
@@ -1008,7 +1017,11 @@ class ModelView:
                 total_items = 0
                 page = 1
 
-            table_columns = [column.key for column in self.model.__table__.columns]
+            # Use select_schema fields if available, otherwise fall back to model columns
+            if self.select_schema:
+                table_columns = list(self.select_schema.model_fields.keys())
+            else:
+                table_columns = [column.key for column in self.model.__table__.columns]
             primary_key_info = self.db_config.get_primary_key_info(self.model)
 
             context: Dict[str, Any] = {
@@ -1025,6 +1038,7 @@ class ModelView:
                 "sort_column": sort_column,
                 "sort_order": sort_order,
                 "allowed_actions": self.allowed_actions,
+                "relationships": self.relationships,
             }
 
             if "HX-Request" in request.headers:
@@ -1184,27 +1198,6 @@ class ModelView:
                 form_data = await request.form()
                 update_data: Dict[str, Any] = {}
                 has_updates = False
-
-                for field in form_fields:
-                    key = field["name"]
-                    if field["type"] == "checkbox":
-                        raw_values = form_data.getlist(key)
-                        if raw_values and len(raw_values) == 1:
-                            value_str = raw_values[0]
-                            if value_str == "true":
-                                update_data[key] = True
-                                field_values[key] = True
-                            elif value_str == "false":
-                                update_data[key] = False
-                                field_values[key] = False
-                            else:
-                                update_data[key] = bool(value_str)
-                                field_values[key] = bool(value_str)
-                            has_updates = True
-                        elif field.get("default") is None:
-                            update_data[key] = False
-                            field_values[key] = False
-                            has_updates = True
 
                 for key, raw_val in form_data.items():
                     if isinstance(raw_val, UploadFile):
@@ -1396,3 +1389,116 @@ class ModelView:
             )
 
         return cast(EndpointCallable, table_body_content_inner)
+
+    def get_related_data_endpoint(self) -> EndpointCallable:
+        """
+        Create endpoint for fetching related data for a specific record.
+
+        Returns:
+            FastAPI route handler for related data retrieval
+
+        URL Pattern:
+            GET /related/{id}/{relationship_name}
+
+        Returns HTML partial for HTMX to display related records in an
+        expandable row or inline table.
+        """
+        from .relationships import load_related_data, get_relationship_summary
+
+        async def get_related_data_inner(
+            request: Request,
+            id: Union[int, str],
+            relationship_name: str,
+            db: AsyncSession = Depends(self.session),
+        ) -> Response:
+            """Fetch and return related records as HTML partial."""
+            if relationship_name not in self.relationships:
+                return JSONResponse(
+                    status_code=404,
+                    content={"message": f"Relationship '{relationship_name}' not found"}
+                )
+
+            relationship = self.relationships[relationship_name]
+            converted_id = self._convert_id_to_pk_type(id)
+
+            try:
+                related_data = await load_related_data(
+                    db=db,
+                    model=self.model,
+                    pk_value=converted_id,
+                    relationship=relationship,
+                )
+
+                summary = get_relationship_summary({}, relationship, related_data)
+
+                # Determine template based on relationship type
+                if relationship.relationship_type == RelationshipType.HAS_MANY:
+                    template = "admin/model/components/related_table.html"
+                elif relationship.relationship_type == RelationshipType.HAS_ONE:
+                    template = "admin/model/components/related_single.html"
+                else:  # BELONGS_TO
+                    template = "admin/model/components/related_link.html"
+
+                context = {
+                    "request": request,
+                    "relationship": relationship,
+                    "related_data": related_data,
+                    "summary": summary,
+                    "parent_id": id,
+                    "parent_model": self.model_key,
+                    "url_prefix": self.get_url_prefix(),
+                }
+
+                return self.templates.TemplateResponse(template, context)
+
+            except Exception as e:
+                return JSONResponse(
+                    status_code=500,
+                    content={"message": f"Error loading related data: {str(e)}"}
+                )
+
+        return cast(EndpointCallable, get_related_data_inner)
+
+    def get_relationship_options_endpoint(self) -> EndpointCallable:
+        """
+        Create endpoint for fetching options for relationship dropdowns.
+
+        Returns:
+            FastAPI route handler for relationship options
+
+        URL Pattern:
+            GET /relationship-options/{relationship_name}
+
+        Returns JSON list of options for select/dropdown fields.
+        """
+        from .relationships import load_relationship_options
+
+        async def get_relationship_options_inner(
+            request: Request,
+            relationship_name: str,
+            db: AsyncSession = Depends(self.session),
+        ) -> Response:
+            """Fetch options for a relationship dropdown."""
+            if relationship_name not in self.relationships:
+                return JSONResponse(
+                    status_code=404,
+                    content={"message": f"Relationship '{relationship_name}' not found"}
+                )
+
+            relationship = self.relationships[relationship_name]
+
+            try:
+                options = await load_relationship_options(
+                    db=db,
+                    relationship=relationship,
+                )
+
+                return JSONResponse(content=options)
+
+            except Exception as e:
+                return JSONResponse(
+                    status_code=500,
+                    content={"message": f"Error loading options: {str(e)}"}
+                )
+
+        return cast(EndpointCallable, get_relationship_options_inner)
