@@ -1,0 +1,83 @@
+<!-- Related Link for BelongsTo relationships -->
+<div class="related-link-container">
+    {% if related_data and related_data|length > 0 %}
+        {% set item = related_data[0] %}
+        <a href="{{ url_prefix }}/{{ relationship.related_model_name }}/update/{{ item.id }}"
+           class="belongs-to-link">
+            <span class="link-label">{{ relationship.related_model_name }}:</span>
+            <span class="link-value">{{ summary.display_value }}</span>
+            <svg class="link-icon" viewBox="0 0 24 24" width="14" height="14">
+                <path fill="currentColor" d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>
+            </svg>
+        </a>
+    {% else %}
+        <span class="no-relation">
+            <span class="link-label">{{ relationship.related_model_name }}:</span>
+            <span class="link-value empty">Not set</span>
+        </span>
+    {% endif %}
+</div>
+
+<style>
+    .related-link-container {
+        display: inline-block;
+    }
+
+    .belongs-to-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        background: var(--bg-secondary-light);
+        border-radius: var(--border-radius-sm);
+        color: var(--text-primary);
+        text-decoration: none;
+        transition: all 0.2s;
+        font-size: 13px;
+    }
+
+    .dark-theme .belongs-to-link {
+        background: var(--bg-secondary-dark);
+    }
+
+    .belongs-to-link:hover {
+        background: var(--primary-color);
+        color: white;
+    }
+
+    .link-label {
+        color: var(--text-secondary);
+        font-size: 11px;
+        text-transform: uppercase;
+    }
+
+    .belongs-to-link:hover .link-label {
+        color: rgba(255, 255, 255, 0.8);
+    }
+
+    .link-value {
+        font-weight: 500;
+    }
+
+    .link-value.empty {
+        color: var(--text-secondary);
+        font-style: italic;
+    }
+
+    .link-icon {
+        opacity: 0.5;
+        transition: opacity 0.2s;
+    }
+
+    .belongs-to-link:hover .link-icon {
+        opacity: 1;
+    }
+
+    .no-relation {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        font-size: 13px;
+    }
+</style>

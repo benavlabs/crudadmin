@@ -1,0 +1,127 @@
+<!-- Related Records Table for HasMany relationships -->
+<div class="related-table-container">
+    <div class="related-header">
+        <h4>{{ relationship.related_model_name }} ({{ summary.count }} items)</h4>
+        {% if summary.preview %}
+            <span class="related-preview">{{ summary.preview }}</span>
+        {% endif %}
+    </div>
+
+    {% if related_data %}
+        <table class="related-data-table">
+            <thead>
+                <tr>
+                    {% for key in related_data[0].keys() %}
+                        <th>{{ key }}</th>
+                    {% endfor %}
+                    <th class="actions-cell">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in related_data %}
+                    <tr>
+                        {% for value in item.values() %}
+                            <td>{{ value if value is not none else '-' }}</td>
+                        {% endfor %}
+                        <td class="actions-cell">
+                            <a href="{{ url_prefix }}/{{ relationship.related_model_name }}/update/{{ item.id }}"
+                               class="action-link edit-link"
+                               title="Edit">
+                                <svg viewBox="0 0 24 24" width="16" height="16">
+                                    <path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                                </svg>
+                            </a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p class="no-data">No related records found</p>
+    {% endif %}
+</div>
+
+<style>
+    .related-table-container {
+        padding: 15px;
+        background: var(--bg-primary-light);
+        border-radius: var(--border-radius);
+    }
+
+    .dark-theme .related-table-container {
+        background: var(--bg-primary-dark);
+    }
+
+    .related-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .related-header h4 {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .related-preview {
+        font-size: 12px;
+        color: var(--text-secondary);
+    }
+
+    .related-data-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+
+    .related-data-table th,
+    .related-data-table td {
+        padding: 8px 12px;
+        text-align: left;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .related-data-table th {
+        background: var(--bg-secondary-light);
+        font-weight: 600;
+        font-size: 11px;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+    }
+
+    .dark-theme .related-data-table th {
+        background: var(--bg-secondary-dark);
+    }
+
+    .related-data-table tbody tr:hover {
+        background: var(--bg-hover);
+    }
+
+    .actions-cell {
+        width: 60px;
+        text-align: center;
+    }
+
+    .action-link {
+        display: inline-flex;
+        padding: 4px;
+        color: var(--text-secondary);
+        transition: color 0.2s;
+    }
+
+    .action-link:hover {
+        color: var(--primary-color);
+    }
+
+    .no-data {
+        color: var(--text-secondary);
+        font-style: italic;
+        padding: 20px;
+        text-align: center;
+    }
+</style>
