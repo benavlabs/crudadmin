@@ -9,6 +9,8 @@ from fastcrud import FastCRUD
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 
+from crudadmin.core.db import DatabaseConfig, convert_id_to_pk_type
+
 from .models import EventType
 
 UTC = timezone.utc
@@ -60,7 +62,9 @@ def convert_user_to_dict(user: Any) -> Dict[str, Any]:
 
 
 def log_admin_action(
-    event_type: EventType, model: Optional[Type[DeclarativeBase]] = None
+    event_type: EventType,
+    model: Optional[Type[DeclarativeBase]] = None,
+    db_config: Optional[DatabaseConfig] = None,
 ):
     def decorator(func: Callable):
         @functools.wraps(func)
@@ -88,7 +92,13 @@ def log_admin_action(
 
                     if "id" in kwargs:
                         assert crud is not None, "CRUD instance should be initialized."
-                        item = await crud.get(db=db, id=kwargs["id"])
+                        request_id = kwargs["id"]
+                        if db_config:
+                            request_id = convert_id_to_pk_type(
+                                request_id, db_config, model
+                            )
+
+                        item = await crud.get(db=db, id=request_id)
                         if item:
                             previous_state = {
                                 k: v for k, v in item.items() if not k.startswith("_")
