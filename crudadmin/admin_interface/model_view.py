@@ -688,7 +688,6 @@ class ModelView:
                 error_message = str(e)
 
             context = {
-                "request": request,
                 "model_name": self.model_key,
                 "form_fields": form_fields,
                 "error": error_message,
@@ -698,7 +697,10 @@ class ModelView:
             }
 
             return self.templates.TemplateResponse(
-                template, context, status_code=422 if error_message else 200
+                name=template,
+                request=request,
+                context=context,
+                status_code=422 if error_message else 200,
             )
 
         return cast(EndpointCallable, form_create_endpoint_inner)
@@ -845,7 +847,6 @@ class ModelView:
                 primary_key_info = self.db_config.get_primary_key_info(self.model)
 
                 context: Dict[str, Any] = {
-                    "request": request,
                     "model_items": items["data"],
                     "model_name": self.model_key,
                     "table_columns": table_columns,
@@ -857,7 +858,9 @@ class ModelView:
                 }
 
                 return self.templates.TemplateResponse(
-                    "admin/model/components/list_content.html", context
+                    name="admin/model/components/list_content.html",
+                    request=request,
+                    context=context,
                 )
 
             except ValueError as e:
@@ -997,7 +1000,6 @@ class ModelView:
             primary_key_info = self.db_config.get_primary_key_info(self.model)
 
             context: Dict[str, Any] = {
-                "request": request,
                 "model_items": items["data"],
                 "model_name": self.model_key,
                 "table_columns": table_columns,
@@ -1014,7 +1016,9 @@ class ModelView:
 
             if "HX-Request" in request.headers:
                 return self.templates.TemplateResponse(
-                    "admin/model/components/list_content.html", context
+                    name="admin/model/components/list_content.html",
+                    request=request,
+                    context=context,
                 )
 
             if self.admin_site is not None:
@@ -1024,7 +1028,9 @@ class ModelView:
                 context.update(base_context)
                 context["include_sidebar_and_header"] = True
 
-            return self.templates.TemplateResponse(template, context)
+            return self.templates.TemplateResponse(
+                name=template, request=request, context=context
+            )
 
         return cast(EndpointCallable, get_model_admin_page_inner)
 
@@ -1051,9 +1057,9 @@ class ModelView:
             """Show a blank form for creating a new record."""
             form_fields = _get_form_fields_from_schema(self.create_schema)
             return self.templates.TemplateResponse(
-                template,
-                {
-                    "request": request,
+                name=template,
+                request=request,
+                context={
                     "model_name": self.model_key,
                     "form_fields": form_fields,
                     "url_prefix": self.get_url_prefix(),
@@ -1104,9 +1110,9 @@ class ModelView:
                     field_values[field_name] = item[field_name]
 
             return self.templates.TemplateResponse(
-                template,
-                {
-                    "request": request,
+                name=template,
+                request=request,
+                context={
                     "model_name": self.model_key,
                     "form_fields": form_fields,
                     "field_values": field_values,
@@ -1287,7 +1293,6 @@ class ModelView:
                     field_values[field_name] = item[field_name]
 
             context: Dict[str, Any] = {
-                "request": request,
                 "model_name": self.model_key,
                 "form_fields": form_fields,
                 "error": error_message,
@@ -1299,8 +1304,9 @@ class ModelView:
             }
 
             return self.templates.TemplateResponse(
-                "admin/model/update.html",
-                context,
+                name="admin/model/update.html",
+                request=request,
+                context=context,
                 status_code=400 if error_message else 200,
             )
 
@@ -1369,9 +1375,9 @@ class ModelView:
             total_pages = (total_items + limit - 1) // limit
 
             return self.templates.TemplateResponse(
-                "model/components/table_content.html",
-                {
-                    "request": request,
+                name="model/components/table_content.html",
+                request=request,
+                context={
                     "model_items": items["data"],
                     "current_page": page,
                     "rows_per_page": limit,
