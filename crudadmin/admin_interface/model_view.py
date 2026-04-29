@@ -23,7 +23,7 @@ from sqlalchemy import inspect
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 
-from ..core.db import DatabaseConfig
+from ..core.db import DatabaseConfig, convert_id_to_pk_type
 from ..event import EventType, log_admin_action
 from .helper import _get_form_fields_from_schema
 
@@ -442,22 +442,7 @@ class ModelView:
         if id_value is None:
             return None
 
-        primary_key_info = self.db_config.get_primary_key_info(self.model)
-        if not primary_key_info:
-            return id_value
-
-        pk_type = primary_key_info.get("type")
-
-        if pk_type is int:
-            return int(id_value) if isinstance(id_value, str) else id_value
-        elif pk_type is str:
-            return str(id_value)
-        elif pk_type is float:
-            return float(id_value) if isinstance(id_value, str) else id_value
-        elif pk_type is UUID:
-            return UUID(str(id_value))
-        else:
-            return str(id_value)
+        return convert_id_to_pk_type(id_value, self.db_config, self.model)
 
     def setup_routes(self) -> None:
         """
@@ -571,7 +556,7 @@ class ModelView:
             ```
         """
 
-        @log_admin_action(EventType.CREATE, model=self.model)
+        @log_admin_action(EventType.CREATE, model=self.model, db_config=self.db_config)
         async def form_create_endpoint_inner(
             request: Request,
             db: AsyncSession = Depends(self.session),
@@ -756,7 +741,7 @@ class ModelView:
                 - 400: Database error during deletion
         """
 
-        @log_admin_action(EventType.DELETE, model=self.model)
+        @log_admin_action(EventType.DELETE, model=self.model, db_config=self.db_config)
         async def bulk_delete_endpoint_inner(
             request: Request,
             db: AsyncSession = Depends(self.session),
@@ -1146,7 +1131,7 @@ class ModelView:
             - Supports automatic updated_at timestamp
         """
 
-        @log_admin_action(EventType.UPDATE, model=self.model)
+        @log_admin_action(EventType.UPDATE, model=self.model, db_config=self.db_config)
         async def form_update_endpoint_inner(
             request: Request,
             db: AsyncSession = Depends(self.session),

@@ -112,7 +112,8 @@ test = [
 [dependency-groups]
 dev = [
     "crudadmin",
-    "crudadmin[standard,redis,memcached,postgres,mysql,dev]"
+    "crudadmin[standard,redis,memcached,postgres,mysql,dev]",
+    "pytest-cov"
 ]
 
 [tool.pytest.ini_options]
