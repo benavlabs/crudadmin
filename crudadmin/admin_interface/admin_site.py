@@ -244,9 +244,9 @@ class AdminSite:
                         f"Authentication failed for user: {form_data.username}"
                     )
                     return self.templates.TemplateResponse(
-                        "auth/login.html",
-                        {
-                            "request": request,
+                        name="auth/login.html",
+                        request=request,
+                        context={
                             "error": "Invalid credentials. Please try again.",
                             "url_prefix": self.get_url_prefix(),
                             "theme": self.theme,
@@ -297,9 +297,9 @@ class AdminSite:
                     )
                     await db.rollback()
                     return self.templates.TemplateResponse(
-                        "auth/login.html",
-                        {
-                            "request": request,
+                        name="auth/login.html",
+                        request=request,
+                        context={
                             "error": f"Error creating session: {str(e)}",
                             "url_prefix": self.get_url_prefix(),
                             "theme": self.theme,
@@ -309,9 +309,9 @@ class AdminSite:
             except Exception as e:
                 logger.error(f"Error during login: {str(e)}", exc_info=True)
                 return self.templates.TemplateResponse(
-                    "auth/login.html",
-                    {
-                        "request": request,
+                    name="auth/login.html",
+                    request=request,
+                    context={
                         "error": "An error occurred during login. Please try again.",
                         "url_prefix": self.get_url_prefix(),
                         "theme": self.theme,
@@ -394,9 +394,9 @@ class AdminSite:
 
             error = request.query_params.get("error")
             return self.templates.TemplateResponse(
-                "auth/login.html",
-                {
-                    "request": request,
+                name="auth/login.html",
+                request=request,
+                context={
                     "url_prefix": self.get_url_prefix(),
                     "theme": self.theme,
                     "error": error,
@@ -427,9 +427,10 @@ class AdminSite:
             Renders partial content for the dashboard (HTMX).
             """
             context = await self.get_base_context(admin_db=admin_db, app_db=app_db)
-            context.update({"request": request})
             return self.templates.TemplateResponse(
-                "admin/dashboard/dashboard_content.html", context
+                name="admin/dashboard/dashboard_content.html",
+                request=request,
+                context=context,
             )
 
         return cast(EndpointCallable, dashboard_content_inner)
@@ -499,9 +500,9 @@ class AdminSite:
             ),
         ) -> RouteResponse:
             context = await self.get_base_context(admin_db=admin_db, app_db=app_db)
-            context.update({"request": request, "include_sidebar_and_header": True})
+            context.update({"include_sidebar_and_header": True})
             return self.templates.TemplateResponse(
-                "admin/dashboard/dashboard.html", context
+                name="admin/dashboard/dashboard.html", request=request, context=context
             )
 
         return cast(EndpointCallable, dashboard_page_inner)
@@ -587,7 +588,6 @@ class AdminSite:
             context = await self.get_base_context(admin_db=admin_db, app_db=db)
             context.update(
                 {
-                    "request": request,
                     "model_items": items["data"],
                     "model_name": model_key,
                     "table_columns": table_columns,
@@ -604,6 +604,8 @@ class AdminSite:
                 }
             )
 
-            return self.templates.TemplateResponse("admin/model/list.html", context)
+            return self.templates.TemplateResponse(
+                name="admin/model/list.html", request=request, context=context
+            )
 
         return cast(EndpointCallable, admin_auth_model_page_inner)
