@@ -1,10 +1,14 @@
+import uuid
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import Request
+from sqlalchemy import UUID, Column, Integer, String
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import DeclarativeBase
 
+from crudadmin.core.db import DatabaseConfig
 from crudadmin.event.decorators import (
     compare_states,
     convert_user_to_dict,
@@ -50,6 +54,36 @@ class MockModel:
     __tablename__ = "test_model"
 
 
+class TestBase(DeclarativeBase):
+    """Base class for test models."""
+
+    pass
+
+
+class MockUUIDModel(TestBase):
+    """Mock SQLAlchemy model with UUID primary key for testing."""
+
+    __name__ = "MockUUIDModel"
+    __tablename__ = "test_uuid_model"
+    id = Column(UUID(as_uuid=True), primary_key=True, index=True, default=uuid.uuid4)
+
+
+class MockIntModel(TestBase):
+    """Mock SQLAlchemy model with integer primary key for testing."""
+
+    __name__ = "MockIntModel"
+    __tablename__ = "test_int_model"
+    id = Column(Integer, primary_key=True, index=True)
+
+
+class MockStringModel(TestBase):
+    """Mock SQLAlchemy model with string primary key for testing."""
+
+    __name__ = "MockStringModel"
+    __tablename__ = "test_string_model"
+    id = Column(String, primary_key=True, index=True)
+
+
 @pytest.fixture
 def mock_request():
     """Create a mock request for testing."""
@@ -83,6 +117,17 @@ def mock_event_integration():
     integration.log_model_event = AsyncMock()
     integration.log_auth_event = AsyncMock()
     return integration
+
+
+@pytest.fixture
+def mock_db_config():
+    mock_db_config = MagicMock()
+
+    def mocked_primary_key_info_func(model):
+        return DatabaseConfig.get_primary_key_info(mock_db_config, model)
+
+    mock_db_config.get_primary_key_info.side_effect = mocked_primary_key_info_func
+    return mock_db_config
 
 
 class TestGetModelChanges:
@@ -468,6 +513,88 @@ class TestLogAdminActionDecorator:
                 event_integration=mock_event_integration,
                 id=123,
             )
+
+    @pytest.mark.asyncio
+    async def test_log_admin_action_uuid_id_conversion_with_db_config(
+        mock_request, mock_db, mock_admin_db, mock_event_integration, mock_db_config
+    ):
+        test_uuid_str = "93c025d9-5831-413c-9460-edb3a28cc729"
+        test_uuid_obj = uuid.UUID(test_uuid_str)
+
+        with patch("crudadmin.event.decorators.FastCRUD") as mock_crud_class:
+            mock_crud = AsyncMock()
+            mock_crud_class.return_value = mock_crud
+            mock_crud.get.return_value = {"id": test_uuid_obj, "name": "uuid_item"}
+
+            @log_admin_action(EventType.UPDATE, MockUUIDModel, db_config=mock_db_config)
+            async def mock_endpoint(request, db, admin_db, current_user, id, **kwargs):
+                return {"status": "success"}
+
+            await mock_endpoint(
+                request=mock_request,
+                db=mock_db,
+                admin_db=mock_admin_db,
+                current_user={"id": 1},
+                event_integration=mock_event_integration,
+                id=test_uuid_str,
+            )
+
+            mock_crud.get.assert_called_with(db=mock_db, id=test_uuid_obj)
+
+    @pytest.mark.asyncio
+    async def test_log_admin_action_int_id_conversion_with_db_config(
+        mock_request, mock_db, mock_admin_db, mock_event_integration, mock_db_config
+    ):
+        input_id_str = "123"
+        expected_id_int = 123
+
+        with patch("crudadmin.event.decorators.FastCRUD") as mock_crud_class:
+            mock_crud = AsyncMock()
+            mock_crud_class.return_value = mock_crud
+            mock_crud.get.return_value = {"id": expected_id_int, "name": "int_item"}
+
+            @log_admin_action(EventType.UPDATE, MockIntModel, db_config=mock_db_config)
+            async def mock_endpoint(request, db, admin_db, current_user, id, **kwargs):
+                return {"status": "success"}
+
+            await mock_endpoint(
+                request=mock_request,
+                db=mock_db,
+                admin_db=mock_admin_db,
+                current_user={"id": 1},
+                event_integration=mock_event_integration,
+                id=input_id_str,
+            )
+
+            mock_crud.get.assert_called_with(db=mock_db, id=expected_id_int)
+
+    @pytest.mark.asyncio
+    async def test_log_admin_action_str_id_conversion_with_db_config(
+        mock_request, mock_db, mock_admin_db, mock_event_integration, mock_db_config
+    ):
+        input_id = "slug-path-id"
+
+        with patch("crudadmin.event.decorators.FastCRUD") as mock_crud_class:
+            mock_crud = AsyncMock()
+            mock_crud_class.return_value = mock_crud
+            mock_crud.get.return_value = {"id": input_id, "name": "str_item"}
+
+            @log_admin_action(
+                EventType.UPDATE, MockStringModel, db_config=mock_db_config
+            )
+            async def mock_endpoint(request, db, admin_db, current_user, id, **kwargs):
+                return {"status": "success"}
+
+            await mock_endpoint(
+                request=mock_request,
+                db=mock_db,
+                admin_db=mock_admin_db,
+                current_user={"id": 1},
+                event_integration=mock_event_integration,
+                id=input_id,
+            )
+
+            mock_crud.get.assert_called_with(db=mock_db, id=input_id)
 
 
 class TestLogAuthActionDecorator:

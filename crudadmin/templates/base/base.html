@@ -354,11 +354,12 @@
                         </ul>
                     </div>
 
-                    <!-- Models Section (always expanded) -->
+                    <!-- Models Section -->
                     {% if table_names %}
                     <div class="sidebar-section">
-                        <div class="sidebar-section-header">
+                        <div class="sidebar-section-header" onclick="this.parentElement.classList.toggle('collapsed')">
                             <h3 class="sidebar-section-title">Models</h3>
+                            <span class="sidebar-section-toggle"></span>
                         </div>
                         <ul class="sidebar-nav">
                             {% for table_name in table_names %}
@@ -398,18 +399,9 @@
         function initializeSidebarState() {
             document.querySelectorAll('.sidebar-section-header').forEach(header => {
                 const section = header.parentElement;
-                const sectionTitle = header.querySelector('.sidebar-section-title');
-                if (!sectionTitle) return;
+                const sectionId = header.querySelector('.sidebar-section-title').textContent;
 
-                const sectionId = sectionTitle.textContent.trim();
-
-                // Models section is always expanded
-                if (sectionId === 'Models') {
-                    section.classList.remove('collapsed');
-                    return;
-                }
-
-                // Restore state from localStorage for other sections
+                // Restore state from localStorage
                 if (localStorage.getItem(`sidebar-${sectionId}`) === 'collapsed') {
                     section.classList.add('collapsed');
                 }

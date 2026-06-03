@@ -622,7 +622,6 @@ class CRUDAdmin:
             )
             context.update(
                 {
-                    "request": request,
                     "include_sidebar_and_header": True,
                     "event_types": [e.value for e in EventType],
                     "statuses": [s.value for s in EventStatus],
@@ -632,7 +631,7 @@ class CRUDAdmin:
             )
 
             return self.templates.TemplateResponse(
-                "admin/management/events.html", context
+                name="admin/management/events.html", request=request, context=context
             )
 
         return event_log_page_inner
@@ -761,9 +760,9 @@ class CRUDAdmin:
                 total_pages = max(1, (total_items + limit - 1) // limit)
 
                 return self.templates.TemplateResponse(
-                    "admin/management/events_content.html",
-                    {
-                        "request": request,
+                    name="admin/management/events_content.html",
+                    request=request,
+                    context={
                         "events": enriched_events,
                         "page": page,
                         "total_pages": total_pages,
@@ -779,9 +778,9 @@ class CRUDAdmin:
             except Exception as e:
                 logger.error(f"Error retrieving events: {str(e)}")
                 return self.templates.TemplateResponse(
-                    "admin/management/events_content.html",
-                    {
-                        "request": request,
+                    name="admin/management/events_content.html",
+                    request=request,
+                    context={
                         "events": [],
                         "page": 1,
                         "total_pages": 1,
@@ -1189,10 +1188,10 @@ class CRUDAdmin:
             context = await self.admin_site.get_base_context(
                 admin_db=admin_db, app_db=app_db
             )
-            context.update({"request": request, "include_sidebar_and_header": True})
+            context.update({"include_sidebar_and_header": True})
 
             return self.templates.TemplateResponse(
-                "admin/management/health.html", context
+                name="admin/management/health.html", request=request, context=context
             )
 
         return health_check_page_inner
@@ -1242,13 +1241,14 @@ class CRUDAdmin:
                 }
 
             context = {
-                "request": request,
                 "health_checks": health_checks,
                 "last_checked": datetime.now(UTC),
             }
 
             return self.templates.TemplateResponse(
-                "admin/management/health_content.html", context
+                name="admin/management/health_content.html",
+                request=request,
+                context=context,
             )
 
         return health_check_content_inner

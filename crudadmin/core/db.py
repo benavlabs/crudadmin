@@ -8,8 +8,10 @@ from typing import (
     Optional,
     Type,
     TypeVar,
+    Union,
     cast,
 )
+from uuid import UUID
 
 from fastcrud import FastCRUD
 from pydantic import BaseModel
@@ -40,6 +42,33 @@ def get_default_db_path() -> str:
     data_dir = os.path.join(cwd, "crudadmin_data")
     os.makedirs(data_dir, exist_ok=True)
     return os.path.join(data_dir, "admin.db")
+
+
+def convert_id_to_pk_type(
+    id_value: Union[int, str, None],
+    db_config: "DatabaseConfig",
+    model: Type[DeclarativeBase],
+) -> Union[int, str, float, UUID, None]:
+    """Convert the ID value to the appropriate type based on the model's primary key type."""
+    if id_value is None:
+        return None
+
+    primary_key_info = db_config.get_primary_key_info(model)
+    if not primary_key_info:
+        return id_value
+
+    pk_type = primary_key_info.get("type")
+
+    if pk_type is int:
+        return int(id_value) if isinstance(id_value, str) else id_value
+    elif pk_type is str:
+        return str(id_value)
+    elif pk_type is float:
+        return float(id_value) if isinstance(id_value, str) else id_value
+    elif pk_type is UUID:
+        return UUID(str(id_value))
+    else:
+        return str(id_value)
 
 
 class AdminBase(DeclarativeBase):

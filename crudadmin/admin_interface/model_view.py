@@ -23,7 +23,7 @@ from sqlalchemy import inspect
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 
-from ..core.db import DatabaseConfig
+from ..core.db import DatabaseConfig, convert_id_to_pk_type
 from ..event import EventType, log_admin_action
 from .helper import _get_form_fields_from_schema
 from .relationships import detect_relationships, RelationshipInfo, RelationshipType
@@ -441,27 +441,12 @@ class ModelView:
 
     def _convert_id_to_pk_type(
         self, id_value: Union[int, str]
-    ) -> Union[int, str, float]:
+    ) -> Union[int, str, float, UUID, None]:
         """Convert the ID value to the appropriate type based on the model's primary key type."""
         if id_value is None:
             return None
 
-        primary_key_info = self.db_config.get_primary_key_info(self.model)
-        if not primary_key_info:
-            return id_value
-
-        pk_type = primary_key_info.get("type")
-
-        if pk_type is int:
-            return int(id_value) if isinstance(id_value, str) else id_value
-        elif pk_type is str:
-            return str(id_value)
-        elif pk_type is float:
-            return float(id_value) if isinstance(id_value, str) else id_value
-        elif pk_type is UUID:
-            return str(id_value)
-        else:
-            return str(id_value)
+        return convert_id_to_pk_type(id_value, self.db_config, self.model)
 
     def setup_routes(self) -> None:
         """
@@ -592,7 +577,7 @@ class ModelView:
             ```
         """
 
-        @log_admin_action(EventType.CREATE, model=self.model)
+        @log_admin_action(EventType.CREATE, model=self.model, db_config=self.db_config)
         async def form_create_endpoint_inner(
             request: Request,
             db: AsyncSession = Depends(self.session),
@@ -618,7 +603,24 @@ class ModelView:
                     for field in form_fields:
                         key = field["name"]
                         raw_value = form_data_raw.getlist(key)
-                        if len(raw_value) == 1:
+
+                        if field["type"] == "checkbox":
+                            if raw_value and len(raw_value) == 1:
+                                value_str = raw_value[0]
+                                if value_str == "true":
+                                    form_data[key] = True
+                                    field_values[key] = True
+                                elif value_str == "false":
+                                    form_data[key] = False
+                                    field_values[key] = False
+                                else:
+                                    form_data[key] = bool(value_str)
+                                    field_values[key] = bool(value_str)
+                            else:
+                                has_default = field.get("default") is not None
+                                form_data[key] = None if has_default else False
+                                field_values[key] = None if has_default else False
+                        elif len(raw_value) == 1:
                             value = raw_value[0]
                             form_data[key] = value if value else field.get("default")
                             field_values[key] = value
@@ -707,7 +709,6 @@ class ModelView:
                 error_message = str(e)
 
             context = {
-                "request": request,
                 "model_name": self.model_key,
                 "form_fields": form_fields,
                 "error": error_message,
@@ -717,7 +718,10 @@ class ModelView:
             }
 
             return self.templates.TemplateResponse(
-                template, context, status_code=422 if error_message else 200
+                name=template,
+                request=request,
+                context=context,
+                status_code=422 if error_message else 200,
             )
 
         return cast(EndpointCallable, form_create_endpoint_inner)
@@ -760,7 +764,7 @@ class ModelView:
                 - 400: Database error during deletion
         """
 
-        @log_admin_action(EventType.DELETE, model=self.model)
+        @log_admin_action(EventType.DELETE, model=self.model, db_config=self.db_config)
         async def bulk_delete_endpoint_inner(
             request: Request,
             db: AsyncSession = Depends(self.session),
@@ -868,7 +872,6 @@ class ModelView:
                 primary_key_info = self.db_config.get_primary_key_info(self.model)
 
                 context: Dict[str, Any] = {
-                    "request": request,
                     "model_items": items["data"],
                     "model_name": self.model_key,
                     "table_columns": table_columns,
@@ -881,7 +884,9 @@ class ModelView:
                 }
 
                 return self.templates.TemplateResponse(
-                    "admin/model/components/list_content.html", context
+                    name="admin/model/components/list_content.html",
+                    request=request,
+                    context=context,
                 )
 
             except ValueError as e:
@@ -1025,7 +1030,6 @@ class ModelView:
             primary_key_info = self.db_config.get_primary_key_info(self.model)
 
             context: Dict[str, Any] = {
-                "request": request,
                 "model_items": items["data"],
                 "model_name": self.model_key,
                 "table_columns": table_columns,
@@ -1043,7 +1047,9 @@ class ModelView:
 
             if "HX-Request" in request.headers:
                 return self.templates.TemplateResponse(
-                    "admin/model/components/list_content.html", context
+                    name="admin/model/components/list_content.html",
+                    request=request,
+                    context=context,
                 )
 
             if self.admin_site is not None:
@@ -1053,7 +1059,9 @@ class ModelView:
                 context.update(base_context)
                 context["include_sidebar_and_header"] = True
 
-            return self.templates.TemplateResponse(template, context)
+            return self.templates.TemplateResponse(
+                name=template, request=request, context=context
+            )
 
         return cast(EndpointCallable, get_model_admin_page_inner)
 
@@ -1080,9 +1088,9 @@ class ModelView:
             """Show a blank form for creating a new record."""
             form_fields = _get_form_fields_from_schema(self.create_schema)
             return self.templates.TemplateResponse(
-                template,
-                {
-                    "request": request,
+                name=template,
+                request=request,
+                context={
                     "model_name": self.model_key,
                     "form_fields": form_fields,
                     "url_prefix": self.get_url_prefix(),
@@ -1133,9 +1141,9 @@ class ModelView:
                     field_values[field_name] = item[field_name]
 
             return self.templates.TemplateResponse(
-                template,
-                {
-                    "request": request,
+                name=template,
+                request=request,
+                context={
                     "model_name": self.model_key,
                     "form_fields": form_fields,
                     "field_values": field_values,
@@ -1160,7 +1168,7 @@ class ModelView:
             - Supports automatic updated_at timestamp
         """
 
-        @log_admin_action(EventType.UPDATE, model=self.model)
+        @log_admin_action(EventType.UPDATE, model=self.model, db_config=self.db_config)
         async def form_update_endpoint_inner(
             request: Request,
             db: AsyncSession = Depends(self.session),
@@ -1198,6 +1206,27 @@ class ModelView:
                 form_data = await request.form()
                 update_data: Dict[str, Any] = {}
                 has_updates = False
+
+                for field in form_fields:
+                    key = field["name"]
+                    if field["type"] == "checkbox":
+                        raw_values = form_data.getlist(key)
+                        if raw_values and len(raw_values) == 1:
+                            value_str = raw_values[0]
+                            if value_str == "true":
+                                update_data[key] = True
+                                field_values[key] = True
+                            elif value_str == "false":
+                                update_data[key] = False
+                                field_values[key] = False
+                            else:
+                                update_data[key] = bool(value_str)
+                                field_values[key] = bool(value_str)
+                            has_updates = True
+                        elif field.get("default") is None:
+                            update_data[key] = False
+                            field_values[key] = False
+                            has_updates = True
 
                 for key, raw_val in form_data.items():
                     if isinstance(raw_val, UploadFile):
@@ -1295,7 +1324,6 @@ class ModelView:
                     field_values[field_name] = item[field_name]
 
             context: Dict[str, Any] = {
-                "request": request,
                 "model_name": self.model_key,
                 "form_fields": form_fields,
                 "error": error_message,
@@ -1307,8 +1335,9 @@ class ModelView:
             }
 
             return self.templates.TemplateResponse(
-                "admin/model/update.html",
-                context,
+                name="admin/model/update.html",
+                request=request,
+                context=context,
                 status_code=400 if error_message else 200,
             )
 
@@ -1377,9 +1406,9 @@ class ModelView:
             total_pages = (total_items + limit - 1) // limit
 
             return self.templates.TemplateResponse(
-                "model/components/table_content.html",
-                {
-                    "request": request,
+                name="model/components/table_content.html",
+                request=request,
+                context={
                     "model_items": items["data"],
                     "current_page": page,
                     "rows_per_page": limit,

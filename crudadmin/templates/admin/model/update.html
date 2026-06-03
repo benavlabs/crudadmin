@@ -244,6 +244,25 @@
             gap: 0.5rem;
         }
 
+        .radio-group {
+            display: flex;
+            gap: 1.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .radio-option {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            font-weight: normal;
+        }
+
+        .radio-option input[type="radio"] {
+            cursor: pointer;
+            width: auto;
+        }
+
         .form-control[type="number"] {
             -moz-appearance: none;
         }
@@ -310,16 +329,35 @@
                         </select>
 
                     {% elif field.type == "checkbox" %}
-                        <div class="checkbox-wrapper">
-                            <input class="form-control{% if field.name in field_errors %} error{% endif %}"
-                                type="checkbox"
-                                id="{{ field.name }}"
-                                name="{{ field.name }}"
-                                {% if field_values and field_values[field.name] %}checked{% endif %}>
-                            {% if field.description %}
-                            <span class="checkbox-label">{{ field.description }}</span>
-                            {% endif %}
-                        </div>
+                        {% if field.default is not none %}
+                            <div class="radio-group">
+                                <label class="radio-option">
+                                    <input type="radio"
+                                        name="{{ field.name }}"
+                                        value="true"
+                                        {% if field_values and field_values[field.name] == True %}checked{% endif %}>
+                                    <span>True</span>
+                                </label>
+                                <label class="radio-option">
+                                    <input type="radio"
+                                        name="{{ field.name }}"
+                                        value="false"
+                                        {% if field_values and field_values[field.name] == False %}checked{% endif %}>
+                                    <span>False</span>
+                                </label>
+                            </div>
+                        {% else %}
+                            <div class="checkbox-wrapper">
+                                <input class="form-control{% if field.name in field_errors %} error{% endif %}"
+                                    type="checkbox"
+                                    id="{{ field.name }}"
+                                    name="{{ field.name }}"
+                                    {% if field_values and field_values[field.name] %}checked{% endif %}>
+                                {% if field.description %}
+                                <span class="checkbox-label">{{ field.description }}</span>
+                                {% endif %}
+                            </div>
+                        {% endif %}
 
                     {% elif field.type == "json" %}
                         <textarea class="form-control{% if field.name in field_errors %} error{% endif %}"
