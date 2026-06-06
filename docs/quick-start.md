@@ -6,7 +6,7 @@ Get CRUDAdmin up and running in just a few minutes! This guide will walk you thr
 
 Before starting, ensure you have:
 
-* **Python:** Version 3.9 or newer
+* **Python:** Version 3.10 or newer
 * **FastAPI:** CRUDAdmin is built to work with FastAPI
 * **FastCRUD:** CRUDAdmin is built on top of [FastCRUD](https://github.com/benavlabs/fastcrud) for CRUD operations (which requires SQLAlchemy 2.0+ for database operations and Pydantic 2.0+ for data validation and serialization)
 * **aiosqlite:** Required for async SQLite operations (automatically installed as a dependency)

@@ -30,6 +30,62 @@ async def test_event_service_initialization(event_service):
     assert isinstance(event_service.json_encoder, CustomJSONEncoder)
 
 
+@pytest.mark.asyncio
+async def test_log_event_persists_to_real_db(event_service, db_config, mock_request):
+    """log_event against a real DB returns a populated record.
+
+    Regression guard: fastcrud >=0.20 returns None from create() unless
+    schema_to_select is supplied, so a mocked create() would hide a broken
+    real-DB path. This exercises the actual create() return value.
+    """
+    result = await event_service.log_event(
+        db=db_config.admin_session,
+        event_type=EventType.LOGIN,
+        status=EventStatus.SUCCESS,
+        user_id=1,
+        session_id="real-session-id",
+        request=mock_request,
+        resource_type="user",
+        resource_id="123",
+    )
+
+    assert isinstance(result, AdminEventLogRead)
+    assert result.id is not None
+    assert result.event_type == EventType.LOGIN
+    assert result.user_id == 1
+    assert result.resource_id == "123"
+
+
+@pytest.mark.asyncio
+async def test_create_audit_log_persists_to_real_db(
+    event_service, db_config, mock_request
+):
+    """create_audit_log against a real DB returns a populated record."""
+    event = await event_service.log_event(
+        db=db_config.admin_session,
+        event_type=EventType.UPDATE,
+        status=EventStatus.SUCCESS,
+        user_id=1,
+        session_id="real-session-id",
+        request=mock_request,
+    )
+
+    audit = await event_service.create_audit_log(
+        db=db_config.admin_session,
+        event_id=event.id,
+        resource_type="user",
+        resource_id="123",
+        action="update",
+        previous_state={"name": "old"},
+        new_state={"name": "new"},
+    )
+
+    assert isinstance(audit, AdminAuditLogRead)
+    assert audit.id is not None
+    assert audit.event_id == event.id
+    assert audit.resource_id == "123"
+
+
 def test_custom_json_encoder():
     """Test CustomJSONEncoder functionality."""
     encoder = CustomJSONEncoder()
@@ -126,50 +182,6 @@ async def test_log_event_success(event_service, mock_request):
         assert result.status == status
         assert result.user_id == user_id
         mock_create.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_log_event_with_model_result(event_service, mock_request):
-    """Test event logging when crud returns a model object."""
-    user_id = 1
-    session_id = "test-session-id"
-    event_type = EventType.CREATE
-    status = EventStatus.SUCCESS
-
-    class MockEventModel:
-        def __init__(self):
-            self.id = 1
-            self.event_type = event_type
-            self.status = status
-            self.user_id = user_id
-            self.session_id = session_id
-            self.ip_address = "127.0.0.1"
-            self.user_agent = "test-agent"
-            self.resource_type = None
-            self.resource_id = None
-            self.details = {}
-            self.timestamp = datetime.now(UTC)
-            self._private_attr = "should_be_ignored"
-
-    mock_model = MockEventModel()
-
-    with patch.object(
-        event_service.crud_events, "create", new_callable=AsyncMock
-    ) as mock_create:
-        mock_create.return_value = mock_model
-
-        result = await event_service.log_event(
-            db=AsyncMock(),
-            event_type=event_type,
-            status=status,
-            user_id=user_id,
-            session_id=session_id,
-            request=mock_request,
-        )
-
-        assert isinstance(result, AdminEventLogRead)
-        assert result.event_type == event_type
-        assert result.user_id == user_id
 
 
 @pytest.mark.asyncio

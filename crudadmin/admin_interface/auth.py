@@ -80,19 +80,14 @@ class AdminAuthentication:
                 raise UnauthorizedException("Could not validate credentials")
 
             user_id = session_data.user_id
-            user = await self.db_config.crud_users.get(db=db, id=user_id)
+            user = await self.db_config.crud_users.get(
+                db=db,
+                id=user_id,
+                schema_to_select=AdminUserRead,
+                return_as_model=True,
+            )
 
             if user:
-                if isinstance(user, dict):
-                    try:
-                        user = AdminUserRead(**user)
-                    except Exception as e:
-                        raise UnauthorizedException("Invalid user data") from e
-                elif not isinstance(user, AdminUserRead):
-                    try:
-                        user = AdminUserRead.from_orm(user)
-                    except Exception as e:
-                        raise UnauthorizedException("Invalid user data") from e
                 return user
 
             logger.debug("User not found")

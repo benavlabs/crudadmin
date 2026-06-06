@@ -76,16 +76,14 @@ class EventService:
                 details=self._serialize_dict(details),
             )
 
-            result = await self.crud_events.create(db=db, object=event_data)
+            result = await self.crud_events.create(
+                db=db,
+                object=event_data,
+                schema_to_select=AdminEventLogRead,
+                return_as_model=False,
+            )
 
-            if hasattr(result, "__dict__"):
-                result_dict = {
-                    k: v for k, v in result.__dict__.items() if not k.startswith("_")
-                }
-            else:
-                result_dict = cast(dict, dict(result))
-
-            event_read = AdminEventLogRead(**result_dict)
+            event_read = AdminEventLogRead(**cast(dict, result))
 
             await db.commit()
             return event_read
@@ -119,16 +117,14 @@ class EventService:
                 metadata=self._serialize_dict(metadata),
             )
 
-            result = await self.crud_audits.create(db=db, object=audit_data)
+            result = await self.crud_audits.create(
+                db=db,
+                object=audit_data,
+                schema_to_select=AdminAuditLogRead,
+                return_as_model=False,
+            )
 
-            if hasattr(result, "__dict__"):
-                result_dict = {
-                    k: v for k, v in result.__dict__.items() if not k.startswith("_")
-                }
-            else:
-                result_dict = cast(dict, dict(result))
-
-            return AdminAuditLogRead(**result_dict)
+            return AdminAuditLogRead(**cast(dict, result))
 
         except Exception as e:
             logger.error(f"Error creating audit log: {str(e)}", exc_info=True)
