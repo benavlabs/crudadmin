@@ -1,20 +1,35 @@
 """
-Relationship detection and handling for CRUDAdmin.
+Relationship detection and display for CRUDAdmin.
 
-Supports:
-- BelongsTo: Current model has foreign key to another model
-- HasOne: Another model has foreign key to current model (single record)
-- HasMany: Another model has foreign key to current model (multiple records)
+Detection of relationships is delegated to fastcrud's native relationship
+support (``discover_model_relationships``), and loading of related data uses
+fastcrud's ``get_joined`` / ``get_multi`` rather than hand-rolled queries. This
+module only adds the UI-facing metadata fastcrud does not provide: which field
+to show as a related record's label, and a summary shaped for the admin
+templates.
+
+The label field is never guessed. It is taken from the related model's
+registered admin view (``add_view(..., display_field=...)``) and falls back to
+the related model's primary key when not configured. See
+:func:`resolve_display_field`.
+
+Relationship types (from the perspective of the model being viewed):
+
+- ``BelongsTo``: this model has a foreign key to the related model (many-to-one)
+- ``HasOne``: the related model has a foreign key back to this model (scalar)
+- ``HasMany``: the related model has a foreign key back to this model (collection)
+- ``ManyToMany``: association-table relationship
 """
 
 import logging
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional, Type, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
 
-from sqlalchemy import inspect
-from sqlalchemy.orm import RelationshipProperty, ONETOMANY, MANYTOONE, MANYTOMANY
-from sqlalchemy.orm import DeclarativeBase
+from fastcrud import FastCRUD
+from fastcrud.core.field_management import discover_model_relationships
+from fastcrud.core.introspection import sa_inspect
+from sqlalchemy.orm import MANYTOMANY, MANYTOONE, ONETOMANY, DeclarativeBase
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,7 +46,23 @@ class RelationshipType(str, Enum):
 
 @dataclass
 class RelationshipInfo:
-    """Information about a relationship on a model."""
+    """Information about a relationship on a model.
+
+    Attributes:
+        name: The relationship attribute name on the owning model.
+        relationship_type: One of the :class:`RelationshipType` values.
+        related_model: The model on the other end of the relationship.
+        related_model_name: ``related_model.__name__`` (used for admin URLs).
+        foreign_key: The foreign key column backing the relationship, if any.
+        back_populates: The inverse relationship attribute name, if defined.
+        uselist: Whether the relationship is a collection.
+        display_field: Column used as the related record's label. Defaults to
+            the related model's primary key; the explicit label configured via
+            ``add_view(display_field=...)`` is applied at request time by
+            :func:`resolve_display_field`. Never guessed from column names.
+        available_options: Cached options for relationship dropdowns.
+    """
+
     name: str
     relationship_type: RelationshipType
     related_model: Type[DeclarativeBase]
@@ -39,261 +70,212 @@ class RelationshipInfo:
     foreign_key: Optional[str] = None
     back_populates: Optional[str] = None
     uselist: bool = False
-    # For display purposes
     display_field: str = "id"
-    # Runtime data
     available_options: List[Dict[str, Any]] = field(default_factory=list)
 
 
 def detect_relationships(model: Type[DeclarativeBase]) -> Dict[str, RelationshipInfo]:
-    """
-    Detect relationships defined on a SQLAlchemy model.
+    """Detect relationships defined on a SQLAlchemy model.
+
+    Discovery is delegated to fastcrud's ``discover_model_relationships``; this
+    function maps each discovered relationship to the UI-facing
+    :class:`RelationshipInfo`.
 
     Args:
-        model: The SQLAlchemy model class to inspect
+        model: The SQLAlchemy model class to inspect.
 
     Returns:
-        Dictionary mapping relationship names to RelationshipInfo objects
+        Dictionary mapping relationship names to :class:`RelationshipInfo`.
     """
     relationships: Dict[str, RelationshipInfo] = {}
 
-    try:
-        mapper = inspect(model)
-    except Exception as e:
-        logger.warning(f"Could not inspect model {model}: {e}")
-        return relationships
-
-    for prop in mapper.relationships:
-        try:
-            rel_info = _analyze_relationship(prop)
-            if rel_info:
-                relationships[prop.key] = rel_info
-                logger.debug(f"Detected relationship: {model.__name__}.{prop.key} -> {rel_info.relationship_type.value}")
-        except Exception as e:
-            logger.warning(f"Error analyzing relationship {prop.key}: {e}")
+    for name, prop in discover_model_relationships(model):
+        rel_info = _analyze_relationship(name, prop)
+        if rel_info is not None:
+            relationships[name] = rel_info
+            logger.debug(
+                "Detected relationship: %s.%s -> %s",
+                model.__name__,
+                name,
+                rel_info.relationship_type.value,
+            )
 
     return relationships
 
 
-def _analyze_relationship(prop: RelationshipProperty) -> Optional[RelationshipInfo]:
-    """Analyze a relationship property and return RelationshipInfo."""
-
+def _analyze_relationship(name: str, prop: Any) -> Optional[RelationshipInfo]:
+    """Map a SQLAlchemy relationship property to a :class:`RelationshipInfo`."""
     related_model = prop.mapper.class_
-    related_model_name = related_model.__name__
 
-    # Determine relationship type based on direction and uselist
     if prop.direction == MANYTOONE:
-        # This model has a foreign key to the related model
         rel_type = RelationshipType.BELONGS_TO
-        foreign_key = _get_foreign_key_column(prop)
+        foreign_key = _local_foreign_key(prop)
     elif prop.direction == ONETOMANY:
-        if prop.uselist:
-            # Related model has FK to this model, multiple records
-            rel_type = RelationshipType.HAS_MANY
-        else:
-            # Related model has FK to this model, single record
-            rel_type = RelationshipType.HAS_ONE
-        foreign_key = _get_remote_foreign_key(prop)
+        rel_type = (
+            RelationshipType.HAS_MANY if prop.uselist else RelationshipType.HAS_ONE
+        )
+        foreign_key = _remote_foreign_key(prop)
     elif prop.direction == MANYTOMANY:
         rel_type = RelationshipType.MANY_TO_MANY
         foreign_key = None
     else:
         return None
 
-    # Try to find a good display field on the related model
-    display_field = _find_display_field(related_model)
-
     return RelationshipInfo(
-        name=prop.key,
+        name=name,
         relationship_type=rel_type,
         related_model=related_model,
-        related_model_name=related_model_name,
+        related_model_name=related_model.__name__,
         foreign_key=foreign_key,
         back_populates=prop.back_populates,
-        uselist=prop.uselist,
-        display_field=display_field,
+        uselist=bool(prop.uselist),
+        display_field=_primary_key_name(related_model),
     )
 
 
-def _get_foreign_key_column(prop: RelationshipProperty) -> Optional[str]:
-    """Get the foreign key column name for a BelongsTo relationship."""
-    for local, remote in prop.local_remote_pairs:
-        return local.name
+def _local_foreign_key(prop: Any) -> Optional[str]:
+    """Foreign key column on this model for a BelongsTo relationship."""
+    for local, _remote in prop.local_remote_pairs or []:
+        return str(local.name)
     return None
 
 
-def _get_remote_foreign_key(prop: RelationshipProperty) -> Optional[str]:
-    """Get the foreign key column on the remote model."""
-    for local, remote in prop.local_remote_pairs:
-        return remote.name
+def _remote_foreign_key(prop: Any) -> Optional[str]:
+    """Foreign key column on the related model for a HasOne/HasMany relationship."""
+    for _local, remote in prop.local_remote_pairs or []:
+        return str(remote.name)
     return None
 
 
-def _find_display_field(model: Type[DeclarativeBase]) -> str:
-    """Find a suitable display field for a model (name, title, etc.)."""
-    try:
-        mapper = inspect(model)
-        column_names = [c.name for c in mapper.columns]
-
-        # Priority list of common display field names
-        display_candidates = ['name', 'title', 'label', 'display_name', 'hostname', 'username', 'email']
-
-        for candidate in display_candidates:
-            if candidate in column_names:
-                return candidate
-
-        # Fall back to first string column that isn't an ID
-        for col in mapper.columns:
-            if hasattr(col.type, 'python_type'):
-                try:
-                    if col.type.python_type == str and not col.name.endswith('_id') and col.name != 'id':
-                        return col.name
-                except:
-                    pass
-
-        # Last resort: use primary key
-        pk_cols = mapper.primary_key
-        if pk_cols:
-            return pk_cols[0].name
-
-    except Exception as e:
-        logger.warning(f"Error finding display field for {model}: {e}")
-
+def _primary_key_name(model: Type[DeclarativeBase]) -> str:
+    """Return the name of the model's first primary key column."""
+    mapper = sa_inspect(model)
+    if mapper.primary_key:
+        return str(mapper.primary_key[0].name)
     return "id"
+
+
+def _has_column(model: Type[DeclarativeBase], name: str) -> bool:
+    """Whether the model has a (non-relationship) column with the given name."""
+    return name in {c.name for c in sa_inspect(model).columns}
+
+
+def resolve_display_field(
+    related_model: Type[DeclarativeBase], configured: Optional[str]
+) -> str:
+    """Resolve the label field to show for a related model.
+
+    The label is explicit, not guessed: it uses the field configured on the
+    related model's admin view (``add_view(..., display_field=...)``) when that
+    field is a real column, and otherwise falls back to the primary key.
+
+    Args:
+        related_model: The model whose label field is being resolved.
+        configured: The ``display_field`` registered for that model, if any.
+
+    Returns:
+        The column name to use as the label.
+    """
+    if configured and _has_column(related_model, configured):
+        return configured
+    if configured:
+        logger.warning(
+            "Configured display_field '%s' is not a column on %s; "
+            "falling back to the primary key.",
+            configured,
+            related_model.__name__,
+        )
+    return _primary_key_name(related_model)
 
 
 async def load_relationship_options(
     db: "AsyncSession",
     relationship: RelationshipInfo,
-    limit: int = 100
+    limit: int = 100,
 ) -> List[Dict[str, Any]]:
-    """
-    Load available options for a relationship (for dropdowns/selects).
-
-    Args:
-        db: Database session
-        relationship: The relationship to load options for
-        limit: Maximum number of options to load
+    """Load options for a relationship dropdown using fastcrud's ``get_multi``.
 
     Returns:
-        List of dictionaries with 'id' and 'display_name' keys
+        List of ``{"id": ..., "display_name": ...}`` dictionaries.
     """
-    from sqlalchemy import select
+    related_model = relationship.related_model
+    mapper = sa_inspect(related_model)
+    pk_name = mapper.primary_key[0].name
 
-    try:
-        model = relationship.related_model
-        mapper = inspect(model)
-        pk_col = mapper.primary_key[0]
-        display_col = getattr(model, relationship.display_field, pk_col)
+    crud: FastCRUD[Any, Any, Any, Any, Any, Any] = FastCRUD(related_model)
+    result = await crud.get_multi(db=db, limit=limit)
 
-        stmt = select(model).limit(limit)
-        result = await db.execute(stmt)
-        records = result.scalars().all()
-
-        options = []
-        for record in records:
-            pk_value = getattr(record, pk_col.name)
-            display_value = getattr(record, relationship.display_field, pk_value)
-            options.append({
-                "id": pk_value,
-                "display_name": str(display_value),
-            })
-
-        return options
-    except Exception as e:
-        logger.error(f"Error loading relationship options: {e}")
-        return []
+    options: List[Dict[str, Any]] = []
+    for record in result.get("data", []):
+        pk_value = record.get(pk_name)
+        display_value = record.get(relationship.display_field, pk_value)
+        options.append({"id": pk_value, "display_name": str(display_value)})
+    return options
 
 
 async def load_related_data(
+    crud: "FastCRUD[Any, Any, Any, Any, Any, Any]",
     db: "AsyncSession",
-    model: Type[DeclarativeBase],
+    parent_pk_name: str,
     pk_value: Any,
     relationship: RelationshipInfo,
-    limit: int = 50
+    limit: int = 50,
 ) -> List[Dict[str, Any]]:
-    """
-    Load related records for a specific relationship.
+    """Load related records for a single parent record.
+
+    Uses fastcrud's ``get_joined`` with ``auto_detect_relationships`` scoped to
+    the single relationship being expanded, then returns the nested data
+    normalized to a list of dictionaries.
 
     Args:
-        db: Database session
-        model: The parent model
-        pk_value: Primary key value of the parent record
-        relationship: The relationship to load
-        limit: Maximum number of related records
+        crud: A fastcrud instance bound to the parent model.
+        db: Database session.
+        parent_pk_name: Primary key column name of the parent model.
+        pk_value: Primary key value of the parent record.
+        relationship: The relationship to load.
+        limit: Maximum number of related records to return.
 
     Returns:
-        List of related record dictionaries
+        List of related record dictionaries (empty if none / parent missing).
     """
-    from sqlalchemy import select
+    parent = await crud.get_joined(
+        db=db,
+        auto_detect_relationships=[relationship.name],
+        nest_joins=True,
+        **{parent_pk_name: pk_value},
+    )
 
-    try:
-        related_model = relationship.related_model
+    if not parent:
+        return []
 
-        if relationship.relationship_type == RelationshipType.BELONGS_TO:
-            # Load the single related parent record
-            mapper = inspect(related_model)
-            pk_col = mapper.primary_key[0]
-
-            # Get the FK value from the current record
-            parent_mapper = inspect(model)
-            fk_col = relationship.foreign_key
-
-            stmt = select(model).where(parent_mapper.primary_key[0] == pk_value)
-            result = await db.execute(stmt)
-            parent_record = result.scalar_one_or_none()
-
-            if parent_record and fk_col:
-                fk_value = getattr(parent_record, fk_col)
-                stmt = select(related_model).where(pk_col == fk_value)
-                result = await db.execute(stmt)
-                related = result.scalar_one_or_none()
-                if related:
-                    return [_record_to_dict(related)]
-            return []
-
-        elif relationship.relationship_type in [RelationshipType.HAS_ONE, RelationshipType.HAS_MANY]:
-            # Load child record(s) that have FK to this record
-            fk_col = getattr(related_model, relationship.foreign_key)
-            stmt = select(related_model).where(fk_col == pk_value).limit(limit)
-            result = await db.execute(stmt)
-            records = result.scalars().all()
-            return [_record_to_dict(r) for r in records]
-
-    except Exception as e:
-        logger.error(f"Error loading related data: {e}")
-
-    return []
-
-
-def _record_to_dict(record: Any) -> Dict[str, Any]:
-    """Convert a SQLAlchemy record to a dictionary."""
-    try:
-        mapper = inspect(type(record))
-        return {c.name: getattr(record, c.name) for c in mapper.columns}
-    except:
-        return {}
+    nested = parent.get(relationship.name)
+    if nested is None:
+        return []
+    if isinstance(nested, list):
+        return nested[:limit]
+    return [nested]
 
 
 def get_relationship_summary(
     record: Dict[str, Any],
     relationship: RelationshipInfo,
-    related_data: List[Dict[str, Any]]
+    related_data: List[Dict[str, Any]],
 ) -> Dict[str, Any]:
-    """
-    Get a summary of relationship data for display in list view.
+    """Summarize relationship data for display in the list view.
 
-    Returns dict with:
-    - count: Number of related records
-    - display_value: String representation for display
-    - items: First few items for preview
+    Returns a dict with ``count``, ``display_value`` and ``items`` (plus a
+    ``preview`` string for collection relationships).
     """
     count = len(related_data)
+    is_collection = relationship.relationship_type in (
+        RelationshipType.HAS_MANY,
+        RelationshipType.MANY_TO_MANY,
+    )
 
-    if relationship.relationship_type == RelationshipType.BELONGS_TO:
+    if not is_collection:
         if related_data:
             item = related_data[0]
-            display = item.get(relationship.display_field, item.get('id', '-'))
+            display = item.get(relationship.display_field, item.get("id", "-"))
             return {
                 "count": 1,
                 "display_value": str(display),
@@ -301,26 +283,15 @@ def get_relationship_summary(
             }
         return {"count": 0, "display_value": "-", "items": []}
 
-    elif relationship.relationship_type == RelationshipType.HAS_ONE:
-        if related_data:
-            item = related_data[0]
-            display = item.get(relationship.display_field, item.get('id', '-'))
-            return {
-                "count": 1,
-                "display_value": str(display),
-                "items": related_data[:1],
-            }
-        return {"count": 0, "display_value": "-", "items": []}
-
-    else:  # HAS_MANY
-        if related_data:
-            previews = [str(item.get(relationship.display_field, item.get('id', '')))
-                       for item in related_data[:3]]
-            display = f"{count} items"
-            return {
-                "count": count,
-                "display_value": display,
-                "items": related_data[:5],
-                "preview": ", ".join(previews) + ("..." if count > 3 else ""),
-            }
-        return {"count": 0, "display_value": "0 items", "items": [], "preview": ""}
+    if related_data:
+        previews = [
+            str(item.get(relationship.display_field, item.get("id", "")))
+            for item in related_data[:3]
+        ]
+        return {
+            "count": count,
+            "display_value": f"{count} items",
+            "items": related_data[:5],
+            "preview": ", ".join(previews) + ("..." if count > 3 else ""),
+        }
+    return {"count": 0, "display_value": "0 items", "items": [], "preview": ""}

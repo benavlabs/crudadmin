@@ -67,6 +67,7 @@ class ModelConfig(TypedDict):
     update_internal_schema: Optional[Type[BaseModel]]
     delete_schema: Optional[Type[BaseModel]]
     crud: FastCRUD
+    display_field: Optional[str]
 
 
 class AdminModelProtocol:
@@ -898,6 +899,7 @@ class CRUDAdmin:
         include_in_models: bool = True,
         allowed_actions: Optional[set[str]] = None,
         password_transformer: Optional[Any] = None,
+        display_field: Optional[str] = None,
     ) -> None:
         """
         Add CRUD view for a database model.
@@ -920,6 +922,10 @@ class CRUDAdmin:
                 - **"delete"**: Allow deleting records
                 Defaults to all actions if None
             password_transformer: PasswordTransformer instance for handling password field transformation
+            display_field: Column used as this model's human-readable label when
+                it is shown as a related record from another model's view (e.g.
+                ``"name"`` so a foreign key renders the name instead of the id).
+                Falls back to the primary key when not set.
 
         Raises:
             ValueError: If schemas don't match model structure
@@ -1133,6 +1139,7 @@ class CRUDAdmin:
                 "update_internal_schema": update_internal_schema,
                 "delete_schema": delete_schema,
                 "crud": FastCRUD(model),
+                "display_field": display_field,
             }
 
         allowed_actions = allowed_actions or {"view", "create", "update", "delete"}
