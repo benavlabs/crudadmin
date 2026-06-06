@@ -12,7 +12,7 @@ from ..core.auth import (
     verify_password,
 )
 from ..core.db import DatabaseConfig
-from .schemas import AdminUserCreate
+from .schemas import AdminUserCreate, AdminUserRead
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +75,12 @@ class AdminUserService:
                 password=hashed_password,
             )
 
-            created_user_raw = await self.crud_users.create(db=db, object=admin_data)
+            created_user_raw = await self.crud_users.create(
+                db=db,
+                object=admin_data,
+                schema_to_select=AdminUserRead,
+                return_as_model=False,
+            )
 
             created_user = convert_user_to_dict(created_user_raw)
             logger.debug(f"Created admin user: {created_user}")

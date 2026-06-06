@@ -147,7 +147,7 @@ And it's all done! Navigate to `/admin` to access your admin interface with:
 
 Before installing CRUDAdmin, ensure you have the following prerequisites:
 
-* **Python:** Version 3.9 or newer.
+* **Python:** Version 3.10 or newer.
 * **FastAPI:** CRUDAdmin is built to work with FastAPI, so having FastAPI in your project is essential.
 * **FastCRUD:** CRUDAdmin is built on top of [FastCRUD](https://github.com/benavlabs/fastcrud) for CRUD operations (which requires SQLAlchemy 2.0+ for database operations and Pydantic 2.0+ for data validation and serialization).
 * **aiosqlite:** Required for async SQLite operations (automatically installed as a dependency).

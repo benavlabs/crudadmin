@@ -3,6 +3,9 @@
         <table class="data-table">
             <thead>
                 <tr>
+                    {% if relationships %}
+                        <th class="expand-cell"></th>
+                    {% endif %}
                     <th class="checkbox-cell">
                         <div class="checkbox-wrapper">
                             <input type="checkbox"
@@ -45,13 +48,26 @@
             </thead>
             <tbody>
                 {% for row in model_items %}
-                    <tr>
+                    {% set row_id = row[primary_key_info.name] %}
+                    <tr class="data-row {% if relationships %}expandable-row{% endif %}"
+                        data-row-id="{{ row_id }}">
+                        {% if relationships %}
+                            <td class="expand-cell">
+                                <button class="expand-btn"
+                                        onclick="toggleRowExpand(this, '{{ row_id }}')"
+                                        title="Expand/Collapse">
+                                    <svg class="expand-icon" viewBox="0 0 24 24" width="16" height="16">
+                                        <path fill="currentColor" d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>
+                                    </svg>
+                                </button>
+                            </td>
+                        {% endif %}
                         <td class="checkbox-cell">
                             <div class="checkbox-wrapper">
                                 <input type="checkbox"
                                        class="custom-checkbox"
                                        name="rowSelect"
-                                       value="{{ row[primary_key_info.name] }}"
+                                       value="{{ row_id }}"
                                        onchange="handleRowSelect()">
                             </div>
                         </td>
@@ -59,6 +75,28 @@
                             <td>{{ attribute }}</td>
                         {% endfor %}
                     </tr>
+                    {% if relationships %}
+                        <tr class="expanded-row" id="expanded-{{ row_id }}" style="display: none;">
+                            <td colspan="{{ table_columns|length + 2 }}">
+                                <div class="expanded-content" id="expanded-content-{{ row_id }}">
+                                    <div class="relationships-panel">
+                                        {% for rel_name, rel_info in relationships.items() %}
+                                            <div class="relationship-section"
+                                                 id="rel-{{ row_id }}-{{ rel_name }}"
+                                                 hx-get="{{ url_prefix }}/{{ model_name }}/related/{{ row_id }}/{{ rel_name }}"
+                                                 hx-trigger="intersect once"
+                                                 hx-swap="innerHTML">
+                                                <div class="loading-placeholder">
+                                                    <span class="spinner"></span>
+                                                    Loading {{ rel_info.related_model_name }}...
+                                                </div>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endif %}
                 {% endfor %}
             </tbody>
         </table>
@@ -112,4 +150,126 @@
     .sort-btn:hover .sort-icon:not(.active) {
         opacity: 0.6;
     }
+
+    /* Expandable rows for relationships */
+    .expand-cell {
+        width: 30px;
+        padding: 0 8px !important;
+    }
+
+    .expand-btn {
+        background: none;
+        border: none;
+        padding: 4px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--border-radius-sm);
+        transition: all 0.2s;
+        color: var(--text-secondary);
+    }
+
+    .expand-btn:hover {
+        background: var(--bg-secondary-light);
+        color: var(--primary-color);
+    }
+
+    .dark-theme .expand-btn:hover {
+        background: var(--bg-secondary-dark);
+    }
+
+    .expand-icon {
+        transition: transform 0.2s;
+    }
+
+    .expanded .expand-icon {
+        transform: rotate(90deg);
+    }
+
+    .expandable-row {
+        cursor: pointer;
+    }
+
+    .expandable-row:hover {
+        background: var(--bg-hover);
+    }
+
+    .expanded-row {
+        background: var(--bg-primary-light);
+    }
+
+    .dark-theme .expanded-row {
+        background: var(--bg-primary-dark);
+    }
+
+    .expanded-row > td {
+        padding: 0 !important;
+        border-bottom: 2px solid var(--primary-color);
+    }
+
+    .expanded-content {
+        padding: 15px 20px;
+    }
+
+    .relationships-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .relationship-section {
+        min-height: 50px;
+    }
+
+    .loading-placeholder {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 15px;
+        color: var(--text-secondary);
+        font-size: 13px;
+    }
+
+    .spinner {
+        width: 16px;
+        height: 16px;
+        border: 2px solid var(--border-color);
+        border-top-color: var(--primary-color);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
 </style>
+
+<script>
+    function toggleRowExpand(button, rowId) {
+        const expandedRow = document.getElementById('expanded-' + rowId);
+        const dataRow = button.closest('.data-row');
+
+        if (expandedRow.style.display === 'none') {
+            // Close other expanded rows
+            document.querySelectorAll('.expanded-row').forEach(row => {
+                if (row.id !== 'expanded-' + rowId) {
+                    row.style.display = 'none';
+                    const otherBtn = row.previousElementSibling.querySelector('.expand-btn');
+                    if (otherBtn) otherBtn.classList.remove('expanded');
+                }
+            });
+
+            expandedRow.style.display = 'table-row';
+            button.classList.add('expanded');
+
+            // Trigger HTMX to load content
+            htmx.trigger(expandedRow.querySelector('.relationship-section'), 'intersect');
+        } else {
+            expandedRow.style.display = 'none';
+            button.classList.remove('expanded');
+        }
+
+        event.stopPropagation();
+    }
+</script>

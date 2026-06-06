@@ -54,13 +54,13 @@ class MockModel:
     __tablename__ = "test_model"
 
 
-class TestBase(DeclarativeBase):
+class _TestBase(DeclarativeBase):
     """Base class for test models."""
 
     pass
 
 
-class MockUUIDModel(TestBase):
+class MockUUIDModel(_TestBase):
     """Mock SQLAlchemy model with UUID primary key for testing."""
 
     __name__ = "MockUUIDModel"
@@ -68,7 +68,7 @@ class MockUUIDModel(TestBase):
     id = Column(UUID(as_uuid=True), primary_key=True, index=True, default=uuid.uuid4)
 
 
-class MockIntModel(TestBase):
+class MockIntModel(_TestBase):
     """Mock SQLAlchemy model with integer primary key for testing."""
 
     __name__ = "MockIntModel"
@@ -76,7 +76,7 @@ class MockIntModel(TestBase):
     id = Column(Integer, primary_key=True, index=True)
 
 
-class MockStringModel(TestBase):
+class MockStringModel(_TestBase):
     """Mock SQLAlchemy model with string primary key for testing."""
 
     __name__ = "MockStringModel"

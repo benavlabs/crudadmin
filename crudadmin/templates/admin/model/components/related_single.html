@@ -1,0 +1,100 @@
+<!-- Related Single Record for HasOne relationships -->
+<div class="related-single-container">
+    <div class="related-header">
+        <h4>{{ relationship.related_model_name }}</h4>
+    </div>
+
+    {% if related_data and related_data|length > 0 %}
+        {% set item = related_data[0] %}
+        <div class="related-single-grid">
+            {% for key, value in item.items() %}
+                <div class="related-field">
+                    <label>{{ key }}</label>
+                    <span class="value">{{ value if value is not none else '-' }}</span>
+                </div>
+            {% endfor %}
+        </div>
+        <div class="related-actions">
+            <a href="{{ url_prefix }}/{{ relationship.related_model_name }}/update/{{ item.id }}"
+               class="btn btn-small btn-secondary">
+                Edit {{ relationship.related_model_name }}
+            </a>
+        </div>
+    {% else %}
+        <p class="no-data">No related record found</p>
+    {% endif %}
+</div>
+
+<style>
+    .related-single-container {
+        padding: 15px;
+        background: var(--bg-primary-light);
+        border-radius: var(--border-radius);
+    }
+
+    .dark-theme .related-single-container {
+        background: var(--bg-primary-dark);
+    }
+
+    .related-header {
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .related-header h4 {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .related-single-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 12px;
+    }
+
+    .related-field {
+        background: var(--bg-secondary-light);
+        padding: 10px 12px;
+        border-radius: var(--border-radius-sm);
+        border-left: 3px solid var(--primary-color);
+    }
+
+    .dark-theme .related-field {
+        background: var(--bg-secondary-dark);
+    }
+
+    .related-field label {
+        display: block;
+        font-size: 11px;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+        margin-bottom: 4px;
+    }
+
+    .related-field .value {
+        font-size: 14px;
+        color: var(--text-primary);
+        word-break: break-all;
+    }
+
+    .related-actions {
+        margin-top: 15px;
+        padding-top: 12px;
+        border-top: 1px solid var(--border-color);
+    }
+
+    .btn-small {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+
+    .no-data {
+        color: var(--text-secondary);
+        font-style: italic;
+        padding: 20px;
+        text-align: center;
+    }
+</style>

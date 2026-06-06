@@ -1,5 +1,7 @@
 import datetime
+import logging
 from collections.abc import AsyncGenerator, Callable, Coroutine
+from dataclasses import replace
 from datetime import datetime as dt
 from typing import (
     Any,
@@ -26,6 +28,14 @@ from sqlalchemy.orm import DeclarativeBase
 from ..core.db import DatabaseConfig, convert_id_to_pk_type
 from ..event import EventType, log_admin_action
 from .helper import _get_form_fields_from_schema
+from .relationships import (
+    RelationshipInfo,
+    RelationshipType,
+    detect_relationships,
+    resolve_display_field,
+)
+
+logger = logging.getLogger(__name__)
 
 EndpointCallable = Callable[..., Coroutine[Any, Any, Response]]
 
@@ -409,6 +419,9 @@ class ModelView:
             )
 
         self.crud: FastCRUD[Any, Any, Any, Any, Any, Any] = FastCRUD(self.model)
+        self.relationships: Dict[str, RelationshipInfo] = detect_relationships(
+            self.model
+        )
 
         self.endpoints_template = EndpointCreator(
             session=self.session,
@@ -443,6 +456,26 @@ class ModelView:
             return None
 
         return convert_id_to_pk_type(id_value, self.db_config, self.model)
+
+    def _with_resolved_display_field(
+        self, relationship: RelationshipInfo
+    ) -> RelationshipInfo:
+        """Return a copy of the relationship with its label field resolved.
+
+        The label uses the ``display_field`` configured on the related model's
+        admin view, falling back to the related model's primary key. Resolution
+        happens at request time so it is independent of ``add_view`` ordering.
+        """
+        configured: Optional[str] = None
+        if self.admin_site is not None:
+            related_config = self.admin_site.models.get(relationship.related_model_name)
+            if related_config is not None:
+                configured = related_config.get("display_field")
+
+        display_field = resolve_display_field(relationship.related_model, configured)
+        if display_field == relationship.display_field:
+            return relationship
+        return replace(relationship, display_field=display_field)
 
     def setup_routes(self) -> None:
         """
@@ -522,6 +555,22 @@ class ModelView:
                 "/form_update/{id}",
                 self.form_update_endpoint(),
                 methods=["POST"],
+                include_in_schema=False,
+                response_model=None,
+            )
+
+        if self.relationships:
+            self.router.add_api_route(
+                "/related/{id}/{relationship_name}",
+                self.get_related_data_endpoint(),
+                methods=["GET"],
+                include_in_schema=False,
+                response_model=None,
+            )
+            self.router.add_api_route(
+                "/relationship-options/{relationship_name}",
+                self.get_relationship_options_endpoint(),
+                methods=["GET"],
                 include_in_schema=False,
                 response_model=None,
             )
@@ -637,7 +686,11 @@ class ModelView:
                                     AdminUserCreateInternal(**transformed_data)
                                 )
                                 result = await self.crud.create(
-                                    db=db, object=admin_internal_data
+                                    db=db,
+                                    object=admin_internal_data,
+                                    schema_to_select=self.select_schema
+                                    or self.create_schema,
+                                    return_as_model=False,
                                 )
                             else:
                                 if self.update_internal_schema:
@@ -645,20 +698,34 @@ class ModelView:
                                         **transformed_data
                                     )
                                     result = await self.crud.create(
-                                        db=db, object=generic_internal_data
+                                        db=db,
+                                        object=generic_internal_data,
+                                        schema_to_select=self.select_schema
+                                        or self.create_schema,
+                                        return_as_model=False,
                                     )
                                 else:
                                     dynamic_internal_data = type(
                                         "InternalSchema", (BaseModel,), {}
                                     )(**transformed_data)
                                     result = await self.crud.create(
-                                        db=db, object=dynamic_internal_data
+                                        db=db,
+                                        object=dynamic_internal_data,
+                                        schema_to_select=self.select_schema
+                                        or self.create_schema,
+                                        return_as_model=False,
                                     )
 
                             await db.commit()
                         else:
                             item_data = self.create_schema(**form_data)
-                            result = await self.crud.create(db=db, object=item_data)
+                            result = await self.crud.create(
+                                db=db,
+                                object=item_data,
+                                schema_to_select=self.select_schema
+                                or self.create_schema,
+                                return_as_model=False,
+                            )
                             await db.commit()
 
                         if result:
@@ -843,7 +910,12 @@ class ModelView:
                     "total_count": items_result.get("total_count", 0),
                 }
 
-                table_columns = [column.key for column in self.model.__table__.columns]
+                if self.select_schema:
+                    table_columns = list(self.select_schema.model_fields.keys())
+                else:
+                    table_columns = [
+                        column.key for column in self.model.__table__.columns
+                    ]
                 primary_key_info = self.db_config.get_primary_key_info(self.model)
 
                 context: Dict[str, Any] = {
@@ -855,6 +927,7 @@ class ModelView:
                     "rows_per_page": rows_per_page,
                     "primary_key_info": primary_key_info,
                     "url_prefix": self.get_url_prefix(),
+                    "relationships": self.relationships,
                 }
 
                 return self.templates.TemplateResponse(
@@ -996,7 +1069,10 @@ class ModelView:
                 total_items = 0
                 page = 1
 
-            table_columns = [column.key for column in self.model.__table__.columns]
+            if self.select_schema:
+                table_columns = list(self.select_schema.model_fields.keys())
+            else:
+                table_columns = [column.key for column in self.model.__table__.columns]
             primary_key_info = self.db_config.get_primary_key_info(self.model)
 
             context: Dict[str, Any] = {
@@ -1012,6 +1088,7 @@ class ModelView:
                 "sort_column": sort_column,
                 "sort_order": sort_order,
                 "allowed_actions": self.allowed_actions,
+                "relationships": self.relationships,
             }
 
             if "HX-Request" in request.headers:
@@ -1387,3 +1464,141 @@ class ModelView:
             )
 
         return cast(EndpointCallable, table_body_content_inner)
+
+    def get_related_data_endpoint(self) -> EndpointCallable:
+        """
+        Create endpoint for fetching related data for a specific record.
+
+        Returns:
+            FastAPI route handler for related data retrieval
+
+        URL Pattern:
+            GET /related/{id}/{relationship_name}
+
+        Returns HTML partial for HTMX to display related records in an
+        expandable row or inline table.
+        """
+        from .relationships import get_relationship_summary, load_related_data
+
+        async def get_related_data_inner(
+            request: Request,
+            id: Union[int, str],
+            relationship_name: str,
+            db: AsyncSession = Depends(self.session),
+        ) -> Response:
+            """Fetch and return related records as HTML partial."""
+            if relationship_name not in self.relationships:
+                return JSONResponse(
+                    status_code=404,
+                    content={
+                        "message": f"Relationship '{relationship_name}' not found"
+                    },
+                )
+
+            relationship = self._with_resolved_display_field(
+                self.relationships[relationship_name]
+            )
+            converted_id = self._convert_id_to_pk_type(id)
+
+            primary_key_info = self.db_config.get_primary_key_info(self.model)
+            if not primary_key_info:
+                return JSONResponse(
+                    status_code=400,
+                    content={"message": "Model has no primary key"},
+                )
+
+            try:
+                related_data = await load_related_data(
+                    crud=self.crud,
+                    db=db,
+                    parent_pk_name=primary_key_info["name"],
+                    pk_value=converted_id,
+                    relationship=relationship,
+                )
+
+                summary = get_relationship_summary({}, relationship, related_data)
+
+                if relationship.relationship_type in (
+                    RelationshipType.HAS_MANY,
+                    RelationshipType.MANY_TO_MANY,
+                ):
+                    template = "admin/model/components/related_table.html"
+                elif relationship.relationship_type == RelationshipType.HAS_ONE:
+                    template = "admin/model/components/related_single.html"
+                else:
+                    template = "admin/model/components/related_link.html"
+
+                context = {
+                    "relationship": relationship,
+                    "related_data": related_data,
+                    "summary": summary,
+                    "parent_id": id,
+                    "parent_model": self.model_key,
+                    "url_prefix": self.get_url_prefix(),
+                }
+
+                return self.templates.TemplateResponse(
+                    name=template, request=request, context=context
+                )
+
+            except Exception as e:
+                logger.error(
+                    "Error loading related data for %s.%s: %s",
+                    self.model_key,
+                    relationship_name,
+                    str(e),
+                )
+                return JSONResponse(
+                    status_code=500,
+                    content={"message": f"Error loading related data: {str(e)}"},
+                )
+
+        return cast(EndpointCallable, get_related_data_inner)
+
+    def get_relationship_options_endpoint(self) -> EndpointCallable:
+        """
+        Create endpoint for fetching options for relationship dropdowns.
+
+        Returns:
+            FastAPI route handler for relationship options
+
+        URL Pattern:
+            GET /relationship-options/{relationship_name}
+
+        Returns JSON list of options for select/dropdown fields.
+        """
+        from .relationships import load_relationship_options
+
+        async def get_relationship_options_inner(
+            request: Request,
+            relationship_name: str,
+            db: AsyncSession = Depends(self.session),
+        ) -> Response:
+            """Fetch options for a relationship dropdown."""
+            if relationship_name not in self.relationships:
+                return JSONResponse(
+                    status_code=404,
+                    content={
+                        "message": f"Relationship '{relationship_name}' not found"
+                    },
+                )
+
+            relationship = self._with_resolved_display_field(
+                self.relationships[relationship_name]
+            )
+
+            try:
+                options = await load_relationship_options(
+                    db=db,
+                    relationship=relationship,
+                )
+
+                return JSONResponse(content=options)
+
+            except Exception as e:
+                return JSONResponse(
+                    status_code=500,
+                    content={"message": f"Error loading options: {str(e)}"},
+                )
+
+        return cast(EndpointCallable, get_relationship_options_inner)
