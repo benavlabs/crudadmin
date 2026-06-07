@@ -9,7 +9,11 @@ from fastcrud import FastCRUD
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 
-from crudadmin.core.db import DatabaseConfig, convert_id_to_pk_type
+from crudadmin.core.db import (
+    DatabaseConfig,
+    convert_id_to_pk_type,
+    get_primary_key_name,
+)
 
 from .models import EventType
 
@@ -49,9 +53,12 @@ def convert_user_to_dict(user: Any) -> Dict[str, Any]:
     """Convert user object to dictionary, handling both dict and Pydantic-like objects."""
     if isinstance(user, dict):
         return user
-    elif hasattr(user, "dict"):
-        user_dict: dict = user.dict()
+    elif hasattr(user, "model_dump"):
+        user_dict: dict = user.model_dump()
         return user_dict
+    elif hasattr(user, "dict"):
+        legacy_dict: dict = user.dict()
+        return legacy_dict
     elif hasattr(user, "__dict__"):
         return {k: v for k, v in user.__dict__.items() if not k.startswith("_")}
     else:
@@ -92,13 +99,15 @@ def log_admin_action(
 
                     if "id" in kwargs:
                         assert crud is not None, "CRUD instance should be initialized."
+                        assert model is not None
                         request_id = kwargs["id"]
                         if db_config:
                             request_id = convert_id_to_pk_type(
                                 request_id, db_config, model
                             )
 
-                        item = await crud.get(db=db, id=request_id)
+                        pk_name = get_primary_key_name(model)
+                        item = await crud.get(db=db, **{pk_name: request_id})
                         if item:
                             previous_state = {
                                 k: v for k, v in item.items() if not k.startswith("_")
@@ -130,7 +139,16 @@ def log_admin_action(
                             assert crud is not None, (
                                 "CRUD instance should be initialized."
                             )
-                            updated_item = await crud.get(db=db, id=kwargs["id"])
+                            assert model is not None
+                            request_id = kwargs["id"]
+                            if db_config:
+                                request_id = convert_id_to_pk_type(
+                                    request_id, db_config, model
+                                )
+                            pk_name = get_primary_key_name(model)
+                            updated_item = await crud.get(
+                                db=db, **{pk_name: request_id}
+                            )
                             if updated_item:
                                 new_state = {
                                     k: v

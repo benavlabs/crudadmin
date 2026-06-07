@@ -16,7 +16,12 @@ from uuid import UUID
 from fastcrud import FastCRUD
 from pydantic import BaseModel
 from sqlalchemy import Table, inspect
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from sqlalchemy.orm import DeclarativeBase
 
 if TYPE_CHECKING:
@@ -42,6 +47,24 @@ def get_default_db_path() -> str:
     data_dir = os.path.join(cwd, "crudadmin_data")
     os.makedirs(data_dir, exist_ok=True)
     return os.path.join(data_dir, "admin.db")
+
+
+def get_primary_key_name(model: Type[DeclarativeBase]) -> str:
+    """Return the name of the model's first primary key column.
+
+    Used as the filter key for FastCRUD lookups so models whose primary key is
+    not named ``id`` (e.g. ``job_id``) work in get/update/delete operations.
+
+    Raises:
+        ValueError: If the model has no primary key.
+    """
+    primary_key_columns = inspect(model).primary_key
+    if not primary_key_columns:
+        raise ValueError(
+            f"Model {model.__name__} has no primary key; CRUDAdmin requires "
+            "a primary key to manage a model."
+        )
+    return str(primary_key_columns[0].name)
 
 
 def convert_id_to_pk_type(
@@ -128,10 +151,18 @@ class DatabaseConfig:
         self.admin_session: AsyncSession = AsyncSession(
             self.admin_engine, expire_on_commit=False
         )
+        self.admin_session_maker: async_sessionmaker[AsyncSession] = async_sessionmaker(
+            self.admin_engine, expire_on_commit=False
+        )
 
         async def get_admin_db() -> AsyncGenerator[AsyncSession, None]:
-            yield self.admin_session
-            await self.admin_session.commit()
+            async with self.admin_session_maker() as session:
+                try:
+                    yield session
+                    await session.commit()
+                except Exception:
+                    await session.rollback()
+                    raise
 
         self.get_admin_db: Callable[[], AsyncGenerator[AsyncSession, None]] = (
             get_admin_db

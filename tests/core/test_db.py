@@ -4,6 +4,7 @@ from typing import Type
 
 import pytest
 import sqlalchemy.exc
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 
@@ -246,3 +247,28 @@ async def test_database_config_cleanup(async_session):
 
         if os.path.exists(admin_db_path):
             os.unlink(admin_db_path)
+
+
+@pytest.mark.asyncio
+async def test_get_admin_db_yields_fresh_session_per_request(db_config):
+    """Each get_admin_db() call yields its own session (not a shared singleton)."""
+    sessions = []
+    async for session in db_config.get_admin_db():
+        sessions.append(session)
+    async for session in db_config.get_admin_db():
+        sessions.append(session)
+
+    assert sessions[0] is not sessions[1]
+
+
+@pytest.mark.asyncio
+async def test_get_admin_db_recovers_after_error(db_config):
+    """A failed statement in one request must not poison later requests (#65)."""
+    with pytest.raises(sqlalchemy.exc.OperationalError):
+        async for session in db_config.get_admin_db():
+            await session.execute(text("SELECT * FROM table_that_does_not_exist"))
+
+    # A subsequent request gets a clean, usable session.
+    async for session in db_config.get_admin_db():
+        result = await session.execute(text("SELECT 1"))
+        assert result.scalar() == 1
