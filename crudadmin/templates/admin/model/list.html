@@ -12,6 +12,45 @@
         margin: 0 auto;
     }
 
+    .success-banner {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        margin-bottom: 1.25rem;
+        padding: 0.75rem 1rem;
+        border-radius: var(--border-radius, 6px);
+        background: rgba(34, 197, 94, 0.12);
+        border: 1px solid rgba(34, 197, 94, 0.4);
+        color: #15803d;
+    }
+
+    .dark-theme .success-banner {
+        background: rgba(34, 197, 94, 0.15);
+        color: #4ade80;
+    }
+
+    .success-banner-icon {
+        font-weight: 700;
+    }
+
+    .success-banner-text {
+        flex: 1;
+    }
+
+    .success-banner-close {
+        background: none;
+        border: none;
+        font-size: 1.25rem;
+        line-height: 1;
+        cursor: pointer;
+        color: inherit;
+        opacity: 0.7;
+    }
+
+    .success-banner-close:hover {
+        opacity: 1;
+    }
+
     .page-header {
         margin-bottom: 2rem;
         display: flex;
@@ -347,6 +386,27 @@
 
 {% block content %}
 <div class="admin-content">
+    {% if success_message %}
+    <div class="success-banner" id="successBanner" role="status">
+        <span class="success-banner-icon">✓</span>
+        <span class="success-banner-text">{{ success_message }}</span>
+        <button type="button" class="success-banner-close"
+                onclick="document.getElementById('successBanner').remove()"
+                aria-label="Dismiss">&times;</button>
+    </div>
+    <script>
+        // Auto-dismiss and strip the ?success param so a refresh doesn't re-show it.
+        setTimeout(function () {
+            var b = document.getElementById('successBanner');
+            if (b) b.remove();
+        }, 4000);
+        if (window.history.replaceState) {
+            var url = new URL(window.location);
+            url.searchParams.delete('success');
+            window.history.replaceState({}, '', url);
+        }
+    </script>
+    {% endif %}
     <div class="page-header">
         <h1 class="page-title">{{ model_name }} Administration</h1>
         <div class="action-buttons">

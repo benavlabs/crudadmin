@@ -1287,7 +1287,7 @@ class CRUDAdmin:
                         if isinstance(admin_data, AdminUserCreate):
                             create_data = admin_data
                         else:
-                            create_data = AdminUserCreate(**admin_data.dict())
+                            create_data = AdminUserCreate(**admin_data.model_dump())
                     else:
                         msg = (
                             "Initial admin data must be either a dict or Pydantic model"

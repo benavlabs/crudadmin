@@ -289,6 +289,7 @@ class TestConvertUserToDict:
         user = MagicMock()
         user.id = 1
         user.username = "testuser"
+        del user.model_dump  # Remove pydantic v2 dump method if exists
         del user.dict  # Remove dict method if exists
         del user.__dict__  # Remove __dict__ attribute if exists
 
@@ -352,7 +353,7 @@ class TestLogAdminActionDecorator:
         """Test log_admin_action decorator with UPDATE event."""
         user = {"id": 1, "username": "testuser"}
 
-        @log_admin_action(EventType.UPDATE, MockModel)
+        @log_admin_action(EventType.UPDATE, MockIntModel)
         async def test_function(request, db, admin_db, current_user, id, **kwargs):
             return {"id": id, "name": "updated_item"}
 
@@ -387,7 +388,7 @@ class TestLogAdminActionDecorator:
         """Test log_admin_action decorator with DELETE event."""
         user = {"id": 1, "username": "testuser"}
 
-        @log_admin_action(EventType.DELETE, MockModel)
+        @log_admin_action(EventType.DELETE, MockIntModel)
         async def test_function(request, db, admin_db, current_user, **kwargs):
             return {"message": "deleted"}
 

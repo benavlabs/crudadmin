@@ -25,13 +25,18 @@ from sqlalchemy import inspect
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 
-from ..core.db import DatabaseConfig, convert_id_to_pk_type
+from ..core.db import (
+    DatabaseConfig,
+    convert_id_to_pk_type,
+    get_primary_key_name,
+)
 from ..event import EventType, log_admin_action
 from .helper import _get_form_fields_from_schema
 from .relationships import (
     RelationshipInfo,
     RelationshipType,
     detect_relationships,
+    load_relationship_options,
     resolve_display_field,
 )
 
@@ -382,6 +387,7 @@ class ModelView:
         self.templates = templates
         self.model = model
         self.model_key = model.__name__
+        self.primary_key_name = get_primary_key_name(model)
         self.router = APIRouter()
         self.admin_model = admin_model
         self.admin_site = admin_site
@@ -457,6 +463,14 @@ class ModelView:
 
         return convert_id_to_pk_type(id_value, self.db_config, self.model)
 
+    def _pk_filter(self, pk_value: Any) -> Dict[str, Any]:
+        """Build the primary-key filter kwargs for FastCRUD get/update calls.
+
+        Uses the model's actual primary-key column name so models whose key is
+        not ``id`` work correctly.
+        """
+        return {self.primary_key_name: pk_value}
+
     def _with_resolved_display_field(
         self, relationship: RelationshipInfo
     ) -> RelationshipInfo:
@@ -476,6 +490,33 @@ class ModelView:
         if display_field == relationship.display_field:
             return relationship
         return replace(relationship, display_field=display_field)
+
+    async def _apply_relationship_form_fields(
+        self, form_fields: List[Dict[str, Any]], db: AsyncSession
+    ) -> None:
+        """Turn foreign-key form fields into relationship dropdowns.
+
+        For each ``BelongsTo`` relationship, the form field matching its foreign
+        key column is marked as a ``relationship_select`` and populated with the
+        related records (label resolved via the related model's ``display_field``)
+        so the user picks from existing rows instead of typing a raw id.
+        """
+        fk_relationships = {
+            rel.foreign_key: rel
+            for rel in self.relationships.values()
+            if rel.relationship_type == RelationshipType.BELONGS_TO and rel.foreign_key
+        }
+        if not fk_relationships:
+            return
+
+        for field in form_fields:
+            relationship = fk_relationships.get(field["name"])
+            if relationship is None:
+                continue
+            resolved = self._with_resolved_display_field(relationship)
+            field["type"] = "relationship_select"
+            field["related_model_name"] = resolved.related_model_name
+            field["options"] = await load_relationship_options(db, resolved)
 
     def setup_routes(self) -> None:
         """
@@ -732,6 +773,7 @@ class ModelView:
                             request.state.crud_result = result
                             model_list_url = (
                                 f"{self.get_url_prefix()}/{self.model.__name__}/"
+                                "?success=created"
                             )
                             if "HX-Request" in request.headers:
                                 return RedirectResponse(
@@ -749,10 +791,13 @@ class ModelView:
                         }
                         error_message = "Please correct the errors below."
                     except Exception as e:
+                        await db.rollback()
                         error_message = str(e)
 
             except Exception as e:
                 error_message = str(e)
+
+            await self._apply_relationship_form_fields(form_fields, db)
 
             context = {
                 "model_name": self.model_key,
@@ -1075,6 +1120,15 @@ class ModelView:
                 table_columns = [column.key for column in self.model.__table__.columns]
             primary_key_info = self.db_config.get_primary_key_info(self.model)
 
+            success_messages = {
+                "created": f"{self.model_key} created successfully.",
+                "updated": f"{self.model_key} updated successfully.",
+                "deleted": f"{self.model_key} deleted successfully.",
+            }
+            success_message = success_messages.get(
+                request.query_params.get("success", "")
+            )
+
             context: Dict[str, Any] = {
                 "model_items": items["data"],
                 "model_name": self.model_key,
@@ -1089,6 +1143,7 @@ class ModelView:
                 "sort_order": sort_order,
                 "allowed_actions": self.allowed_actions,
                 "relationships": self.relationships,
+                "success_message": success_message,
             }
 
             if "HX-Request" in request.headers:
@@ -1130,9 +1185,13 @@ class ModelView:
             ```
         """
 
-        async def model_create_page(request: Request) -> Response:
+        async def model_create_page(
+            request: Request,
+            db: AsyncSession = Depends(self.session),
+        ) -> Response:
             """Show a blank form for creating a new record."""
             form_fields = _get_form_fields_from_schema(self.create_schema)
+            await self._apply_relationship_form_fields(form_fields, db)
             return self.templates.TemplateResponse(
                 name=template,
                 request=request,
@@ -1171,7 +1230,9 @@ class ModelView:
             converted_id = self._convert_id_to_pk_type(id)
 
             item = await self.crud.get(
-                db=db, id=converted_id, schema_to_select=self.select_schema
+                db=db,
+                schema_to_select=self.select_schema,
+                **self._pk_filter(converted_id),
             )
             if not item:
                 return JSONResponse(
@@ -1179,6 +1240,7 @@ class ModelView:
                 )
 
             form_fields = _get_form_fields_from_schema(self.update_schema)
+            await self._apply_relationship_form_fields(form_fields, db)
             field_values: Dict[str, Any] = {}
             for field in form_fields:
                 field_name = field["name"]
@@ -1236,7 +1298,9 @@ class ModelView:
             converted_id = self._convert_id_to_pk_type(id)
 
             item = await self.crud.get(
-                db=db, id=converted_id, schema_to_select=self.select_schema
+                db=db,
+                schema_to_select=self.select_schema,
+                **self._pk_filter(converted_id),
             )
             if not item:
                 return JSONResponse(
@@ -1290,10 +1354,10 @@ class ModelView:
                     error_message = "No changes were provided for update"
                 else:
                     if self.update_internal_schema is not None and hasattr(
-                        self.update_internal_schema, "__fields__"
+                        self.update_internal_schema, "model_fields"
                     ):
                         fields_dict = cast(
-                            Dict[str, Any], self.update_internal_schema.__fields__
+                            Dict[str, Any], self.update_internal_schema.model_fields
                         )
                         if "updated_at" in fields_dict:
                             update_data["updated_at"] = dt.now(datetime.UTC)
@@ -1315,7 +1379,9 @@ class ModelView:
                                     AdminUserUpdateInternal(**transformed_data)
                                 )
                                 await self.crud.update(
-                                    db=db, id=converted_id, object=admin_update_schema
+                                    db=db,
+                                    object=admin_update_schema,
+                                    **self._pk_filter(converted_id),
                                 )
                             else:
                                 if self.update_internal_schema:
@@ -1324,8 +1390,8 @@ class ModelView:
                                     )
                                     await self.crud.update(
                                         db=db,
-                                        id=converted_id,
                                         object=generic_update_schema,
+                                        **self._pk_filter(converted_id),
                                     )
                                 else:
                                     dynamic_update_schema = type(
@@ -1333,20 +1399,23 @@ class ModelView:
                                     )(**transformed_data)
                                     await self.crud.update(
                                         db=db,
-                                        id=converted_id,
                                         object=dynamic_update_schema,
+                                        **self._pk_filter(converted_id),
                                     )
 
                             await db.commit()
                         else:
                             update_schema_instance = self.update_schema(**update_data)
                             await self.crud.update(
-                                db=db, id=converted_id, object=update_schema_instance
+                                db=db,
+                                object=update_schema_instance,
+                                **self._pk_filter(converted_id),
                             )
                             await db.commit()
 
                         model_list_url = (
                             f"{self.get_url_prefix()}/{self.model.__name__}/"
+                            "?success=updated"
                         )
                         return RedirectResponse(
                             url=model_list_url,
@@ -1359,6 +1428,7 @@ class ModelView:
                         }
                         error_message = "Please correct the errors below."
                     except Exception as e:
+                        await db.rollback()
                         error_message = str(e)
 
             except Exception as e:
@@ -1368,6 +1438,8 @@ class ModelView:
                 field_name = field["name"]
                 if field_name not in field_values and field_name in item:
                     field_values[field_name] = item[field_name]
+
+            await self._apply_relationship_form_fields(form_fields, db)
 
             context: Dict[str, Any] = {
                 "model_name": self.model_key,

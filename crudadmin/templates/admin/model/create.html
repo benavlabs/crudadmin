@@ -302,7 +302,21 @@
                         {% endif %}
 
                         <!-- Field Input -->
-                        {% if field.type == "select" %}
+                        {% if field.type == "relationship_select" %}
+                            <select class="form-control{% if field.name in field_errors %} error{% endif %}"
+                                id="{{ field.name }}"
+                                name="{{ field.name }}"
+                                {% if field.required %}required{% endif %}>
+                                <option value="">Select {{ field.related_model_name }}</option>
+                                {% for option in field.options %}
+                                <option value="{{ option.id }}"
+                                    {% if field_values and field_values[field.name] is not none and field_values[field.name] | string == option.id | string %}selected{% endif %}>
+                                    {{ option.display_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+
+                        {% elif field.type == "select" %}
                             <select class="form-control{% if field.name in field_errors %} error{% endif %}"
                                 id="{{ field.name }}"
                                 name="{{ field.name }}"
