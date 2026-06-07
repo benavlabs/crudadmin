@@ -85,7 +85,7 @@ def _get_form_fields_from_schema(schema: Type[BaseModel]) -> List[FormField]:
     """
     form_fields: List[FormField] = []
 
-    fields_dict = cast(Dict[str, Any], schema.__fields__)
+    fields_dict = cast(Dict[str, Any], schema.model_fields)
 
     for field_name, field_info in fields_dict.items():
         field_type = field_info.annotation
