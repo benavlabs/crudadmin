@@ -68,8 +68,8 @@ class MemcachedSessionStorage(AbstractSessionStorage[T]):
             The encoded key as bytes
         """
         if len(key) > 240:
-            key_hash = hashlib.md5(key.encode()).hexdigest()
-            key = f"{key[:200]}:{key_hash}"
+            key_hash = hashlib.sha256(key.encode()).hexdigest()
+            key = f"{key[:150]}:{key_hash}"
         return key.encode("utf-8")
 
     def get_user_sessions_key(self, user_id: int) -> str:
