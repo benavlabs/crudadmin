@@ -350,8 +350,8 @@ class TestMemcachedSessionStorage:
     def encode_key(self, key):
         """Helper function to encode a key the same way the storage class does."""
         if len(key) > 240:
-            key_hash = hashlib.md5(key.encode()).hexdigest()
-            key = f"{key[:200]}:{key_hash}"
+            key_hash = hashlib.sha256(key.encode()).hexdigest()
+            key = f"{key[:150]}:{key_hash}"
         return key.encode("utf-8")
 
     @pytest.mark.asyncio

@@ -932,11 +932,10 @@ class ModelView:
                     await db.commit()
                 except Exception as e:
                     await db.rollback()
+                    logger.error("Error during bulk delete: %s", str(e))
                     return JSONResponse(
                         status_code=400,
-                        content={
-                            "detail": [{"message": f"Error during deletion: {str(e)}"}]
-                        },
+                        content={"detail": [{"message": "Error during deletion."}]},
                     )
 
                 total_count = await self.crud.count(db=db)
@@ -982,15 +981,16 @@ class ModelView:
                 )
 
             except ValueError as e:
-                return JSONResponse(
-                    status_code=422, content={"detail": [{"message": str(e)}]}
-                )
-            except Exception as e:
+                logger.error("Invalid bulk-delete request: %s", str(e))
                 return JSONResponse(
                     status_code=422,
-                    content={
-                        "detail": [{"message": f"Error processing request: {str(e)}"}]
-                    },
+                    content={"detail": [{"message": "Invalid request."}]},
+                )
+            except Exception as e:
+                logger.error("Error processing bulk-delete request: %s", str(e))
+                return JSONResponse(
+                    status_code=422,
+                    content={"detail": [{"message": "Error processing request."}]},
                 )
 
         return cast(EndpointCallable, bulk_delete_endpoint_inner)
@@ -1622,7 +1622,7 @@ class ModelView:
                 )
                 return JSONResponse(
                     status_code=500,
-                    content={"message": f"Error loading related data: {str(e)}"},
+                    content={"message": "Error loading related data."},
                 )
 
         return cast(EndpointCallable, get_related_data_inner)
@@ -1668,9 +1668,15 @@ class ModelView:
                 return JSONResponse(content=options)
 
             except Exception as e:
+                logger.error(
+                    "Error loading relationship options for %s.%s: %s",
+                    self.model_key,
+                    relationship_name,
+                    str(e),
+                )
                 return JSONResponse(
                     status_code=500,
-                    content={"message": f"Error loading options: {str(e)}"},
+                    content={"message": "Error loading options."},
                 )
 
         return cast(EndpointCallable, get_relationship_options_inner)
