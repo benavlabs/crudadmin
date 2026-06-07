@@ -33,7 +33,6 @@ dependencies = [
     "jinja2>=3.1.5",
     "pydantic[email]>=2.10.4",
     "pydantic-settings>=2.6.1",
-    "python-jose>=3.3.0",
     "python-multipart>=0.0.20",
     "sqlalchemy>=2.0.36",
     "user-agents>=2.2.0",
@@ -77,7 +76,7 @@ postgres = [
 ]
 
 mysql = [
-    "aiomysql>=0.2.0"
+    "aiomysql>=0.3.0"
 ]
 
 dev = [
