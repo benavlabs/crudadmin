@@ -70,7 +70,7 @@ After completing the Usage section, you'll have a solid foundation for building 
 
 Need to jump to a specific topic? Here are the most commonly accessed sections:
 
-- **[Quick setup example](configuration.md#basic-example)** - Get running in 5 minutes
+- **[Quick setup example](configuration.md#minimal-setup)** - Get running in 5 minutes
 - **[Session backends](session-backends.md#redis-sessions)** - Configure Redis for production
 - **[Adding your first model](adding-models.md#basic-model-registration)** - Register a model and start managing data
 - **[Search and filtering](interface.md#search-and-filtering)** - Find records quickly
