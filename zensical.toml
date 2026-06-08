@@ -1,0 +1,129 @@
+[project]
+site_name = "CRUDAdmin"
+site_description = "Modern admin interface for FastAPI with built-in authentication, event tracking, and security features."
+site_author = "Igor Benav"
+site_url = "https://benavlabs.github.io/crudadmin"
+docs_dir = "docs"
+site_dir = "site"
+
+copyright = "&copy; 2026 Benav Labs"
+
+extra_css = ["stylesheets/extra.css"]
+
+repo_name = "benavlabs/crudadmin"
+repo_url = "https://github.com/benavlabs/crudadmin"
+edit_uri = "edit/main/docs/"
+
+# ==============================================================================
+# Theme
+# ==============================================================================
+
+[project.theme]
+variant = "modern"
+
+logo = "assets/logo.png"
+favicon = "assets/logo.png"
+
+font.text = "Ubuntu"
+
+features = [
+    "navigation.instant",
+    "navigation.instant.prefetch",
+    "navigation.tabs",
+    "navigation.indexes",
+    "search.suggest",
+    "content.code.copy",
+]
+
+[[project.theme.palette]]
+scheme = "default"
+primary = "custom"
+accent = "custom"
+toggle.icon = "lucide/sun"
+toggle.name = "Switch to dark mode"
+
+[[project.theme.palette]]
+scheme = "slate"
+primary = "custom"
+accent = "custom"
+toggle.icon = "lucide/moon"
+toggle.name = "Switch to light mode"
+
+# ==============================================================================
+# Navigation
+# ==============================================================================
+
+[[project.nav]]
+"CRUDAdmin" = "index.md"
+
+[[project.nav]]
+"Quick-Start" = "quick-start.md"
+
+[[project.nav]]
+"Usage" = [
+    { "Overview" = "usage/overview.md" },
+    { "Basic Configuration" = "usage/configuration.md" },
+    { "Session Backends" = "usage/session-backends.md" },
+    { "Adding Models" = "usage/adding-models.md" },
+    { "Managing Admin Users" = "usage/admin-users.md" },
+    { "Using the Interface" = "usage/interface.md" },
+    { "Common Patterns" = "usage/common-patterns.md" },
+]
+
+[[project.nav]]
+"Advanced" = [
+    { "Overview" = "advanced/overview.md" },
+]
+
+[[project.nav]]
+"API Reference" = [
+    { "Overview" = "api/overview.md" },
+    { "CRUDAdmin" = "api/crud_admin.md" },
+    { "ModelView" = "api/model_view.md" },
+    { "AdminSite" = "api/admin_site.md" },
+    { "Session Management" = "api/session.md" },
+    { "Event System" = "api/events.md" },
+]
+
+[[project.nav]]
+"Community" = [
+    { "Overview" = "community/overview.md" },
+    { "Contributing" = "community/CONTRIBUTING.md" },
+    { "Code of Conduct" = "community/CODE_OF_CONDUCT.md" },
+    { "License" = "community/LICENSE.md" },
+]
+
+# ==============================================================================
+# Markdown extensions
+# ==============================================================================
+
+[[project.markdown_extensions]]
+admonition = {}
+
+[[project.markdown_extensions]]
+"codehilite" = {}
+
+[[project.markdown_extensions]]
+"toc" = { permalink = true }
+
+[[project.markdown_extensions]]
+"pymdownx.details" = {}
+
+[[project.markdown_extensions]]
+"pymdownx.highlight" = { anchor_linenums = true, line_spans = "__span", pygments_lang_class = true }
+
+[[project.markdown_extensions]]
+"pymdownx.inlinehilite" = {}
+
+[[project.markdown_extensions]]
+"pymdownx.snippets" = {}
+
+[[project.markdown_extensions]]
+"pymdownx.superfences" = {}
+
+# ==============================================================================
+# Plugins
+# ==============================================================================
+
+[[project.plugins]]
+"mkdocstrings" = { config = { handlers = { python = { options = { show_source = true } } } } }
