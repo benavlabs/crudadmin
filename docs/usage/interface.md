@@ -57,7 +57,7 @@ The left sidebar contains collapsible sections:
 
 #### Step 1: Access Create Form
 
-- Click **"+ Add [ModelName]"** button on any model list page
+- Click **"+ Add \[ModelName\]"** button on any model list page
 - Form opens with fields based on your Pydantic schema
 
 #### Step 2: Fill Required Fields

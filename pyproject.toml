@@ -93,10 +93,9 @@ dev = [
 ]
 
 docs = [
-    "mkdocs>=1.6.1",
-    "mkdocs-meta-descriptions-plugin>=4.0.0",
-    "mkdocs-material>=9.6.1",
-    "mkdocstrings[python]>=0.27.0"
+    "zensical>=0.0.15",
+    "mkdocstrings[python]>=1.0,<2",
+    "mkdocs-autorefs>=1.0,<2"
 ]
 
 all = [

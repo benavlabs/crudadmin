@@ -114,7 +114,7 @@ The `add_view()` method accepts several parameters to configure your model's adm
 | `select_schema` | Pydantic Schema | ❌ | Schema for read operations - excludes problematic fields |
 | `update_internal_schema` | Pydantic Schema | ❌ | Internal schema for system updates |
 | `delete_schema` | Pydantic Schema | ❌ | Schema for deletion operations |
-| `allowed_actions` | Set[str] | ❌ | Controls available operations ("view", "create", "update", "delete") |
+| `allowed_actions` | `Set[str]` | ❌ | Controls available operations ("view", "create", "update", "delete") |
 | `include_in_models` | bool | ❌ | Whether to show in admin navigation (default: True) |
 | `password_transformer` | PasswordTransformer | ❌ | For handling password fields |
 | `display_field` | str | ❌ | Column used as this model's label when it appears as a related record from another model (e.g. `"name"`). Falls back to the primary key when unset. |
