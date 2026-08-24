@@ -122,6 +122,15 @@ Stay informed about security updates:
 3. Subscribe to our security mailing list
 4. Monitor our release notes
 
+## Acknowledgments
+
+We are grateful to the researchers who report vulnerabilities responsibly. Reporters
+of fixed issues are listed here with their permission.
+
+| Reporter | Issue | Fixed in |
+| -------- | ----- | -------- |
+| [Ubaid Ur Rehman](mailto:arifubaid0345@gmail.com), using [shadowaudit](https://gitlab.com/theredhacker0345/shadowaudit) | Authentication bypass in `AdminAuthMiddleware`: the login-page and static-asset exemptions matched by path suffix and substring, so a crafted URL could reach admin read endpoints without a session | v0.5.1 |
+
 ## License
 
 This security policy is part of the CRUDAdmin project and is subject to the same license terms.
