@@ -529,7 +529,9 @@ class ModelView:
         - Update: /update/{id} (GET), /form_update/{id} (POST)
 
         Routes are configured based on the allowed_actions set provided during initialization.
-        All routes use appropriate templates and include required dependencies.
+        All routes use appropriate templates and include required dependencies. Every route
+        declares an authentication dependency in addition to the admin auth middleware, so a
+        request that reaches an endpoint without a valid session is rejected there as well.
 
         Example:
             ```python
@@ -541,6 +543,12 @@ class ModelView:
             view.setup_routes()  # Only creates view/create/update routes
             ```
         """
+        auth_dependencies = (
+            [Depends(self.admin_site.admin_authentication.get_current_user())]
+            if self.admin_site is not None
+            else []
+        )
+
         if "create" in self.allowed_actions:
             self.router.add_api_route(
                 "/form_create",
@@ -554,6 +562,7 @@ class ModelView:
                 self.get_model_create_page(template="admin/model/create.html"),
                 methods=["GET"],
                 include_in_schema=False,
+                dependencies=auth_dependencies,
                 response_model=None,
             )
 
@@ -563,6 +572,7 @@ class ModelView:
                 self.get_model_admin_page(),
                 methods=["GET"],
                 include_in_schema=False,
+                dependencies=auth_dependencies,
                 response_model=None,
             )
             self.router.add_api_route(
@@ -572,6 +582,7 @@ class ModelView:
                 ),
                 methods=["GET"],
                 include_in_schema=False,
+                dependencies=auth_dependencies,
                 response_model=None,
             )
 
@@ -590,6 +601,7 @@ class ModelView:
                 self.get_model_update_page(template="admin/model/update.html"),
                 methods=["GET"],
                 include_in_schema=False,
+                dependencies=auth_dependencies,
                 response_model=None,
             )
             self.router.add_api_route(
@@ -606,6 +618,7 @@ class ModelView:
                 self.get_related_data_endpoint(),
                 methods=["GET"],
                 include_in_schema=False,
+                dependencies=auth_dependencies,
                 response_model=None,
             )
             self.router.add_api_route(
@@ -613,6 +626,7 @@ class ModelView:
                 self.get_relationship_options_endpoint(),
                 methods=["GET"],
                 include_in_schema=False,
+                dependencies=auth_dependencies,
                 response_model=None,
             )
 

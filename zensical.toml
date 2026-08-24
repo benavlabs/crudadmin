@@ -90,6 +90,7 @@ toggle.name = "Switch to light mode"
     { "Overview" = "community/overview.md" },
     { "Contributing" = "community/CONTRIBUTING.md" },
     { "Code of Conduct" = "community/CODE_OF_CONDUCT.md" },
+    { "Security Policy" = "community/SECURITY.md" },
     { "License" = "community/LICENSE.md" },
 ]
 

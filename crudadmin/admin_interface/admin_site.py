@@ -201,7 +201,7 @@ class AdminSite:
             self.dashboard_content(),
             methods=["GET"],
             include_in_schema=False,
-            dependencies=[Depends(self.admin_authentication.get_current_user)],
+            dependencies=[Depends(self.admin_authentication.get_current_user())],
             response_model=None,
         )
         self.router.add_api_route(
@@ -209,7 +209,7 @@ class AdminSite:
             self.dashboard_page(),
             methods=["GET"],
             include_in_schema=False,
-            dependencies=[Depends(self.admin_authentication.get_current_user)],
+            dependencies=[Depends(self.admin_authentication.get_current_user())],
             response_model=None,
         )
 

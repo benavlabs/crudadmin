@@ -846,9 +846,7 @@ class CRUDAdmin:
                 allowed_actions=allowed_actions,
             )
 
-        get_user_dependency = cast(
-            Callable[..., AsyncSession], self.admin_authentication.get_current_user
-        )
+        get_user_dependency = self.admin_authentication.get_current_user()
 
         self.router.add_api_route(
             "/management/health",
@@ -1162,9 +1160,7 @@ class CRUDAdmin:
         if self.track_events and self.event_integration:
             admin_view.event_integration = self.event_integration
 
-        current_user_dep = cast(
-            Callable[..., Any], self.admin_site.admin_authentication.get_current_user
-        )
+        current_user_dep = self.admin_site.admin_authentication.get_current_user()
         self.app.include_router(
             admin_view.router,
             prefix=f"/{model_key}",

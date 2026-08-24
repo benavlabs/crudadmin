@@ -5,6 +5,7 @@ Welcome to the project's community hub. Here, you'll find essential resources an
 ## Table of Contents
 - [Contributing](#contributing)
 - [Code of Conduct](#code-of-conduct)
+- [Security Policy](#security-policy)
 - [License](#license)
 
 ---
@@ -20,6 +21,13 @@ Interested in contributing to the project? Great! The contributing guidelines wi
 [View the Code of Conduct](CODE_OF_CONDUCT.md)
 
 The Code of Conduct outlines the standards and behaviors expected of our community members. It's crucial to ensure a welcoming and inclusive environment for everyone. Please take the time to read and adhere to these guidelines.
+
+---
+
+## Security Policy
+[View the Security Policy](SECURITY.md)
+
+The security policy explains which versions receive security updates and how to report a vulnerability privately. If you believe you have found a security issue, please follow this process rather than opening a public issue. It also acknowledges the researchers whose reports have led to fixes.
 
 ---
 
