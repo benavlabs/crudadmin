@@ -1,5 +1,5 @@
 import logging
-from typing import Optional
+from typing import Any, Callable, Optional
 
 from fastapi import Cookie, Depends, Request
 from fastapi.security import OAuth2PasswordBearer
@@ -39,6 +39,7 @@ class AdminAuthentication:
         self.auth_models = {}
         self.event_integration = event_integration
         self.session_manager = session_manager
+        self._current_user_dependency: Optional[Callable[..., Any]] = None
 
         self.auth_models[self.db_config.AdminUser.__name__] = {
             "model": self.db_config.AdminUser,
@@ -58,7 +59,16 @@ class AdminAuthentication:
             "delete_schema": None,
         }
 
-    def get_current_user(self):
+    def get_current_user(self) -> Callable[..., Any]:
+        """Return the dependency that resolves the session cookie to an admin user.
+
+        The dependency is built once and reused, so routes that declare it at more
+        than one level (router and route) share a single callable and FastAPI's
+        dependency cache resolves it once per request.
+        """
+        if self._current_user_dependency is not None:
+            return self._current_user_dependency
+
         async def get_current_user_inner(
             request: Request,
             db: AsyncSession = Depends(self.db_config.get_admin_db),
@@ -66,12 +76,6 @@ class AdminAuthentication:
         ) -> Optional[AdminUserRead]:
             if not session_id:
                 raise UnauthorizedException("Not authenticated")
-
-            is_valid_session = await self.session_manager.validate_session(
-                session_id=session_id
-            )
-            if not is_valid_session:
-                raise UnauthorizedException("Could not validate credentials")
 
             session_data = await self.session_manager.validate_session(
                 session_id=session_id
@@ -93,6 +97,7 @@ class AdminAuthentication:
             logger.debug("User not found")
             raise UnauthorizedException("User not authenticated")
 
+        self._current_user_dependency = get_current_user_inner
         return get_current_user_inner
 
     async def get_current_superuser(self, current_user: AdminUserRead) -> AdminUserRead:

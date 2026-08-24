@@ -112,6 +112,10 @@ def admin_client(tmp_path_factory):
 
     app = FastAPI(lifespan=lifespan)
     app.mount("/admin", admin.app)
+    # Mounted a second time at a path that does not match the configured mount_path.
+    # The middleware's outer prefix check does not match here and lets the request
+    # through, which leaves the per-route auth dependencies as the only defense.
+    app.mount("/backoffice", admin.app)
 
     with TestClient(
         app, follow_redirects=False, raise_server_exceptions=False
@@ -159,3 +163,62 @@ def test_login_page_reachable_with_trailing_slash(admin_client):
     response = admin_client.get("/admin/login/")
 
     assert response.status_code != 303
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/backoffice/",
+        "/backoffice/Article/",
+        "/backoffice/Article/update/login",
+        "/backoffice/management/health",
+    ],
+)
+def test_route_dependencies_hold_when_the_middleware_is_skipped(admin_client, path):
+    """Auth must not depend on the middleware alone.
+
+    Mounting the admin app somewhere other than its configured ``mount_path``
+    makes the middleware's prefix check miss, so these requests reach the
+    endpoints directly. The per-route dependencies have to reject them.
+    """
+    response = admin_client.get(path)
+
+    assert response.status_code == 401, response.status_code
+    assert SECRET_BODY not in response.text
+
+
+def test_protected_routes_declare_a_real_auth_dependency(admin_client):
+    """Guard against ``Depends(factory)`` being passed instead of ``Depends(factory())``.
+
+    ``AdminAuthentication.get_current_user`` is a factory. Passing it uncalled
+    yields a dependency that takes no arguments, returns a function and never
+    raises, so the route looks protected while enforcing nothing.
+    """
+    import inspect
+
+    app = admin_client.app
+    admin_app = next(
+        route.app for route in app.routes if getattr(route, "path", None) == "/admin"
+    )
+
+    protected = [
+        "/",
+        "/dashboard-content",
+        "/management/health",
+        "/Article/",
+        "/Article/update/{id}",
+    ]
+    seen = set()
+    for route in admin_app.routes:
+        path = getattr(route, "path", None)
+        dependant = getattr(route, "dependant", None)
+        if path not in protected or dependant is None:
+            continue
+        calls = [dep.call for dep in dependant.dependencies if dep.call is not None]
+        assert any(inspect.iscoroutinefunction(call) for call in calls), (
+            f"{path} declares no awaitable auth dependency: "
+            f"{[getattr(c, '__name__', c) for c in calls]}"
+        )
+        seen.add(path)
+
+    assert seen == set(protected), f"routes not checked: {set(protected) - seen}"
