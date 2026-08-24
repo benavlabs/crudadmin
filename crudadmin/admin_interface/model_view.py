@@ -529,7 +529,9 @@ class ModelView:
         - Update: /update/{id} (GET), /form_update/{id} (POST)
 
         Routes are configured based on the allowed_actions set provided during initialization.
-        All routes use appropriate templates and include required dependencies.
+        All routes use appropriate templates and include required dependencies. Every route
+        declares an authentication dependency in addition to the admin auth middleware, so a
+        request that reaches an endpoint without a valid session is rejected there as well.
 
         Example:
             ```python
