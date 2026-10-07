@@ -49,6 +49,9 @@ class IPRestrictionMiddleware(BaseHTTPMiddleware):
         """
         Process incoming requests and restrict access based on IP.
 
+        Every request is checked: the middleware is installed on the admin app,
+        so it only ever sees admin requests, whatever the mount path.
+
         Args:
             request (Request): The incoming HTTP request.
             call_next (Callable): The next ASGI application to call.
@@ -63,9 +66,6 @@ class IPRestrictionMiddleware(BaseHTTPMiddleware):
                 status_code=400, content={"detail": "Unable to determine client IP."}
             )
         client_ip = client.host
-
-        if not request.url.path.startswith("/admin"):
-            return await call_next(request)
 
         try:
             ip = ip_address(client_ip)

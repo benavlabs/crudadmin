@@ -45,7 +45,7 @@ Once you have access to the admin interface:
 2. **Click "Add AdminUser"**: Use the create button
 3. **Fill the form**:
     - **Username**: 2-20 characters, lowercase letters and numbers only (`a-z0-9`)
-    - **Password**: Minimum 8 characters with letters, numbers, and special characters
+    - **Password**: 8 to 128 characters
 4. **Submit**: User is created with superuser privileges
 
 ### Creation via Code
@@ -112,26 +112,22 @@ Admin usernames must follow specific rules:
 
 ### Password Requirements
 
-Passwords must meet security standards:
+Passwords are checked for length only:
 
 ```python
 # ✅ Valid passwords
-"SecurePass123!"    # Letters, numbers, special chars
-"MyPassword2024#"   # Mixed case, numbers, symbols
-"admin@2024!pass"   # Complex combination
+"SecurePass123!"
+"correct horse battery staple"   # Long passphrases are encouraged
 
 # ❌ Invalid passwords
 "simple"           # Too short (minimum 8 characters)
-"password"         # No numbers or special characters
-"12345678"         # Only numbers
-"UPPERCASE"        # No lowercase or numbers
+"a" * 129          # Too long (maximum 128 characters)
 ```
 
 **Requirements**:
 
-- Minimum 8 characters
-- Must contain letters, numbers, or special characters
-- Pattern validation: `^.{8,}|[0-9]+|[A-Z]+|[a-z]+|[^a-zA-Z0-9]+$`
+- 8 to 128 characters
+- No character-class rules: a long passphrase is stronger than a short complex password
 
 ---
 

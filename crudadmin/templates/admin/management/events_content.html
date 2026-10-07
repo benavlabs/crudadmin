@@ -97,7 +97,7 @@
             hx-get="{{ url_prefix }}/management/events/content"
             hx-target="#events-content"
             hx-include="[name='event-type'],[name='status'],[name='start-date'],[name='end-date']"
-            hx-vals='js:{"page": "{{ page - 1 }}"}'
+            hx-vals='{{ {"page": page - 1} | tojson }}'
             {% if page <= 1 %}disabled{% endif %}>
         Previous
     </button>
@@ -110,7 +110,7 @@
             hx-get="{{ url_prefix }}/management/events/content"
             hx-target="#events-content"
             hx-include="[name='event-type'],[name='status'],[name='start-date'],[name='end-date']"
-            hx-vals='js:{"page": "{{ page + 1 }}"}'
+            hx-vals='{{ {"page": page + 1} | tojson }}'
             {% if page >= total_pages %}disabled{% endif %}>
         Next
     </button>

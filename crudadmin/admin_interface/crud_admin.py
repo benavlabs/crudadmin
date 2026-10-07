@@ -835,6 +835,7 @@ class CRUDAdmin:
                 Optional[Type[BaseModel]], data["update_internal_schema"]
             )
             delete_schema = cast(Optional[Type[BaseModel]], data["delete_schema"])
+            select_schema = cast(Optional[Type[BaseModel]], data.get("select_schema"))
 
             self.add_view(
                 model=model,
@@ -842,6 +843,7 @@ class CRUDAdmin:
                 update_schema=update_schema,
                 update_internal_schema=update_internal_schema,
                 delete_schema=delete_schema,
+                select_schema=select_schema,
                 include_in_models=False,
                 allowed_actions=allowed_actions,
             )

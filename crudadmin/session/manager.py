@@ -6,6 +6,7 @@ from typing import Any, Literal, Optional
 from fastapi import Request, Response
 
 from ..core.rate_limiter import SimpleRateLimiter
+from ..core.tokens import session_handle
 from .schemas import CSRFToken, SessionCreate, SessionData, UserAgentInfo
 from .storage import AbstractSessionStorage, get_session_storage
 from .user_agents_types import parse
@@ -23,7 +24,6 @@ DEFAULT_SETTINGS = {
     "SESSION_TIMEOUT_MINUTES": 30,
     "SESSION_CLEANUP_INTERVAL_MINUTES": 15,
     "MAX_SESSIONS_PER_USER": 5,
-    "SESSION_COOKIE_MAX_AGE": 30 * 60,
     "CSRF_ENABLED": True,
     "DEBUG": False,
     "REDIS_HOST": "localhost",
@@ -207,7 +207,7 @@ class SessionManager:
             session_id = await self.storage.create(session_data)
             csrf_token = await self._generate_csrf_token(user_id, session_id)
 
-            logger.info(f"Session {session_id} created successfully")
+            logger.info(f"Session {session_handle(session_id)} created successfully")
             return session_id, csrf_token
 
         except Exception as e:
@@ -232,18 +232,18 @@ class SessionManager:
         try:
             session_data = await self.storage.get(session_id, SessionData)
             if session_data is None:
-                logger.warning(f"Session not found: {session_id}")
+                logger.warning(f"Session not found: {session_handle(session_id)}")
                 return None
 
             if not session_data.is_active:
-                logger.warning(f"Session is not active: {session_id}")
+                logger.warning(f"Session is not active: {session_handle(session_id)}")
                 return None
 
             current_time = datetime.now(UTC)
             session_age = current_time - session_data.last_activity
 
             if session_age > self.session_timeout:
-                logger.warning(f"Session timed out: {session_id}")
+                logger.warning(f"Session timed out: {session_handle(session_id)}")
                 await self.terminate_session(session_id)
                 return None
 
@@ -273,19 +273,21 @@ class SessionManager:
         """
         if not session_id or not csrf_token:
             logger.warning(
-                f"Missing session_id or csrf_token: session_id={session_id}, csrf_token={csrf_token}"
+                f"Missing session_id or csrf_token: session_id={session_handle(session_id)}, csrf_token={session_handle(csrf_token)}"
             )
             return False
 
         try:
             token_data = await self.csrf_storage.get(csrf_token, CSRFToken)
             if token_data is None:
-                logger.warning(f"CSRF token not found in storage: {csrf_token}")
+                logger.warning(
+                    f"CSRF token not found in storage: {session_handle(csrf_token)}"
+                )
                 return False
 
             if token_data.session_id != session_id:
                 logger.warning(
-                    f"CSRF token session mismatch: {csrf_token} should be for session {session_id}, "
+                    f"CSRF token session mismatch: {session_handle(csrf_token)} should be for session {session_handle(session_id)}, "
                     f"but is for session {token_data.session_id}"
                 )
                 return False
@@ -293,7 +295,7 @@ class SessionManager:
             current_time = datetime.now(UTC)
             if token_data.expires_at < current_time:
                 logger.warning(
-                    f"CSRF token expired: {csrf_token}, expired at {token_data.expires_at}, current time is {current_time}"
+                    f"CSRF token expired: {session_handle(csrf_token)}, expired at {token_data.expires_at}, current time is {current_time}"
                 )
                 await self.csrf_storage.delete(csrf_token)
                 return False
@@ -413,7 +415,7 @@ class SessionManager:
                                 active_sessions.append(session_data)
                         except Exception as e:
                             logger.warning(
-                                f"Error processing session {session_id}: {e}"
+                                f"Error processing session {session_handle(session_id)}: {e}"
                             )
                             continue
                 except Exception as e:
@@ -577,15 +579,14 @@ class SessionManager:
             response: The response object
             session_id: The session ID
             csrf_token: The CSRF token
-            max_age: Cookie max age in seconds
+            max_age: Cookie max age in seconds. When omitted the cookies last
+                for the browser session, and the server-side session timeout
+                (which slides with activity) decides when the user is logged out.
             path: Cookie path
             secure: Whether to set the Secure flag
         """
         settings = get_settings()
         samesite: SamesiteType = DEV_SAMESITE if settings.DEBUG else PROD_SAMESITE
-        cookie_max_age = (
-            max_age if max_age is not None else settings.SESSION_COOKIE_MAX_AGE
-        )
 
         response.set_cookie(
             key="session_id",
@@ -594,7 +595,7 @@ class SessionManager:
             secure=secure,
             samesite=samesite,
             path=path,
-            max_age=cookie_max_age,
+            max_age=max_age,
         )
 
         response.set_cookie(
@@ -604,7 +605,7 @@ class SessionManager:
             secure=secure,
             samesite=samesite,
             path=path,
-            max_age=cookie_max_age,
+            max_age=max_age,
         )
 
     def clear_session_cookies(

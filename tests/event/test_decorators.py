@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 
 from crudadmin.core.db import DatabaseConfig
+from crudadmin.core.tokens import session_handle
 from crudadmin.event.decorators import (
     compare_states,
     convert_user_to_dict,
@@ -693,7 +694,9 @@ class TestLogAuthActionDecorator:
         assert call_args["event_type"] == EventType.LOGOUT
         assert call_args["user_id"] == 1
         assert call_args["success"] is True
-        assert call_args["session_id"] == "test-session-id"
+        # The event log stores a handle, never the raw session id
+        assert call_args["session_id"] == session_handle("test-session-id")
+        assert "test-session-id" not in str(call_args)
 
     @pytest.mark.asyncio
     async def test_log_auth_action_no_event_integration(self, mock_request, mock_db):
@@ -760,7 +763,8 @@ class TestLogAuthActionDecorator:
 
         # Verify the extracted session ID
         call_args = mock_event_integration.log_auth_event.call_args[1]
-        assert call_args["session_id"] == "extracted-session-456"
+        assert call_args["session_id"] == session_handle("extracted-session-456")
+        assert "extracted-session-456" not in str(call_args)
 
     @pytest.mark.asyncio
     async def test_log_auth_action_no_client_ip(self, mock_db, mock_event_integration):

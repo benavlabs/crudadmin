@@ -37,7 +37,7 @@
 ## Features
 
 - **🔒 Multi-Backend Session Management**: Memory, Redis, Memcached, Database, and Hybrid backends
-- **🛡️ Built-in Security**: CSRF protection, rate limiting, IP restrictions, HTTPS enforcement, and secure cookies
+- **🛡️ Built-in Security**: IP allowlists, HTTPS enforcement, and secure session cookies (HttpOnly, Secure, SameSite=Strict)
 - **📝 Event Tracking & Audit Logs**: Comprehensive audit trails for all admin actions with user attribution
 - **📊 Auto-generated Interface**: Creates admin UI directly from your SQLAlchemy models with intelligent field detection
 - **🔍 Advanced Filtering**: Type-aware field filtering, search, and pagination with bulk operations
@@ -80,6 +80,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from crudadmin import CRUDAdmin
 
 from .user import (
+    Base,
     User,
     UserCreate,
     UserUpdate,

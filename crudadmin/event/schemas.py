@@ -2,7 +2,7 @@ import enum
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 
 class EventType(str, enum.Enum):
@@ -51,7 +51,10 @@ class AdminAuditLogBase(BaseModel):
     previous_state: Optional[dict] = None
     new_state: Optional[dict] = None
     changes: dict = {}
-    metadata: dict = {}
+    audit_metadata: dict = Field(
+        default_factory=dict,
+        validation_alias=AliasChoices("audit_metadata", "metadata"),
+    )
 
 
 class AdminAuditLogCreate(AdminAuditLogBase):

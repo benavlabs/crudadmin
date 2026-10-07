@@ -5,6 +5,9 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from ..core.schemas.timestamp import TimestampSchema
 
+PASSWORD_MIN_LENGTH = 8
+PASSWORD_MAX_LENGTH = 128
+
 
 class AdminUserBase(BaseModel):
     username: Annotated[
@@ -31,7 +34,8 @@ class AdminUserCreate(AdminUserBase):
     password: Annotated[
         str,
         Field(
-            pattern=r"^.{8,}|[0-9]+|[A-Z]+|[a-z]+|[^a-zA-Z0-9]+$",
+            min_length=PASSWORD_MIN_LENGTH,
+            max_length=PASSWORD_MAX_LENGTH,
             examples=["Str1ngst!"],
         ),
     ]
@@ -57,7 +61,8 @@ class AdminUserUpdate(BaseModel):
     password: Annotated[
         Optional[str],
         Field(
-            pattern=r"^.{8,}|[0-9]+|[A-Z]+|[a-z]+|[^a-zA-Z0-9]+$",
+            min_length=PASSWORD_MIN_LENGTH,
+            max_length=PASSWORD_MAX_LENGTH,
             examples=["NewStr1ngst!"],
             default=None,
         ),

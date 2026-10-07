@@ -6,6 +6,7 @@ from typing import Optional, Pattern, TypeVar
 
 from pydantic import BaseModel
 
+from ...core.tokens import session_handle
 from ..storage import AbstractSessionStorage
 
 UTC = timezone.utc
@@ -63,7 +64,9 @@ class MemorySessionStorage(AbstractSessionStorage[T]):
         self.data[key] = value_bytes
         self.expiry[key] = datetime.now(UTC) + timedelta(seconds=exp)
 
-        logger.debug(f"Created session {session_id} with expiration {exp}s")
+        logger.debug(
+            f"Created session {session_handle(session_id)} with expiration {exp}s"
+        )
         return session_id
 
     async def get(self, session_id: str, model_class: type[T]) -> Optional[T]:

@@ -17,6 +17,7 @@ from ..core.exceptions import ForbiddenException, UnauthorizedException
 from ..session.manager import SessionManager
 from ..session.schemas import (
     AdminSessionCreate,
+    AdminSessionListItem,
     AdminSessionUpdate,
     AdminSessionUpdateInternal,
 )
@@ -48,6 +49,7 @@ class AdminAuthentication:
             "update_schema": AdminUserUpdate,
             "update_internal_schema": AdminUserUpdateInternal,
             "delete_schema": None,
+            "select_schema": AdminUserRead,
         }
 
         self.auth_models[self.db_config.AdminSession.__name__] = {
@@ -57,6 +59,7 @@ class AdminAuthentication:
             "update_schema": AdminSessionUpdate,
             "update_internal_schema": AdminSessionUpdateInternal,
             "delete_schema": None,
+            "select_schema": AdminSessionListItem,
         }
 
     def get_current_user(self) -> Callable[..., Any]:

@@ -12,11 +12,12 @@
         </select>
     </div>
 
+    {% set sort_vals = {"sort_by": sort_column, "sort_order": sort_order} if sort_column else {} %}
     <div class="pagination-buttons">
         <button hx-get="{{ url_prefix }}/{{ model_name }}/get_model_list"
                 hx-target="#model-list"
                 hx-include="[name='rows-per-page-select']"
-                hx-vals='js:{"page": "{{ current_page - 1 }}", "sort_by": "{{ sort_column }}", "sort_order": "{{ sort_order }}"}'
+                hx-vals='{{ dict(sort_vals, page=current_page - 1) | tojson }}'
                 {% if current_page <= 1 %}disabled{% endif %}>
             Previous
         </button>
@@ -24,7 +25,7 @@
         <button hx-get="{{ url_prefix }}/{{ model_name }}/get_model_list"
                 hx-target="#model-list"
                 hx-include="[name='rows-per-page-select']"
-                hx-vals='js:{"page": "{{ current_page + 1 }}", "sort_by": "{{ sort_column }}", "sort_order": "{{ sort_order }}"}'
+                hx-vals='{{ dict(sort_vals, page=current_page + 1) | tojson }}'
                 {% if current_page >= (total_items / rows_per_page) | round(0, 'ceil') %}disabled{% endif %}>
             Next
         </button>
