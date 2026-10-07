@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Optional, TypeVar
 
 from pydantic import BaseModel
 
+from ...core.tokens import session_handle
 from ..storage import AbstractSessionStorage
 
 if TYPE_CHECKING:
@@ -128,7 +129,9 @@ class RedisSessionStorage(AbstractSessionStorage[T]):
                 pipeline.expire(user_sessions_key, exp + 3600)
 
             await pipeline.execute()
-            logger.debug(f"Created session {session_id} with expiration {exp}s")
+            logger.debug(
+                f"Created session {session_handle(session_id)} with expiration {exp}s"
+            )
             return session_id
         except self.RedisError as e:
             logger.error(f"Error creating session: {e}")

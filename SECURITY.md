@@ -20,8 +20,8 @@ We take the security of CRUDAdmin seriously. If you believe you have found a sec
 1. **Do Not** disclose the vulnerability publicly until it has been addressed by our team
 2. Submit the vulnerability report through one of these channels:
 
-   - Email: igor.magalhaes.r+crudadmin@gmail.com
-   - GitHub Security Advisory: https://github.com/igorbenav/crudadmin/security/advisories/new
+   - Email: contact+crudadmin@benav.io
+   - GitHub Security Advisory: https://github.com/benavlabs/crudadmin/security/advisories/new
 
 ### What to Include
 

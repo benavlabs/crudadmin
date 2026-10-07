@@ -19,7 +19,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Request, UploadFile
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
-from fastcrud import EndpointCreator, FastCRUD
+from fastcrud import FastCRUD
 from pydantic import BaseModel, ValidationError
 from sqlalchemy import inspect
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -41,6 +41,23 @@ from .relationships import (
 )
 
 logger = logging.getLogger(__name__)
+
+ROWS_PER_PAGE_OPTIONS = (10, 20, 50, 100)
+DEFAULT_ROWS_PER_PAGE = ROWS_PER_PAGE_OPTIONS[0]
+
+
+def _rows_per_page(value: Optional[str]) -> int:
+    """Parse the rows-per-page query value, falling back to the default.
+
+    Only the page sizes the list page offers are accepted, so a request cannot
+    ask for an unbounded number of rows.
+    """
+    try:
+        rows = int(value) if value is not None else DEFAULT_ROWS_PER_PAGE
+    except ValueError:
+        return DEFAULT_ROWS_PER_PAGE
+    return rows if rows in ROWS_PER_PAGE_OPTIONS else DEFAULT_ROWS_PER_PAGE
+
 
 EndpointCallable = Callable[..., Coroutine[Any, Any, Response]]
 
@@ -79,12 +96,21 @@ class PasswordTransformer:
         Args:
             password_field: Name of the password field in the form/schema
             hashed_field: Name of the hashed password field in the internal schema/model
-            hash_function: Function to hash passwords (takes string, returns string)
+            hash_function: Function to hash passwords (takes string, returns string).
+                Required: without it the password would be stored as plaintext.
             required_fields: List of other required fields that must be present
+
+        Raises:
+            ValueError: If ``hash_function`` is not provided.
         """
+        if hash_function is None:
+            raise ValueError(
+                "PasswordTransformer requires a hash_function; without one the "
+                "password would be stored as plaintext."
+            )
         self.password_field = password_field
         self.hashed_field = hashed_field
-        self.hash_function = hash_function
+        self.hash_function: Callable[[str], str] = hash_function
         self.required_fields = required_fields or []
 
     def transform_create_data(
@@ -107,10 +133,8 @@ class PasswordTransformer:
                 transformed_data[field_name] = field_value
 
         password = getattr(item_data, self.password_field, None)
-        if password is not None and self.hash_function:
+        if password is not None:
             transformed_data[self.hashed_field] = self.hash_function(password)
-        elif password is not None:
-            transformed_data[self.hashed_field] = password
 
         return transformed_data
 
@@ -127,7 +151,7 @@ class PasswordTransformer:
         Returns:
             Dictionary with transformed data for internal schema
         """
-        transformed_data = {"updated_at": dt.now(datetime.UTC)}
+        transformed_data = {"updated_at": dt.now(datetime.timezone.utc)}
 
         for field_name, field_value in form_data.items():
             if (
@@ -138,10 +162,8 @@ class PasswordTransformer:
                 transformed_data[field_name] = field_value
 
         password = getattr(item_data, self.password_field, None)
-        if password is not None and self.hash_function:
+        if password is not None:
             transformed_data[self.hashed_field] = self.hash_function(password)  # type: ignore[assignment]
-        elif password is not None:
-            transformed_data[self.hashed_field] = str(password)  # type: ignore[assignment]
 
         return transformed_data
 
@@ -428,17 +450,6 @@ class ModelView:
         self.relationships: Dict[str, RelationshipInfo] = detect_relationships(
             self.model
         )
-
-        self.endpoints_template = EndpointCreator(
-            session=self.session,
-            model=self.model,
-            crud=self.crud,
-            create_schema=self.create_schema,
-            update_schema=self.update_schema,
-            delete_schema=self.delete_schema,
-        )
-        self.endpoints_template.add_routes_to_router()
-        self.router.include_router(self.endpoints_template.router, prefix="/crud")
 
         self.setup_routes()
 
@@ -885,9 +896,10 @@ class ModelView:
                 body = await request.json()
 
                 page_str = request.query_params.get("page", "1")
-                rows_str = request.query_params.get("rows-per-page-select", "10")
                 page = int(page_str)
-                rows_per_page = int(rows_str)
+                rows_per_page = _rows_per_page(
+                    request.query_params.get("rows-per-page-select")
+                )
 
                 ids = body.get("ids", [])
                 if not ids:
@@ -1059,20 +1071,21 @@ class ModelView:
 
             try:
                 page = max(1, int(request.query_params.get("page", "1")))
-                rows_per_page = int(
-                    request.query_params.get("rows-per-page-select", "10")
-                )
             except ValueError:
                 page = 1
-                rows_per_page = 10
-
-            sort_column = request.query_params.get("sort_by")
-            sort_order = request.query_params.get("sort_order", "asc")
-
-            sort_columns = (
-                [sort_column] if sort_column and sort_column != "None" else None
+            rows_per_page = _rows_per_page(
+                request.query_params.get("rows-per-page-select")
             )
-            sort_orders = [sort_order] if sort_order and sort_order != "None" else None
+
+            sort_column: Optional[str] = request.query_params.get("sort_by")
+            if sort_column not in self.model.__table__.columns.keys():
+                sort_column = None
+            sort_order = request.query_params.get("sort_order")
+            if sort_order not in ("asc", "desc"):
+                sort_order = "asc"
+
+            sort_columns = [sort_column] if sort_column else None
+            sort_orders = [sort_order] if sort_column else None
 
             search_column = request.query_params.get("column-to-search")
             search_value = request.query_params.get("search-input", "").strip()
@@ -1374,7 +1387,7 @@ class ModelView:
                             Dict[str, Any], self.update_internal_schema.model_fields
                         )
                         if "updated_at" in fields_dict:
-                            update_data["updated_at"] = dt.now(datetime.UTC)
+                            update_data["updated_at"] = dt.now(datetime.timezone.utc)
 
                     try:
                         if self.password_transformer is not None:

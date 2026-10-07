@@ -23,7 +23,7 @@
                                         hx-get="{{ url_prefix }}/{{ model_name }}/get_model_list"
                                         hx-target="#model-list"
                                         hx-include="[name='rows-per-page-select'],[name='column-to-search'],[name='search-input']"
-                                        hx-vals='js:{"sort_by": "{{ header }}", "sort_order": "{% if sort_column == header and sort_order == "asc" %}desc{% else %}asc{% endif %}", "page": "1"}'
+                                        hx-vals='{{ {"sort_by": header, "sort_order": "desc" if sort_column == header and sort_order == "asc" else "asc", "page": 1} | tojson }}'
                                         type="button">
                                     {% if sort_column == header %}
                                         {% if sort_order == "asc" %}
@@ -54,7 +54,7 @@
                         {% if relationships %}
                             <td class="expand-cell">
                                 <button class="expand-btn"
-                                        onclick="toggleRowExpand(this, '{{ row_id }}')"
+                                        onclick="toggleRowExpand(this, this.closest('tr').dataset.rowId)"
                                         title="Expand/Collapse">
                                     <svg class="expand-icon" viewBox="0 0 24 24" width="16" height="16">
                                         <path fill="currentColor" d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>

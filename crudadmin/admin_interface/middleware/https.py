@@ -9,13 +9,14 @@ class HTTPSRedirectMiddleware(BaseHTTPMiddleware):
         self.https_port = https_port
 
     async def dispatch(self, request: Request, call_next):
-        if not request.url.path.startswith("/admin"):
-            return await call_next(request)
+        """Redirect plain-HTTP requests to HTTPS on the configured port.
 
+        Every request is checked: the middleware is installed on the admin app,
+        so it only ever sees admin requests, whatever the mount path.
+        """
         if request.url.scheme == "http":
-            https_url = str(request.url).replace("http://", "https://", 1)
-            if self.https_port != 443:
-                https_url = https_url.replace(f":{self.https_port}", "", 1)
-            return RedirectResponse(https_url, status_code=301)
+            port = None if self.https_port == 443 else self.https_port
+            https_url = request.url.replace(scheme="https", port=port)
+            return RedirectResponse(str(https_url), status_code=301)
 
         return await call_next(request)

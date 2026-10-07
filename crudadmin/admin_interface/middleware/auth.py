@@ -57,76 +57,46 @@ class AdminAuthMiddleware(BaseHTTPMiddleware):
 
         logger.debug(f"Checking auth for path: {request.url.path}")
 
-        async for db in self.admin_instance.db_config.get_admin_db():
-            try:
-                session_id = request.cookies.get("session_id")
+        session_id = request.cookies.get("session_id")
+        logger.debug(f"Found session_id: {bool(session_id)}")
 
-                logger.debug(f"Found session_id: {bool(session_id)}")
+        if not session_id:
+            logger.debug("Missing session_id")
+            login_url = f"{url_prefix}/login?error=Please+log+in+to+access+this+page"
+            return RedirectResponse(url=login_url, status_code=303)
 
-                if not session_id:
-                    logger.debug("Missing session_id")
-                    login_url = (
-                        f"{url_prefix}/login?error=Please+log+in+to+access+this+page"
-                    )
-                    return RedirectResponse(
-                        url=login_url,
-                        status_code=303,
-                    )
+        try:
+            session_data = await self.admin_instance.session_manager.validate_session(
+                session_id=session_id, update_activity=True
+            )
 
-                try:
-                    session_data = (
-                        await self.admin_instance.session_manager.validate_session(
-                            session_id=session_id, update_activity=True
-                        )
-                    )
+            if not session_data:
+                logger.debug("Invalid or expired session")
+                login_url = f"{url_prefix}/login?error=Session+expired"
+                return RedirectResponse(url=login_url, status_code=303)
 
-                    if not session_data:
-                        logger.debug("Invalid or expired session")
-                        login_url = f"{url_prefix}/login?error=Session+expired"
-                        return RedirectResponse(
-                            url=login_url,
-                            status_code=303,
-                        )
+            async with self.admin_instance.db_config.admin_session_maker() as db:
+                user = await self.admin_instance.db_config.crud_users.get(
+                    db=db, id=session_data.user_id
+                )
 
-                    user_id = session_data.user_id
-                    user = await self.admin_instance.db_config.crud_users.get(
-                        db=db, id=user_id
-                    )
+            if not user:
+                logger.debug("User not found for session")
+                login_url = f"{url_prefix}/login?error=User+not+found"
+                return RedirectResponse(url=login_url, status_code=303)
 
-                    if not user:
-                        logger.debug("User not found for session")
-                        login_url = f"{url_prefix}/login?error=User+not+found"
-                        return RedirectResponse(
-                            url=login_url,
-                            status_code=303,
-                        )
+            request.state.user = user
 
-                    request.state.user = user
+            await self.admin_instance.session_manager.cleanup_expired_sessions()
 
-                    await self.admin_instance.session_manager.cleanup_expired_sessions()
+        except Exception as e:
+            logger.error(f"Auth error: {str(e)}", exc_info=True)
+            login_url = f"{url_prefix}/login?error=Authentication+error"
+            return RedirectResponse(url=login_url, status_code=303)
 
-                    response = await call_next(request)
+        response = await call_next(request)
 
-                    if self._should_add_cache_headers(response):
-                        self._add_no_cache_headers(response)
+        if self._should_add_cache_headers(response):
+            self._add_no_cache_headers(response)
 
-                    return response
-
-                except Exception as e:
-                    logger.error(f"Auth error: {str(e)}", exc_info=True)
-                    if (
-                        request.url.path.endswith("/crud")
-                        or "/crud/" in request.url.path
-                    ):
-                        raise
-                    login_url = f"{url_prefix}/login?error=Authentication+error"
-                    return RedirectResponse(
-                        url=login_url,
-                        status_code=303,
-                    )
-
-            except Exception as e:
-                logger.error(f"Middleware error: {str(e)}", exc_info=True)
-                raise
-
-        return await call_next(request)
+        return response

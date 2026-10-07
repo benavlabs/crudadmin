@@ -14,6 +14,7 @@ from typing import Optional, TypeVar, cast
 
 from pydantic import BaseModel
 
+from ...core.tokens import session_handle
 from ..storage import AbstractSessionStorage
 
 T = TypeVar("T", bound=BaseModel)
@@ -62,7 +63,9 @@ class HybridSessionStorage(AbstractSessionStorage[T]):
 
         try:
             await self.database_storage.create(data, session_id, None)
-            logger.debug(f"Session {session_id} stored in both Redis and Database")
+            logger.debug(
+                f"Session {session_handle(session_id)} stored in both Redis and Database"
+            )
         except Exception as e:
             logger.warning(f"Failed to store session audit trail in database: {e}")
 
@@ -104,7 +107,9 @@ class HybridSessionStorage(AbstractSessionStorage[T]):
 
         try:
             await self.database_storage.update(session_id, data, reset_expiration, None)
-            logger.debug(f"Session {session_id} updated in both Redis and Database")
+            logger.debug(
+                f"Session {session_handle(session_id)} updated in both Redis and Database"
+            )
         except Exception as e:
             logger.warning(f"Failed to update session audit trail in database: {e}")
 
@@ -134,7 +139,7 @@ class HybridSessionStorage(AbstractSessionStorage[T]):
                 except TypeError:
                     await self.database_storage.delete(session_id)
                     logger.debug(
-                        f"Session {session_id} deleted from Redis and hard-deleted from Database"
+                        f"Session {session_handle(session_id)} deleted from Redis and hard-deleted from Database"
                     )
                     return result
 
@@ -148,12 +153,12 @@ class HybridSessionStorage(AbstractSessionStorage[T]):
                     session_id, session_data, False, None
                 )
                 logger.debug(
-                    f"Session {session_id} deleted from Redis and marked inactive in Database"
+                    f"Session {session_handle(session_id)} deleted from Redis and marked inactive in Database"
                 )
             else:
                 await self.database_storage.delete(session_id)
                 logger.debug(
-                    f"Session {session_id} deleted from both Redis and Database"
+                    f"Session {session_handle(session_id)} deleted from both Redis and Database"
                 )
         except Exception as e:
             logger.warning(f"Failed to update session audit trail on delete: {e}")
@@ -175,7 +180,7 @@ class HybridSessionStorage(AbstractSessionStorage[T]):
         try:
             await self.database_storage.extend(session_id, None)
             logger.debug(
-                f"Session {session_id} extended in Redis and last_activity updated in Database"
+                f"Session {session_handle(session_id)} extended in Redis and last_activity updated in Database"
             )
         except Exception as e:
             logger.warning(f"Failed to update last_activity in database: {e}")

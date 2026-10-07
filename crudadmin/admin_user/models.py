@@ -19,11 +19,11 @@ def create_admin_user(base: Type[DeclarativeBase]) -> Type[DeclarativeBase]:
 
         created_at: Mapped[datetime] = mapped_column(
             DateTime(timezone=True),
-            default=datetime.now(UTC),
+            default=lambda: datetime.now(UTC),
         )
         updated_at: Mapped[Optional[datetime]] = mapped_column(
             DateTime(timezone=True),
-            onupdate=datetime.now(UTC),
+            onupdate=lambda: datetime.now(UTC),
             default=None,
         )
         is_superuser: Mapped[bool] = mapped_column(Boolean, default=True)

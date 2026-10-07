@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..admin_user.service import AdminUserService
 from ..core.db import DatabaseConfig
+from ..core.tokens import session_handle
 from ..event import EventType, log_auth_action
 from ..session.manager import SessionManager
 from ..session.schemas import SessionData
@@ -272,7 +273,9 @@ class AdminSite:
                         logger.error("Failed to create session")
                         raise Exception("Session creation failed")
 
-                    logger.info(f"Session created successfully: {session_id}")
+                    logger.info(
+                        f"Session created successfully: {session_handle(session_id)}"
+                    )
 
                     dashboard_url = (
                         f"{self.get_url_prefix()}/" if self.mount_path else "/"
@@ -300,7 +303,7 @@ class AdminSite:
                         name="auth/login.html",
                         request=request,
                         context={
-                            "error": f"Error creating session: {str(e)}",
+                            "error": "An error occurred during login. Please try again.",
                             "url_prefix": self.get_url_prefix(),
                             "theme": self.theme,
                         },

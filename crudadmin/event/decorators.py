@@ -15,6 +15,7 @@ from crudadmin.core.db import (
     get_primary_key_name,
 )
 
+from ..core.tokens import session_handle
 from .models import EventType
 
 UTC = timezone.utc
@@ -127,7 +128,7 @@ def log_admin_action(
 
             try:
                 if event_integration and user_dict:
-                    session_id = request.cookies.get("session_id", "unknown")
+                    session_id = session_handle(request.cookies.get("session_id"))
 
                     new_state = None
                     resource_id = kwargs.get("id")
@@ -299,7 +300,7 @@ def log_auth_action(event_type: EventType) -> Callable:
                                         )
                                         break
                     elif event_type == EventType.LOGOUT:
-                        session_id = request.cookies.get("session_id", "unknown")
+                        session_id = request.cookies.get("session_id")
                         if (
                             hasattr(request.state, "user")
                             and request.state.user is not None
@@ -308,8 +309,7 @@ def log_auth_action(event_type: EventType) -> Callable:
                             username = request.state.user.get("username")
                             success = True
 
-                    if not session_id:
-                        session_id = "unknown"
+                    session_id = session_handle(session_id)
 
                     details = {
                         "auth_details": {

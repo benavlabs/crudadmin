@@ -36,7 +36,7 @@
 ## Features
 
 - **🔒 Multi-Backend Session Management**: Flexible session storage with Memory, Redis, Memcached, Database, and Hybrid backends
-- **🛡️ Built-in Security**: CSRF protection, rate limiting, IP restrictions, HTTPS enforcement, and secure cookie handling
+- **🛡️ Built-in Security**: IP allowlists, HTTPS enforcement, and secure session cookies (HttpOnly, Secure, SameSite=Strict)
 - **🚦 Rate Limiting**: Login attempt protection with IP and username-based tracking
 - **📝 Event Tracking & Audit Logs**: Comprehensive audit trails for all admin actions with user agent parsing and attribution
 - **📊 Auto-generated Interface**: Creates admin UI directly from your SQLAlchemy models with intelligent field detection
@@ -338,7 +338,7 @@ Once set up, CRUDAdmin provides:
 - **User Authentication**: Secure login/logout with session management  
 - **Event Logs**: Track all admin actions with full audit trails
 - **Health Monitoring**: Real-time system status and diagnostics
-- **Security Features**: CSRF protection, rate limiting, IP restrictions
+- **Security Features**: IP allowlists, HTTPS enforcement, secure session cookies
 - **Responsive UI**: Works on desktop and mobile devices
 
 ## Next Steps

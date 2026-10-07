@@ -24,6 +24,34 @@ UTC = timezone.utc
 logger = logging.getLogger(__name__)
 
 
+REDACTED = "[redacted]"
+SENSITIVE_KEY_PARTS = ("password", "secret", "token", "session_id", "api_key")
+
+
+def _is_sensitive(key: Any) -> bool:
+    lowered = str(key).lower()
+    return any(part in lowered for part in SENSITIVE_KEY_PARTS)
+
+
+def redact_secrets(value: Any, sensitive: bool = False) -> Any:
+    """Replace values stored under credential-like keys with a placeholder.
+
+    Applies at any depth, so ``{"hashed_password": {"old": ..., "new": ...}}`` in
+    a change set keeps its shape and shows that the field changed, without the
+    values. Audit snapshots are readable by every admin.
+    """
+    if isinstance(value, dict):
+        return {
+            k: redact_secrets(v, sensitive or _is_sensitive(k))
+            for k, v in value.items()
+        }
+    if isinstance(value, list):
+        return [redact_secrets(v, sensitive) for v in value]
+    if sensitive and value is not None:
+        return REDACTED
+    return value
+
+
 class CustomJSONEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, datetime):
@@ -109,12 +137,12 @@ class EventService:
                 resource_type=resource_type,
                 resource_id=resource_id,
                 action=action,
-                previous_state=self._serialize_dict(previous_state),
-                new_state=self._serialize_dict(new_state),
+                previous_state=self._serialize_dict(redact_secrets(previous_state)),
+                new_state=self._serialize_dict(redact_secrets(new_state)),
                 changes=self._serialize_dict(
-                    self._compute_changes(previous_state, new_state)
+                    redact_secrets(self._compute_changes(previous_state, new_state))
                 ),
-                metadata=self._serialize_dict(metadata),
+                audit_metadata=self._serialize_dict(metadata),
             )
 
             result = await self.crud_audits.create(

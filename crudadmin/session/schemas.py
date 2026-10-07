@@ -119,6 +119,22 @@ class AdminSessionRead(BaseSession):
     is_active: bool
 
 
+class AdminSessionListItem(BaseModel):
+    """What the admin's session list shows: everything except the session id.
+
+    The session id is a bearer credential, so it is never displayed.
+    """
+
+    id: int
+    user_id: int
+    ip_address: str
+    user_agent: str
+    device_info: dict[str, Any]
+    created_at: datetime
+    last_activity: datetime
+    is_active: bool
+
+
 class AdminSessionCreate(BaseSession):
     """Schema for creating AdminSession in database."""
 
@@ -149,6 +165,7 @@ __all__ = [
     "CSRFToken",
     "AdminSession",
     "AdminSessionRead",
+    "AdminSessionListItem",
     "AdminSessionCreate",
     "AdminSessionUpdate",
     "AdminSessionUpdateInternal",
