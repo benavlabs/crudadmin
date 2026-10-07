@@ -151,7 +151,7 @@ class PasswordTransformer:
         Returns:
             Dictionary with transformed data for internal schema
         """
-        transformed_data = {"updated_at": dt.now(datetime.UTC)}
+        transformed_data = {"updated_at": dt.now(datetime.timezone.utc)}
 
         for field_name, field_value in form_data.items():
             if (
@@ -1387,7 +1387,7 @@ class ModelView:
                             Dict[str, Any], self.update_internal_schema.model_fields
                         )
                         if "updated_at" in fields_dict:
-                            update_data["updated_at"] = dt.now(datetime.UTC)
+                            update_data["updated_at"] = dt.now(datetime.timezone.utc)
 
                     try:
                         if self.password_transformer is not None:
