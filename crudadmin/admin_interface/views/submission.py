@@ -4,6 +4,7 @@ A submission is written through the model's schemas, and when it is refused the
 form is shown again with the reason and the values the admin entered.
 """
 
+import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Type, TypeVar
@@ -11,6 +12,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Type, TypeVa
 from fastapi import Request
 from fastapi.responses import Response
 from pydantic import BaseModel, ValidationError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .forms import field_errors as read_field_errors
@@ -18,9 +20,16 @@ from .forms import field_errors as read_field_errors
 if TYPE_CHECKING:
     from ..model_view import ModelView
 
+logger = logging.getLogger(__name__)
+
 T = TypeVar("T")
 
 VALIDATION_FAILED = "Please correct the errors below."
+CONFLICT = (
+    "The database refused this record: a value must be unique, or a required "
+    "value or related record is missing."
+)
+WRITE_FAILED = "The record could not be saved. Try again, or check the server logs."
 
 
 @dataclass
@@ -36,16 +45,30 @@ async def attempt_write(
 ) -> Tuple[Optional[T], Optional[Refusal]]:
     """Run ``write``, and say why when it is refused.
 
-    Invalid input refuses it with each field's message. Any other error rolls
-    the session back and refuses it with the error's message.
+    - Invalid input refuses it with each field's message.
+    - A ``ValueError`` is a refusal the admin can act on (a required field, the
+      last superuser), shown as it is.
+    - A constraint the database enforces refuses it with ``CONFLICT``; any other
+      database error is logged and refuses it with ``WRITE_FAILED``. The
+      database's own message, with its SQL, isn't shown.
+
+    Each refusal after the write started rolls the session back. Any other
+    exception is a bug, and propagates.
     """
     try:
         return await write(), None
     except ValidationError as error:
         return None, Refusal(VALIDATION_FAILED, read_field_errors(error))
-    except Exception as error:
+    except ValueError as error:
         await db.rollback()
         return None, Refusal(str(error))
+    except IntegrityError:
+        await db.rollback()
+        return None, Refusal(CONFLICT)
+    except SQLAlchemyError:
+        logger.exception("Could not write the record")
+        await db.rollback()
+        return None, Refusal(WRITE_FAILED)
 
 
 def internal_object(

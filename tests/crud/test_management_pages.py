@@ -69,6 +69,8 @@ def test_the_event_log_lists_the_login_with_its_admin(client):
         ("event_type=create", False),
         ("username=root", True),
         ("start_date=2000-01-01&end_date=2000-01-02", False),
+        ("start_date=not-a-date", True),
+        ("event_type=bogus&status=bogus", True),
     ],
 )
 def test_the_event_log_filters(client, query, shows_login):

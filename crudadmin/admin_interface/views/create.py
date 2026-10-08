@@ -67,18 +67,15 @@ def create_endpoint(view: "ModelView", template: str) -> EndpointCallable:
         form_fields = _get_form_fields_from_schema(view.create_schema)
         field_values: Dict[str, Any] = {}
         refusal: Optional[Refusal] = None
-        try:
-            submitted = read_create_form(await request.form(), form_fields)
-            field_values = submitted.field_values
-            result, refusal = await attempt_write(
-                db, lambda: _create_record(view, db, submitted.data)
-            )
-            if result:
-                view._forget_record_count()
-                request.state.crud_result = result
-                return _redirect_to_list(view, request)
-        except Exception as error:
-            refusal = Refusal(str(error))
+        submitted = read_create_form(await request.form(), form_fields)
+        field_values = submitted.field_values
+        result, refusal = await attempt_write(
+            db, lambda: _create_record(view, db, submitted.data)
+        )
+        if result:
+            view._forget_record_count()
+            request.state.crud_result = result
+            return _redirect_to_list(view, request)
 
         return await form_page(
             view,

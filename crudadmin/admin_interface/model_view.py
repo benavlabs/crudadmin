@@ -34,23 +34,19 @@ from .relationships import (
 )
 from .typing import EndpointCallable
 from .views.create import create_endpoint, create_page
-from .views.delete import bulk_delete_endpoint
+from .views.delete import BulkDeleteRequest, bulk_delete_endpoint
 from .views.forms import PasswordTransformer
 from .views.listing import list_page
 from .views.related_records import related_data_endpoint, relationship_options_endpoint
 from .views.update import update_endpoint, update_page
+
+__all__ = ["BulkDeleteRequest", "ModelView", "PasswordTransformer"]
 
 CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
 UpdateSchemaType = TypeVar("UpdateSchemaType", bound=BaseModel)
 UpdateSchemaInternalType = TypeVar("UpdateSchemaInternalType", bound=BaseModel)
 DeleteSchemaType = TypeVar("DeleteSchemaType", bound=BaseModel)
 SelectSchemaType = TypeVar("SelectSchemaType", bound=BaseModel)
-
-
-class BulkDeleteRequest(BaseModel):
-    """Request model for bulk delete operations containing IDs to delete."""
-
-    ids: List[Union[int, str]]
 
 
 class ModelView:

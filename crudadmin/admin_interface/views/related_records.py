@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Union, cast
 
 from fastapi import Depends, Request
 from fastapi.responses import JSONResponse, Response
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..relationships import (
@@ -94,12 +95,11 @@ def related_data_endpoint(view: "ModelView") -> EndpointCallable:
                 name=template, request=request, context=context
             )
 
-        except Exception as e:
-            logger.error(
-                "Error loading related data for %s.%s: %s",
+        except SQLAlchemyError:
+            logger.exception(
+                "Could not load related data for %s.%s",
                 view.model_key,
                 relationship_name,
-                str(e),
             )
             return JSONResponse(
                 status_code=500,
@@ -146,12 +146,11 @@ def relationship_options_endpoint(view: "ModelView") -> EndpointCallable:
 
             return JSONResponse(content=options)
 
-        except Exception as e:
-            logger.error(
-                "Error loading relationship options for %s.%s: %s",
+        except SQLAlchemyError:
+            logger.exception(
+                "Could not load relationship options for %s.%s",
                 view.model_key,
                 relationship_name,
-                str(e),
             )
             return JSONResponse(
                 status_code=500,

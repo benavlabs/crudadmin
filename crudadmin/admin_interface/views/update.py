@@ -72,26 +72,21 @@ def update_endpoint(view: "ModelView") -> EndpointCallable:
         form_fields = _get_form_fields_from_schema(view.update_schema)
         field_values: Dict[str, Any] = {}
         refusal: Optional[Refusal] = None
-        try:
-            submitted = read_update_form(
-                await request.form(), form_fields, clearable_column_names(view.model)
+        submitted = read_update_form(
+            await request.form(), form_fields, clearable_column_names(view.model)
+        )
+        field_values = submitted.field_values
+        if not submitted.data:
+            refusal = Refusal("No changes were provided for update")
+        else:
+            _stamp_updated_at(view, submitted.data)
+            _, refusal = await attempt_write(
+                db,
+                lambda: _update_record(view, db, request, converted_id, submitted.data),
             )
-            field_values = submitted.field_values
-            if not submitted.data:
-                refusal = Refusal("No changes were provided for update")
-            else:
-                _stamp_updated_at(view, submitted.data)
-                _, refusal = await attempt_write(
-                    db,
-                    lambda: _update_record(
-                        view, db, request, converted_id, submitted.data
-                    ),
-                )
-                if refusal is None:
-                    model_list_url = f"{view._model_list_url()}?success=updated"
-                    return RedirectResponse(url=model_list_url, status_code=303)
-        except Exception as error:
-            refusal = Refusal(str(error))
+            if refusal is None:
+                model_list_url = f"{view._model_list_url()}?success=updated"
+                return RedirectResponse(url=model_list_url, status_code=303)
 
         for form_field in form_fields:
             field_name = form_field["name"]
