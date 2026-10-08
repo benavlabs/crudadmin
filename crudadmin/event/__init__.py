@@ -1,4 +1,4 @@
-from .decorators import log_admin_action, log_auth_action
+from .decorators import log_admin_action
 from .integration import EventSystemIntegration
 from .models import (
     EventStatus,
@@ -26,7 +26,6 @@ __all__ = [
     "EventService",
     "EventSystemIntegration",
     "log_admin_action",
-    "log_auth_action",
 ]
 
 

@@ -6,6 +6,7 @@ from typing import Any, Dict, Optional, Type
 
 from fastapi import Request
 from fastcrud import FastCRUD
+from sqlalchemy.exc import NoInspectionAvailable
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 
@@ -15,7 +16,6 @@ from crudadmin.core.db import (
     get_primary_key_name,
 )
 
-from ..core.tokens import session_handle
 from .models import EventType
 
 UTC = timezone.utc
@@ -67,6 +67,21 @@ def convert_user_to_dict(user: Any) -> Dict[str, Any]:
             "id": getattr(user, "id", None),
             "username": getattr(user, "username", None),
         }
+
+
+def _primary_key_name_or_id(model: Optional[Type[DeclarativeBase]]) -> str:
+    """The model's primary key column name, or ``"id"`` for a model SQLAlchemy can't map."""
+    if model is None:
+        return "id"
+    try:
+        return get_primary_key_name(model)
+    except NoInspectionAvailable:
+        return "id"
+
+
+def _response_succeeded(result: Any) -> bool:
+    """Whether the endpoint's response reports success (any status below 400)."""
+    return getattr(result, "status_code", 200) < 400
 
 
 def log_admin_action(
@@ -128,7 +143,9 @@ def log_admin_action(
 
             try:
                 if event_integration and user_dict:
-                    session_id = session_handle(request.cookies.get("session_id"))
+                    session_id = getattr(request.state, "session_handle", "unknown")
+                    succeeded = _response_succeeded(result)
+                    primary_key_name = _primary_key_name_or_id(model)
 
                     new_state = None
                     resource_id = kwargs.get("id")
@@ -171,7 +188,7 @@ def log_admin_action(
                         else:
                             model_dict = dict(crud_result)
 
-                        resource_id = str(model_dict.get("id", resource_id))
+                        resource_id = str(model_dict.get(primary_key_name, resource_id))
                         new_state = get_model_changes(model_dict)
 
                     if event_type == EventType.DELETE:
@@ -249,109 +266,16 @@ def log_admin_action(
                         previous_state=previous_state,
                         new_state=new_state,
                         details=details,
+                        succeeded=succeeded,
+                        deleted_records=getattr(request.state, "deleted_records", None),
+                        primary_key_name=primary_key_name,
                     )
-                    await admin_db.commit()
 
             except Exception as e:
                 logger.error(f"Error logging event: {str(e)}")
+                await admin_db.rollback()
 
             return result
-
-        return wrapper
-
-    return decorator
-
-
-def log_auth_action(event_type: EventType) -> Callable:
-    def decorator(func: Callable) -> Callable:
-        @functools.wraps(func)
-        async def wrapper(
-            *args, request: Request, db: AsyncSession, event_integration=None, **kwargs
-        ):
-            if event_integration:
-                try:
-                    form_data = kwargs.get("form_data")
-                    result = await func(*args, request=request, db=db, **kwargs)
-
-                    user_id = None
-                    username = None
-                    session_id = None
-                    success = False
-
-                    if event_type == EventType.LOGIN:
-                        if (
-                            hasattr(request.state, "user")
-                            and request.state.user is not None
-                        ):
-                            user_id = request.state.user.get("id")
-                            username = request.state.user.get("username")
-                            success = True
-                            if hasattr(result, "headers"):
-                                for header in result.raw_headers:
-                                    if (
-                                        header[0].decode() == "set-cookie"
-                                        and b"session_id=" in header[1]
-                                    ):
-                                        session_id = (
-                                            header[1]
-                                            .decode()
-                                            .split("session_id=")[1]
-                                            .split(";")[0]
-                                        )
-                                        break
-                    elif event_type == EventType.LOGOUT:
-                        session_id = request.cookies.get("session_id")
-                        if (
-                            hasattr(request.state, "user")
-                            and request.state.user is not None
-                        ):
-                            user_id = request.state.user.get("id")
-                            username = request.state.user.get("username")
-                            success = True
-
-                    session_id = session_handle(session_id)
-
-                    details = {
-                        "auth_details": {
-                            "event_type": event_type.value,
-                            "username": username
-                            or (form_data.username if form_data else "unknown"),
-                            "success": success,
-                            "timestamp": datetime.now(UTC).isoformat(),
-                        },
-                        "request_details": {
-                            "method": request.method,
-                            "path": str(request.url.path),
-                            "ip_address": request.client.host
-                            if request.client
-                            else "unknown",
-                            "user_agent": request.headers.get("user-agent", "Unknown"),
-                        },
-                        "session_details": {
-                            "session_id": session_id,
-                            "browser": request.headers.get("user-agent", "Unknown"),
-                        },
-                    }
-
-                    await event_integration.log_auth_event(
-                        db=db,
-                        event_type=event_type,
-                        user_id=user_id or 0,
-                        session_id=session_id,
-                        request=request,
-                        success=success,
-                        details=details,
-                    )
-
-                    await db.commit()
-
-                    return result
-
-                except Exception as e:
-                    logger.error(f"Error logging auth event: {str(e)}")
-                    raise
-
-            return await func(*args, request=request, db=db, **kwargs)
 
         return wrapper
 

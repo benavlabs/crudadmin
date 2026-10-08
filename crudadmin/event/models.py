@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Any, Optional, cast
+from typing import Any, Optional
 
 from sqlalchemy import JSON, DateTime, String
 from sqlalchemy import Enum as SQLEnum
@@ -17,7 +17,7 @@ def create_admin_event_log(base: type[DeclarativeBase]) -> type[DeclarativeBase]
         existing_class = base.registry._class_registry.get("AdminEventLog")
         if existing_class is not None and isinstance(existing_class, type):
             if issubclass(existing_class, base):
-                return cast(type[DeclarativeBase], existing_class)
+                return existing_class
 
     class AdminEventLog(base):  # type: ignore
         __tablename__ = tablename
@@ -64,7 +64,7 @@ def create_admin_audit_log(base: type[DeclarativeBase]) -> type[DeclarativeBase]
         existing_class = base.registry._class_registry.get("AdminAuditLog")
         if existing_class is not None and isinstance(existing_class, type):
             if issubclass(existing_class, base):
-                return cast(type[DeclarativeBase], existing_class)
+                return existing_class
 
     class AdminAuditLog(base):  # type: ignore
         __tablename__ = tablename

@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -103,6 +104,7 @@ class TestLogModelEvent:
             resource_type="MockModel",
             resource_id="123",
             details={"action": "login"},
+            commit=False,
         )
 
         # Verify audit log was NOT created (LOGIN is not a CRUD event)
@@ -148,6 +150,7 @@ class TestLogModelEvent:
             resource_type="MockModel",
             resource_id="123",
             details=details,
+            commit=False,
         )
 
         # Verify audit log was created
@@ -160,6 +163,7 @@ class TestLogModelEvent:
             previous_state=previous_state,
             new_state=new_state,
             metadata=details,
+            commit=False,
         )
 
         mock_db.commit.assert_called_once()
@@ -193,6 +197,7 @@ class TestLogModelEvent:
             previous_state=None,
             new_state=None,
             metadata=None,
+            commit=False,
         )
 
         mock_db.commit.assert_called_once()
@@ -202,9 +207,10 @@ class TestLogModelEvent:
     async def test_log_model_event_success_with_audit_delete(
         self, event_integration, mock_db, mock_request
     ):
-        """Test successful model event logging with audit log creation for DELETE event."""
+        """A delete writes one audit row per deleted record, keyed by its primary key."""
         mock_event = MockEventLogModel(event_id=3)
         event_integration.event_service.log_event.return_value = mock_event
+        deleted = [{"job_id": 7, "name": "a"}, {"job_id": 9, "name": "b"}]
 
         result = await event_integration.log_model_event(
             db=mock_db,
@@ -213,23 +219,64 @@ class TestLogModelEvent:
             user_id=3,
             session_id="test-session-3",
             request=mock_request,
-            resource_id="789",
+            deleted_records=deleted,
+            primary_key_name="job_id",
         )
 
-        # Verify audit log was created for DELETE event
-        event_integration.event_service.create_audit_log.assert_called_once_with(
-            db=mock_db,
-            event_id=3,
-            resource_type="MockModel",
-            resource_id="789",
-            action="delete",
-            previous_state=None,
-            new_state=None,
-            metadata=None,
-        )
-
+        audit_calls = event_integration.event_service.create_audit_log.call_args_list
+        assert [call.kwargs["resource_id"] for call in audit_calls] == ["7", "9"]
+        assert [call.kwargs["previous_state"] for call in audit_calls] == deleted
+        assert all(call.kwargs["action"] == "delete" for call in audit_calls)
+        assert all(call.kwargs["commit"] is False for call in audit_calls)
         mock_db.commit.assert_called_once()
         assert result == mock_event
+
+    @pytest.mark.asyncio
+    async def test_log_model_event_failure_writes_no_audit_rows(
+        self, event_integration, mock_db, mock_request
+    ):
+        """A failed action is a FAILURE event and changed nothing worth auditing."""
+        event_integration.event_service.log_event.return_value = MockEventLogModel()
+
+        await event_integration.log_model_event(
+            db=mock_db,
+            event_type=EventType.DELETE,
+            model=MockModel,
+            user_id=3,
+            session_id="test-session-3",
+            request=mock_request,
+            deleted_records=[{"id": 1}],
+            succeeded=False,
+        )
+
+        logged_status = event_integration.event_service.log_event.call_args.kwargs[
+            "status"
+        ]
+        assert logged_status == EventStatus.FAILURE
+        event_integration.event_service.create_audit_log.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_log_model_event_rolls_back_when_an_audit_write_fails(
+        self, event_integration, mock_db, mock_request
+    ):
+        event_integration.event_service.log_event.return_value = MockEventLogModel()
+        event_integration.event_service.create_audit_log.side_effect = RuntimeError(
+            "audit table missing"
+        )
+
+        with pytest.raises(RuntimeError):
+            await event_integration.log_model_event(
+                db=mock_db,
+                event_type=EventType.UPDATE,
+                model=MockModel,
+                user_id=3,
+                session_id="test-session-3",
+                request=mock_request,
+                resource_id="5",
+            )
+
+        mock_db.rollback.assert_called_once()
+        mock_db.commit.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_log_model_event_no_resource_id_no_audit(
@@ -260,6 +307,7 @@ class TestLogModelEvent:
             resource_type="MockModel",
             resource_id=None,
             details=None,
+            commit=False,
         )
 
         # Verify audit log was NOT created (no resource_id)
@@ -320,6 +368,7 @@ class TestLogModelEvent:
             resource_type="MockModel",
             resource_id="123",  # Should be converted to string
             details=None,
+            commit=False,
         )
 
         # Verify audit log was created with string resource_id
@@ -332,6 +381,7 @@ class TestLogModelEvent:
             previous_state=None,
             new_state=None,
             metadata=None,
+            commit=False,
         )
 
         mock_db.commit.assert_called_once()
@@ -595,7 +645,7 @@ class TestLogSecurityEvent:
         mock_event = MockEventLogModel()
         event_integration.event_service.log_event.return_value = mock_event
 
-        details = {}
+        details: dict[str, Any] = {}
 
         result = await event_integration.log_security_event(
             db=mock_db,
@@ -694,6 +744,7 @@ class TestEventSystemIntegrationEdgeCases:
             previous_state=previous_state,
             new_state=new_state,
             metadata=None,
+            commit=False,
         )
 
         assert result == mock_event
@@ -750,7 +801,6 @@ class TestEventSystemIntegrationEdgeCases:
         mock_event = MockEventLogModel()
         event_integration.event_service.log_event.return_value = mock_event
 
-        # Test each event type
         crud_events = [EventType.CREATE, EventType.UPDATE, EventType.DELETE]
         non_crud_events = [EventType.LOGIN, EventType.LOGOUT, EventType.FAILED_LOGIN]
 
@@ -766,9 +816,9 @@ class TestEventSystemIntegrationEdgeCases:
                 session_id="test-session",
                 request=mock_request,
                 resource_id="123",
+                deleted_records=[{"id": 123}],
             )
 
-            # Should create audit log for CRUD events
             event_integration.event_service.create_audit_log.assert_called_once()
 
         # Test non-CRUD events - should NOT create audit logs

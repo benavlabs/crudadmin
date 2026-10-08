@@ -68,8 +68,12 @@ class CustomJSONEncoder(json.JSONEncoder):
 class EventService:
     def __init__(self, db_config):
         self.db_config = db_config
-        self.crud_events = FastCRUD(db_config.AdminEventLog)
-        self.crud_audits = FastCRUD(db_config.AdminAuditLog)
+        self.crud_events: FastCRUD[Any, Any, Any, Any, Any, Any] = FastCRUD(
+            db_config.AdminEventLog
+        )
+        self.crud_audits: FastCRUD[Any, Any, Any, Any, Any, Any] = FastCRUD(
+            db_config.AdminAuditLog
+        )
         self.json_encoder = CustomJSONEncoder()
 
     def _serialize_dict(self, data: Optional[dict]) -> dict:
@@ -88,6 +92,7 @@ class EventService:
         resource_type: Optional[str] = None,
         resource_id: Optional[str] = None,
         details: Optional[dict] = None,
+        commit: bool = True,
     ) -> AdminEventLogRead:
         try:
             ip_address = request.client.host if request.client else "unknown"
@@ -109,12 +114,9 @@ class EventService:
                 object=event_data,
                 schema_to_select=AdminEventLogRead,
                 return_as_model=False,
+                commit=commit,
             )
-
-            event_read = AdminEventLogRead(**cast(dict, result))
-
-            await db.commit()
-            return event_read
+            return AdminEventLogRead(**cast(dict, result))
 
         except Exception as e:
             logger.error(f"Error logging event: {str(e)}", exc_info=True)
@@ -130,6 +132,7 @@ class EventService:
         previous_state: Optional[dict] = None,
         new_state: Optional[dict] = None,
         metadata: Optional[dict] = None,
+        commit: bool = True,
     ) -> AdminAuditLogRead:
         try:
             audit_data = AdminAuditLogCreate(
@@ -150,6 +153,7 @@ class EventService:
                 object=audit_data,
                 schema_to_select=AdminAuditLogRead,
                 return_as_model=False,
+                commit=commit,
             )
 
             return AdminAuditLogRead(**cast(dict, result))
