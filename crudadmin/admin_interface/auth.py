@@ -3,10 +3,13 @@
 crudauth keeps the sessions, CSRF tokens and login lockout, and verifies
 passwords. This module configures it for the admin: admins log in by username,
 the session cookies and storage keys are namespaced so the admin can run beside
-a host app that uses crudauth too, and password hashes written by crudadmin 0.5
-and earlier keep verifying (and are upgraded on the next login).
+a host app that uses crudauth too, or beside other admins, and password hashes
+written by crudadmin 0.5 and earlier keep verifying (and are upgraded on the
+next login).
 """
 
+import hashlib
+import hmac
 import logging
 from typing import Any, Callable, Optional
 from urllib.parse import urlsplit
@@ -37,9 +40,7 @@ logger = logging.getLogger(__name__)
 
 SESSION_COOKIE_NAME = "crudadmin_session"
 CSRF_COOKIE_NAME = "crudadmin_csrf"
-SESSION_STORAGE_PREFIX = "crudadmin:session:"
-CSRF_STORAGE_PREFIX = "crudadmin:csrf:"
-RATE_LIMIT_PREFIX = "crudadmin:rl:"
+KEY_PREFIX = "crudadmin:"
 STORE_TABLE = "crudadmin_auth_store"
 COUNTER_TABLE = "crudadmin_auth_counters"
 
@@ -49,6 +50,27 @@ ADMIN_LOGIN_LOCKOUT = LockoutConfig(
     on_login_success="clear_all",
     lockout_max_seconds=5 * 60,
 )
+
+
+def storage_key_prefix(secret_key: str, mount_prefix: str) -> str:
+    """The prefix of every key the admin stores: sessions, CSRF tokens, lockout counters.
+
+    It holds a fingerprint of the secret key and the admin's mount path, so admins
+    that share one Redis or one admin database never read each other's keys:
+    neither two admins in one app at different paths, nor two apps that mount an
+    admin at the same path. The fingerprint is an HMAC of a fixed label, so key
+    names reveal nothing about the secret.
+
+    Example:
+        ```python
+        storage_key_prefix(SECRET_KEY, "/admin")
+        ```
+        returns ``"crudadmin:3fa9c1d2e4b5/admin:"`` for some fingerprint.
+    """
+    fingerprint = hmac.new(
+        secret_key.encode(), b"crudadmin storage keys", hashlib.sha256
+    ).hexdigest()[:12]
+    return f"{KEY_PREFIX}{fingerprint}{mount_prefix}:"
 
 
 class ReauthenticationRequired(Exception):
@@ -69,7 +91,9 @@ class AdminAuthentication:
     Args:
         database_config: The admin database; admins and, with the ``database``
             backend, sessions and lockout counters live there.
-        secret_key: Keys the stored session and CSRF identifiers.
+        secret_key: crudauth's secret key. Its fingerprint and ``mount_prefix``
+            namespace the stored keys; see [storage_key_prefix][].
+        mount_prefix: The admin's URL prefix (``"/admin"``, or ``""`` at the root).
         cookie_path: Path the session cookies are scoped to (the admin's prefix).
         secure_cookies: Send the cookies over HTTPS only.
         session_backend: ``"memory"``, ``"redis"`` or ``"database"``.
@@ -92,6 +116,7 @@ class AdminAuthentication:
         database_config: DatabaseConfig,
         secret_key: str,
         *,
+        mount_prefix: str = "",
         cookie_path: str = "/",
         secure_cookies: bool = True,
         session_backend: str = "memory",
@@ -109,6 +134,7 @@ class AdminAuthentication:
                 f"{', '.join(SESSION_BACKENDS)}"
             )
         self.db_config = database_config
+        self.key_prefix = storage_key_prefix(secret_key, mount_prefix)
 
         self.database_store: Optional[DatabaseStore] = None
         if session_backend == "database":
@@ -123,8 +149,8 @@ class AdminAuthentication:
             redis_client=redis_client if session_backend == "redis" else None,
             cookie_name=SESSION_COOKIE_NAME,
             csrf_cookie_name=CSRF_COOKIE_NAME,
-            storage_prefix=SESSION_STORAGE_PREFIX,
-            csrf_storage_prefix=CSRF_STORAGE_PREFIX,
+            storage_prefix=f"{self.key_prefix}session:",
+            csrf_storage_prefix=f"{self.key_prefix}csrf:",
             cookies=CookieConfig(
                 secure=secure_cookies, samesite="strict", path=cookie_path
             ),
@@ -140,7 +166,7 @@ class AdminAuthentication:
             identity=IdentityConfig(login=["username"], recovery=None),
             transports=[self.session_transport],
             database_store=self.database_store,
-            rate_limit_prefix=RATE_LIMIT_PREFIX,
+            rate_limit_prefix=f"{self.key_prefix}rl:",
             lockout=lockout or ADMIN_LOGIN_LOCKOUT,
             trusted_proxy_hops=trusted_proxy_hops,
             legacy_verifiers=[verify_plain_bcrypt],

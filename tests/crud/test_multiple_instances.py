@@ -2,12 +2,14 @@
 
 Each instance that builds its own ``DatabaseConfig`` gets a declarative base of
 its own, so the admin tables don't collide, and each keeps its own admins,
-sessions and models.
+sessions and models. Instances that share one session store keep their keys
+apart by secret key and mount path.
 """
 
 from typing import Optional
 
 import pytest
+from crudauth.ratelimit import DatabaseRateLimiterBackend
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from pydantic import BaseModel
@@ -16,6 +18,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from crudadmin import CRUDAdmin
+from crudadmin.admin_interface.auth import storage_key_prefix
 
 SESSION_COOKIE = "crudadmin_session"
 
@@ -160,3 +163,72 @@ def test_a_session_from_one_admin_is_refused_by_the_other(tmp_path):
 
         assert response.status_code == 303
         assert response.headers["location"].startswith("/support/login")
+
+
+def _admin_on_shared_store(tmp_path, mount_path: str) -> CRUDAdmin:
+    return CRUDAdmin(
+        session=_no_session,
+        SECRET_KEY="s" * 32,
+        mount_path=mount_path,
+        admin_db_url=f"sqlite+aiosqlite:///{tmp_path}/shared.db",
+        session_backend="database",
+        secure_cookies=False,
+        initial_admin={"username": "admin", "password": "admin-password-123"},
+    )
+
+
+def test_admins_sharing_a_session_store_keep_their_sessions_apart(tmp_path):
+    content = _admin_on_shared_store(tmp_path, "/content")
+    support = _admin_on_shared_store(tmp_path, "/support")
+    app = FastAPI()
+    app.mount("/content", content.app)
+    app.mount("/support", support.app)
+
+    with TestClient(app, follow_redirects=False, client=("127.0.0.1", 50000)) as client:
+        assert client.portal is not None
+        client.portal.call(content.initialize)
+        client.portal.call(support.initialize)
+        login = client.post(
+            "/content/login",
+            data={"username": "admin", "password": "admin-password-123"},
+        )
+        assert login.status_code == 303
+        content_session = client.cookies[SESSION_COOKIE]
+        client.cookies.clear()
+
+        response = client.get(
+            "/support/", headers={"Cookie": f"{SESSION_COOKIE}={content_session}"}
+        )
+
+        assert response.status_code == 303
+        assert response.headers["location"].startswith("/support/login")
+
+
+def test_stored_keys_are_namespaced_by_secret_key_and_mount_path():
+    prefix = storage_key_prefix("a" * 32, "/admin")
+
+    assert prefix.startswith("crudadmin:") and prefix.endswith("/admin:")
+    assert "a" * 12 not in prefix
+    assert storage_key_prefix("a" * 32, "/admin") == prefix
+    assert storage_key_prefix("b" * 32, "/admin") != prefix
+    assert storage_key_prefix("a" * 32, "/other") != prefix
+    assert storage_key_prefix("a" * 32, "") != prefix
+
+
+def test_every_store_uses_the_admin_key_prefix(tmp_path):
+    admin = CRUDAdmin(
+        session=_no_session,
+        SECRET_KEY="k" * 32,
+        mount_path="/backoffice",
+        admin_db_url=f"sqlite+aiosqlite:///{tmp_path}/admin.db",
+        session_backend="database",
+    )
+    authentication = admin.admin_authentication
+    expected = storage_key_prefix("k" * 32, "/backoffice")
+    limiter = authentication.auth.runtime.rate_limiter
+    assert isinstance(limiter, DatabaseRateLimiterBackend)
+
+    assert authentication.key_prefix == expected
+    assert authentication.session_transport.storage_prefix == f"{expected}session:"
+    assert authentication.session_transport.csrf_storage_prefix == f"{expected}csrf:"
+    assert limiter.prefix == f"{expected}rl:"

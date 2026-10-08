@@ -598,7 +598,7 @@ app.mount("/content", content_admin.app)
 app.mount("/service", service_admin.app)
 ```
 
-Call `initialize()` and `shutdown()` on each in your lifespan. The instances keep separate admin accounts, and their session cookies are scoped to their own paths. With the Redis or database session backend, point them at different Redis databases or admin databases so their sessions stay apart.
+Call `initialize()` and `shutdown()` on each in your lifespan. The instances keep separate admin accounts, their session cookies are scoped to their own paths, and they can share one Redis: each stores its keys under its own prefix (see [Session Backends](session-backends.md)).
 
 ---
 

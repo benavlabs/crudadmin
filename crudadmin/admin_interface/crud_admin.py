@@ -484,6 +484,7 @@ class CRUDAdmin:
         self.admin_authentication = AdminAuthentication(
             database_config=self.db_config,
             secret_key=SECRET_KEY,
+            mount_prefix=self.paths.prefix,
             cookie_path=self.paths.cookie_path,
             secure_cookies=secure_cookies,
             session_backend=self._session_backend,
