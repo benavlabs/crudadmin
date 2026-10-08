@@ -1,7 +1,7 @@
 import os
 import tempfile
 from typing import Any
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 from fastapi import APIRouter, FastAPI
@@ -140,8 +140,6 @@ async def test_crud_admin_with_allowed_ips(async_session):
         db_config=db_config,
         setup_on_initialization=False,
     )
-
-    from unittest.mock import patch
 
     with patch("crudadmin.admin_interface.crud_admin.AdminSite") as mock_admin_site:
         mock_site_instance = Mock()
@@ -311,24 +309,6 @@ async def test_crud_admin_add_view_exclude_from_models(
 
 
 @pytest.mark.asyncio
-async def test_crud_admin_setup_event_routes(async_session):
-    """Test setting up event routes."""
-    secret_key = "test-secret-key-for-testing-only-32-chars"
-    db_config = create_test_db_config(async_session, include_event_models=True)
-
-    admin = CRUDAdmin(
-        session=async_session,
-        SECRET_KEY=secret_key,
-        track_events=True,
-        db_config=db_config,
-        setup_on_initialization=False,
-    )
-
-    admin.admin_authentication.get_current_user = Mock(return_value=Mock())  # type: ignore[method-assign]
-    admin.setup_event_routes()
-
-
-@pytest.mark.asyncio
 async def test_crud_admin_initialize(async_session):
     """Test CRUDAdmin initialization process."""
     secret_key = "test-secret-key-for-testing-only-32-chars"
@@ -347,29 +327,26 @@ async def test_crud_admin_initialize(async_session):
     assert True  # If we get here, initialization succeeded
 
 
-@pytest.mark.asyncio
-async def test_crud_admin_create_initial_admin(async_session):
-    """Test creating initial admin user."""
-    secret_key = "test-secret-key-for-testing-only-32-chars"
-    initial_admin = {
-        "username": "admin",
-        "password": "SecurePass123!",
-    }
-    db_config = create_test_db_config(async_session)
+async def test_initialize_creates_the_initial_admin_once_as_a_superuser(tmp_path):
+    async def no_session():
+        yield None
 
     admin = CRUDAdmin(
-        session=async_session,
-        SECRET_KEY=secret_key,
-        initial_admin=initial_admin,
-        db_config=db_config,
-        setup_on_initialization=False,
+        session=no_session,
+        SECRET_KEY="test-secret-key-for-testing-only-32-chars",
+        admin_db_url=f"sqlite+aiosqlite:///{tmp_path}/admin.db",
+        initial_admin={"username": "admin", "password": "SecurePass123!"},
     )
 
-    with patch.object(
-        admin, "_create_initial_admin", new_callable=AsyncMock
-    ) as mock_create:
-        await admin._create_initial_admin(initial_admin)
-        mock_create.assert_called_once_with(initial_admin)
+    await admin.initialize()
+    await admin.initialize()
+
+    async with admin.db_config.admin_session_maker() as db:
+        admins = await admin.db_config.crud_users.get_multi(db)
+    assert [(a["username"], a["is_superuser"]) for a in admins["data"]] == [
+        ("admin", True)
+    ]
+    await admin.shutdown()
 
 
 @pytest.mark.asyncio
@@ -384,8 +361,6 @@ async def test_crud_admin_setup(async_session):
         db_config=db_config,
         setup_on_initialization=False,
     )
-
-    from unittest.mock import patch
 
     with patch.object(admin, "admin_authentication") as mock_auth:
         mock_auth.get_current_user.return_value = Mock()
@@ -420,28 +395,6 @@ async def test_crud_admin_app_creation(async_session):
     # Verify that the admin has a FastAPI app
     assert hasattr(admin, "app")
     assert isinstance(admin.app, FastAPI)
-
-
-@pytest.mark.asyncio
-async def test_crud_admin_health_check_routes(async_session):
-    """Test health check route creation."""
-    secret_key = "test-secret-key-for-testing-only-32-chars"
-    db_config = create_test_db_config(async_session)
-
-    admin = CRUDAdmin(
-        session=async_session,
-        SECRET_KEY=secret_key,
-        db_config=db_config,
-        setup_on_initialization=False,
-    )
-
-    # Test health check page endpoint
-    health_check_func = admin.health_check_page()
-    assert callable(health_check_func)
-
-    # Test health check content endpoint
-    health_content_func = admin.health_check_content()
-    assert callable(health_content_func)
 
 
 @pytest.mark.asyncio

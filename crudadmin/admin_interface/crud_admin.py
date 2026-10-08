@@ -1,10 +1,5 @@
-import logging
 import os
-import sys
-import time
-import warnings
-from collections.abc import Awaitable, Callable
-from datetime import datetime, timedelta, timezone
+from collections.abc import Callable
 from typing import (
     Any,
     AsyncGenerator,
@@ -14,54 +9,33 @@ from typing import (
     Optional,
     Type,
     TypedDict,
-    TypeVar,
     Union,
     cast,
 )
 
-if sys.version_info >= (3, 10):
-    from typing import TypeAlias
-else:
-    from typing_extensions import TypeAlias
-
-from crudauth import AuthHooks, HookContext, get_password_hash_async
-from crudauth.exceptions import CSRFException, ForbiddenException
-from crudauth.exceptions import UnauthorizedException as AuthUnauthorizedException
+from crudauth import AuthHooks
 from crudauth.ratelimit import LockoutConfig
-from fastapi import APIRouter, Depends, FastAPI, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import APIRouter, Depends, FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastcrud import FastCRUD
 from pydantic import BaseModel
-from sqlalchemy import text
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 
-from ..admin_interface.auth import AdminAuthentication, ReauthenticationRequired
-from ..admin_interface.middleware.auth import AdminAuthMiddleware, login_redirect
+from ..admin_interface.auth import AdminAuthentication
+from ..admin_interface.middleware.auth import AdminAuthMiddleware
 from ..admin_interface.middleware.ip_restriction import IPRestrictionMiddleware
-from ..admin_user.schemas import (
-    AdminUserCreate,
-    AdminUserCreateInternal,
-)
 from ..core.db import DatabaseConfig, new_admin_base
 from ..session.configs import MemcachedConfig, RedisConfig
+from .admin_accounts import create_initial_admin
 from .admin_site import AdminSite
+from .auth_events import auth_event_hooks
+from .exception_handlers import add_auth_exception_handlers
+from .management import ManagementPages
 from .model_view import ModelView
 from .paths import AdminPaths
-from .typing import RouteResponse
-
-UTC = timezone.utc
-
-logger = logging.getLogger("crudadmin")
-
-ModelType = TypeVar("ModelType", bound=DeclarativeBase)
-SchemaType = TypeVar("SchemaType", bound=BaseModel)
-EndpointFunction: TypeAlias = Callable[
-    [Request, AsyncSession], Awaitable[RouteResponse]
-]
+from .session_backends import build_redis_client, resolve_session_backend
 
 
 class ProtectedRouter(NamedTuple):
@@ -80,17 +54,6 @@ class ModelConfig(TypedDict):
     delete_schema: Optional[Type[BaseModel]]
     crud: FastCRUD
     display_field: Optional[str]
-
-
-class AdminModelProtocol:
-    """
-    Protocol-like class to indicate an Admin model.
-    (For simpler mypy compatibility, we avoid `Protocol` here and
-    ensure it fits `DeclarativeBase`.)
-    """
-
-    __tablename__: str
-    metadata: Any
 
 
 class CRUDAdmin:
@@ -416,7 +379,7 @@ class CRUDAdmin:
         self.paths = AdminPaths.for_mount_segment(self.mount_path)
         self.theme = theme or "dark-theme"
         self.track_events = track_events
-        self._session_backend = self._resolve_session_backend(
+        self._session_backend = resolve_session_backend(
             session_backend, track_sessions_in_db, memcached_config
         )
 
@@ -476,7 +439,7 @@ class CRUDAdmin:
         self.secure_cookies = secure_cookies
 
         self._redis_client = (
-            self._build_redis_client(redis_config)
+            build_redis_client(redis_config)
             if self._session_backend == "redis"
             else None
         )
@@ -498,7 +461,7 @@ class CRUDAdmin:
         )
 
         self.templates = Jinja2Templates(directory=self.templates_directory)
-        self._add_exception_handlers()
+        add_auth_exception_handlers(self.app, self.paths)
 
         if setup_on_initialization:
             self.setup()
@@ -535,206 +498,13 @@ class CRUDAdmin:
         """
         return self.admin_authentication.auth.sessions
 
-    @staticmethod
-    def _resolve_session_backend(
-        session_backend: str,
-        track_sessions_in_db: bool,
-        memcached_config: Optional[Union[MemcachedConfig, Dict[str, Any]]],
-    ) -> str:
-        """Map the ``session_backend`` setting onto the backends crudadmin supports.
-
-        crudadmin 0.6 keeps sessions with crudauth, in memory, Redis or the admin
-        database. Memcached is gone and fails here rather than silently falling back
-        to memory, which would log admins out between workers. "hybrid" was Redis
-        with a copy in the database; it now means Redis, with a deprecation warning.
-        """
-        backend = (session_backend or "memory").lower()
-        if backend == "memcached" or memcached_config is not None:
-            raise ValueError(
-                "session_backend='memcached' is no longer supported. Use 'redis' for "
-                "a shared session store, or 'database' to keep sessions in the admin "
-                "database without extra infrastructure."
-            )
-        if backend == "hybrid":
-            warnings.warn(
-                "session_backend='hybrid' is deprecated and will be removed: it now "
-                "means 'redis'. Sessions are listed on the Sessions page and logins "
-                "are recorded in the event log (track_events=True).",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-            backend = "redis"
-        if track_sessions_in_db:
-            warnings.warn(
-                "track_sessions_in_db is deprecated and will be removed: sessions are "
-                "listed on the Sessions page and logins are recorded in the event log "
-                "(track_events=True). Use session_backend='database' to keep sessions "
-                "in the admin database.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-            if backend == "memory":
-                backend = "database"
-        if backend not in ("memory", "redis", "database"):
-            raise ValueError(
-                f"Unknown session_backend {backend!r}: use 'memory', 'redis' or 'database'."
-            )
-        return backend
-
-    @staticmethod
-    def _build_redis_client(
-        redis_config: Optional[Union[RedisConfig, Dict[str, Any]]],
-    ) -> Any:
-        """An async Redis client for the ``redis`` session backend."""
-        try:
-            from redis.asyncio import Redis
-        except ImportError as error:
-            raise ImportError(
-                "session_backend='redis' needs the redis package: "
-                "pip install 'crudadmin[redis]'"
-            ) from error
-
-        if redis_config is None:
-            config = RedisConfig()
-        elif isinstance(redis_config, RedisConfig):
-            config = redis_config
-        elif isinstance(redis_config, dict):
-            config = RedisConfig(**redis_config)
-        else:
-            raise ValueError("redis_config must be RedisConfig instance or dict")
-
-        options: Dict[str, Any] = {}
-        if config.pool_size is not None:
-            options["max_connections"] = config.pool_size
-        if config.connect_timeout is not None:
-            options["socket_connect_timeout"] = config.connect_timeout
-        if config.url is not None:
-            return Redis.from_url(config.url, **options)
-        return Redis(
-            host=config.host,
-            port=config.port,
-            db=config.db,
-            username=config.username,
-            password=config.password,
-            **options,
-        )
-
     def _auth_hooks(self) -> AuthHooks:
-        """Record logins, logouts, refused logins and lockouts in the event log."""
+        """Hooks that record authentication in the event log, when events are tracked."""
         if not self.track_events or self.event_integration is None:
             return AuthHooks()
-
-        from ..event import EventType
-
-        integration = self.event_integration
-        session_maker = self.db_config.admin_session_maker
-
-        def details(context: HookContext, **extra: Any) -> Dict[str, Any]:
-            return {
-                "auth_details": {
-                    "ip_address": context.ip_address or "unknown",
-                    "user_agent": context.user_agent or "unknown",
-                    **extra,
-                },
-                "session_details": {"session_id": context.session_handle or "unknown"},
-            }
-
-        async def record(
-            event_type: Any,
-            user_id: Optional[int],
-            context: HookContext,
-            success: bool,
-            event_details: Dict[str, Any],
-        ) -> None:
-            async with session_maker() as db:
-                await integration.log_auth_event(
-                    db=db,
-                    event_type=event_type,
-                    user_id=user_id or 0,
-                    session_id=context.session_handle or "unknown",
-                    request=context.request,
-                    success=success,
-                    details=event_details,
-                )
-
-        async def on_after_login(
-            user: dict, *, request: Any, context: HookContext
-        ) -> None:
-            await record(
-                EventType.LOGIN,
-                user.get("id"),
-                context,
-                True,
-                details(context, username=user.get("username")),
-            )
-
-        async def on_after_logout(
-            user: dict, *, request: Any, context: HookContext
-        ) -> None:
-            await record(
-                EventType.LOGOUT,
-                user.get("id"),
-                context,
-                True,
-                details(context, username=user.get("username")),
-            )
-
-        async def on_login_failed(
-            identifier: str, *, user: Optional[dict], reason: str, context: HookContext
-        ) -> None:
-            event_details = details(context, username=identifier, reason=reason)
-            event_details["username"] = identifier
-            await record(
-                EventType.FAILED_LOGIN,
-                (user or {}).get("id"),
-                context,
-                False,
-                event_details,
-            )
-
-        async def on_lockout(
-            identifier: str, *, retry_after: int, context: HookContext
-        ) -> None:
-            event_details = details(
-                context, username=identifier, reason="lockout", retry_after=retry_after
-            )
-            event_details["username"] = identifier
-            await record(EventType.FAILED_LOGIN, None, context, False, event_details)
-
-        return AuthHooks(
-            on_after_login=on_after_login,
-            on_after_logout=on_after_logout,
-            on_login_failed=on_login_failed,
-            on_lockout=on_lockout,
+        return auth_event_hooks(
+            self.event_integration, self.db_config.admin_session_maker
         )
-
-    def _add_exception_handlers(self) -> None:
-        """Turn authentication failures into pages and redirects a browser can follow."""
-        paths = self.paths
-
-        async def unauthorized(request: Request, exc: Exception) -> Any:
-            return login_redirect(request, paths.login_with_error("session_ended"))
-
-        async def reauthenticate(request: Request, exc: Exception) -> Any:
-            assert isinstance(exc, ReauthenticationRequired)
-            target = paths.sudo(exc.next_path)
-            if request.headers.get("HX-Request"):
-                return HTMLResponse(status_code=204, headers={"HX-Redirect": target})
-            return RedirectResponse(url=target, status_code=303)
-
-        async def forbidden(request: Request, exc: Exception) -> Any:
-            message = (
-                "This request is missing its security token. Reload the page and "
-                "try again."
-                if isinstance(exc, CSRFException)
-                else "You don't have permission to do that."
-            )
-            return HTMLResponse(message, status_code=403)
-
-        self.app.add_exception_handler(AuthUnauthorizedException, unauthorized)
-        self.app.add_exception_handler(ReauthenticationRequired, reauthenticate)
-        self.app.add_exception_handler(ForbiddenException, forbidden)
-        self.app.add_exception_handler(CSRFException, forbidden)
 
     def get_url_prefix(self) -> str:
         """Get the URL prefix for admin routes, handling root mount path correctly."""
@@ -797,7 +567,7 @@ class CRUDAdmin:
         await self.admin_authentication.initialize()
 
         if self.initial_admin:
-            await self._create_initial_admin(self.initial_admin)
+            await create_initial_admin(self.db_config, self.initial_admin)
 
     async def shutdown(self) -> None:
         """Close the session stores and the Redis client crudadmin opened.
@@ -807,234 +577,6 @@ class CRUDAdmin:
         await self.admin_authentication.shutdown()
         if self._redis_client is not None:
             await self._redis_client.aclose()
-
-    def setup_event_routes(self) -> None:
-        """
-        Set up routes for event log management.
-
-        Creates endpoints:
-        - GET /management/events - Event log page
-        - GET /management/events/content - Event log data
-
-        Notes:
-            - Only created if track_events=True
-            - Routes require authentication
-        """
-        if self.track_events:
-            self.router.add_api_route(
-                "/management/events",
-                self.event_log_page(),
-                methods=["GET"],
-                include_in_schema=False,
-                dependencies=[
-                    Depends(self.admin_authentication.get_current_superuser())
-                ],
-                response_model=None,
-            )
-            self.router.add_api_route(
-                "/management/events/content",
-                self.event_log_content(),
-                methods=["GET"],
-                include_in_schema=False,
-                dependencies=[
-                    Depends(self.admin_authentication.get_current_superuser())
-                ],
-                response_model=None,
-            )
-
-    def event_log_page(
-        self,
-    ) -> Callable[[Request, AsyncSession], Awaitable[RouteResponse]]:
-        """
-        Create endpoint for event log main page.
-
-        Returns:
-            FastAPI route handler that renders event log template
-            with filtering options
-        """
-
-        admin_db_db_dependency = cast(
-            Callable[..., AsyncSession], self.db_config.get_admin_db
-        )
-
-        async def event_log_page_inner(
-            request: Request,
-            admin_db: AsyncSession = Depends(admin_db_db_dependency),
-        ) -> RouteResponse:
-            from ..event import EventStatus, EventType
-
-            users = await self.db_config.crud_users.get_multi(db=admin_db)
-
-            context = self.admin_site.get_base_context(request)
-            context.update(
-                {
-                    "include_sidebar_and_header": True,
-                    "event_types": [e.value for e in EventType],
-                    "statuses": [s.value for s in EventStatus],
-                    "users": users["data"],
-                    "url_prefix": self.get_url_prefix(),
-                }
-            )
-
-            return self.templates.TemplateResponse(
-                name="admin/management/events.html", request=request, context=context
-            )
-
-        return event_log_page_inner
-
-    def event_log_content(self) -> EndpointFunction:
-        """
-        Create endpoint for event log data with filtering and pagination.
-
-        Returns:
-            FastAPI route handler that provides filtered event data
-            with user and audit details
-
-        Notes:
-            - Supports filtering by:
-            - Event type
-            - Status
-            - Username
-            - Date range
-            - Returns enriched events with:
-            - Username
-            - Resource details
-            - Audit trail data
-            - Includes pagination metadata
-
-        Examples:
-            Filter events:
-            GET /management/events/content?event_type=create&status=success
-
-            Filter by date:
-            GET /management/events/content?start_date=2024-01-01&end_date=2024-01-31
-        """
-
-        admin_db_db_dependency = cast(
-            Callable[..., AsyncSession], self.db_config.get_admin_db
-        )
-
-        async def event_log_content_inner(
-            request: Request,
-            admin_db: AsyncSession = Depends(admin_db_db_dependency),
-            page: int = 1,
-            limit: int = 10,
-        ) -> RouteResponse:
-            try:
-                if not self.db_config.AdminEventLog:
-                    raise ValueError("AdminEventLog is not configured")
-
-                crud_events: FastCRUD = FastCRUD(self.db_config.AdminEventLog)
-
-                event_type = request.query_params.get("event_type")
-                status = request.query_params.get("status")
-                username = request.query_params.get("username")
-                start_date = request.query_params.get("start_date")
-                end_date = request.query_params.get("end_date")
-
-                filter_criteria: Dict[str, Any] = {}
-                if event_type:
-                    filter_criteria["event_type"] = event_type
-                if status:
-                    filter_criteria["status"] = status
-
-                if username:
-                    user = await self.db_config.crud_users.get(
-                        db=admin_db, username=username
-                    )
-                    if user and isinstance(user, dict):
-                        filter_criteria["user_id"] = user.get("id")
-
-                if start_date:
-                    start = datetime.strptime(start_date, "%Y-%m-%d").replace(
-                        tzinfo=UTC
-                    )
-                    filter_criteria["timestamp__gte"] = start
-
-                if end_date:
-                    end = (
-                        datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
-                    ).replace(tzinfo=UTC)
-                    filter_criteria["timestamp__lt"] = end
-
-                events = await crud_events.get_multi(
-                    db=admin_db,
-                    offset=(page - 1) * limit,
-                    limit=limit,
-                    sort_columns=["timestamp"],
-                    sort_orders=["desc"],
-                    **filter_criteria,
-                )
-
-                enriched_events = []
-                if isinstance(events["data"], list):
-                    for event in events["data"]:
-                        if isinstance(event, dict):
-                            event_data = dict(event)
-                            user = await self.db_config.crud_users.get(
-                                db=admin_db, id=event.get("user_id")
-                            )
-                            if isinstance(user, dict):
-                                event_data["username"] = user.get("username", "Unknown")
-
-                            if event.get("resource_type") and event.get("resource_id"):
-                                if not self.db_config.AdminAuditLog:
-                                    raise ValueError("AdminAuditLog is not configured")
-
-                                crud_audits: FastCRUD = FastCRUD(
-                                    self.db_config.AdminAuditLog
-                                )
-                                audit = await crud_audits.get(
-                                    db=admin_db, event_id=event.get("id")
-                                )
-                                if audit and isinstance(audit, dict):
-                                    event_data["details"] = {
-                                        "resource_details": {
-                                            "model": event.get("resource_type"),
-                                            "id": event.get("resource_id"),
-                                            "changes": audit.get("new_state"),
-                                        }
-                                    }
-
-                            enriched_events.append(event_data)
-
-                total_items = events.get("total_count", 0)
-                assert isinstance(total_items, int), (
-                    f"'total_count' should be int, got {type(total_items)}"
-                )
-
-                total_pages = max(1, (total_items + limit - 1) // limit)
-
-                return self.templates.TemplateResponse(
-                    name="admin/management/events_content.html",
-                    request=request,
-                    context={
-                        "events": enriched_events,
-                        "page": page,
-                        "total_pages": total_pages,
-                        "url_prefix": self.get_url_prefix(),
-                        "start_date": start_date,
-                        "end_date": end_date,
-                        "selected_type": event_type,
-                        "selected_status": status,
-                        "selected_user": username,
-                    },
-                )
-
-            except Exception as e:
-                logger.error(f"Error retrieving events: {str(e)}")
-                return self.templates.TemplateResponse(
-                    name="admin/management/events_content.html",
-                    request=request,
-                    context={
-                        "events": [],
-                        "page": 1,
-                        "total_pages": 1,
-                        "url_prefix": self.get_url_prefix(),
-                    },
-                )
-
-        return event_log_content_inner
 
     def setup(
         self,
@@ -1096,10 +638,17 @@ class CRUDAdmin:
             )
 
         get_superuser_dependency = self.admin_authentication.get_current_superuser()
+        management = ManagementPages(
+            admin_site=self.admin_site,
+            templates=self.templates,
+            database_config=self.db_config,
+            admin_authentication=self.admin_authentication,
+            session_backend=self._session_backend,
+        )
 
         self.router.add_api_route(
             "/management/health",
-            self.health_check_page(),
+            management.health_check_page(),
             methods=["GET"],
             include_in_schema=False,
             response_model=None,
@@ -1107,7 +656,7 @@ class CRUDAdmin:
 
         self.router.add_api_route(
             "/management/health/content",
-            self.health_check_content(),
+            management.health_check_content(),
             methods=["GET"],
             include_in_schema=False,
             response_model=None,
@@ -1116,7 +665,7 @@ class CRUDAdmin:
         if self.track_events:
             self.router.add_api_route(
                 "/management/events",
-                self.event_log_page(),
+                management.event_log_page(),
                 methods=["GET"],
                 include_in_schema=False,
                 dependencies=[Depends(get_superuser_dependency)],
@@ -1124,7 +673,7 @@ class CRUDAdmin:
             )
             self.router.add_api_route(
                 "/management/events/content",
-                self.event_log_content(),
+                management.event_log_content(),
                 methods=["GET"],
                 include_in_schema=False,
                 dependencies=[Depends(get_superuser_dependency)],
@@ -1420,128 +969,3 @@ class CRUDAdmin:
         self._mount_protected(
             admin_view.router, prefix=f"/{model_key}", superuser=is_admin_user
         )
-
-    def health_check_page(
-        self,
-    ) -> Callable[[Request], Awaitable[RouteResponse]]:
-        """
-        Create endpoint for system health check page.
-
-        Returns:
-            FastAPI route handler that renders health check template
-        """
-
-        async def health_check_page_inner(request: Request) -> RouteResponse:
-            context = self.admin_site.get_base_context(request)
-            context.update({"include_sidebar_and_header": True})
-
-            return self.templates.TemplateResponse(
-                name="admin/management/health.html", request=request, context=context
-            )
-
-        return health_check_page_inner
-
-    def health_check_content(
-        self,
-    ) -> Callable[[Request, AsyncSession], Awaitable[RouteResponse]]:
-        """
-        Create endpoint for health check data.
-
-        Returns:
-            FastAPI route handler that checks:
-            - Database connectivity
-            - Session management
-            - Token service
-        """
-
-        db_dependency = cast(Callable[..., AsyncSession], self.db_config.session)
-
-        async def health_check_content_inner(
-            request: Request, db: AsyncSession = Depends(db_dependency)
-        ) -> RouteResponse:
-            health_checks = {}
-
-            start_time = time.time()
-            try:
-                await db.execute(text("SELECT 1"))
-                latency = (time.time() - start_time) * 1000
-                health_checks["database"] = {
-                    "status": "healthy",
-                    "message": "Connected successfully",
-                    "latency": latency,
-                }
-            except Exception:
-                logger.exception("Database health check failed")
-                health_checks["database"] = {
-                    "status": "unhealthy",
-                    "message": "The database is unreachable",
-                }
-
-            try:
-                limiter = self.admin_authentication.auth.runtime.rate_limiter
-                if limiter is not None:
-                    await limiter.ping()
-                health_checks["session_management"] = {
-                    "status": "healthy",
-                    "message": f"Session store: {self._session_backend}",
-                }
-            except Exception:
-                logger.exception("Session store health check failed")
-                health_checks["session_management"] = {
-                    "status": "unhealthy",
-                    "message": f"Session store ({self._session_backend}) is unreachable",
-                }
-
-            context = {
-                "health_checks": health_checks,
-                "last_checked": datetime.now(UTC),
-            }
-
-            return self.templates.TemplateResponse(
-                name="admin/management/health_content.html",
-                request=request,
-                context=context,
-            )
-
-        return health_check_content_inner
-
-    async def _create_initial_admin(self, admin_data: Union[dict, BaseModel]) -> None:
-        """Create the initial admin, as a superuser, if no admin exists yet.
-
-        Several workers may start at once; if another one created the admin first,
-        the unique username makes this insert fail and it is skipped.
-
-        Raises:
-            ValueError: If admin_data is neither a dict nor a Pydantic model.
-        """
-        if isinstance(admin_data, AdminUserCreate):
-            create_data = admin_data
-        elif isinstance(admin_data, dict):
-            create_data = AdminUserCreate(**admin_data)
-        elif isinstance(admin_data, BaseModel):
-            create_data = AdminUserCreate(**admin_data.model_dump())
-        else:
-            raise ValueError(
-                "Initial admin data must be either a dict or Pydantic model"
-            )
-
-        async with self.db_config.admin_session_maker() as admin_session:
-            if await self.db_config.crud_users.count(admin_session) > 0:
-                return
-            internal_data = AdminUserCreateInternal(
-                username=create_data.username,
-                hashed_password=await get_password_hash_async(create_data.password),
-                is_superuser=True,
-            )
-            try:
-                await self.db_config.crud_users.create(
-                    admin_session, object=cast(Any, internal_data)
-                )
-                await admin_session.commit()
-            except IntegrityError:
-                await admin_session.rollback()
-                logger.info("Initial admin already created by another worker")
-                return
-            logger.info(
-                "Created initial admin user - username: %s", create_data.username
-            )
