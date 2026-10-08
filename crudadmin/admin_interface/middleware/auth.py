@@ -72,11 +72,8 @@ class AdminAuthMiddleware(BaseHTTPMiddleware):
         return not (300 <= response.status_code < 400)
 
     async def dispatch(self, request: Request, call_next):
-        url_prefix = self.admin_instance.get_url_prefix()
-
-        is_login_path = request.url.path.rstrip("/") == f"{url_prefix}/login"
-        is_static_path = request.url.path.startswith(f"{url_prefix}/static/")
-        if is_login_path or is_static_path:
+        paths = self.admin_instance.paths
+        if paths.is_public(request.url.path):
             return await call_next(request)
 
         authentication = self.admin_instance.admin_authentication
@@ -91,7 +88,7 @@ class AdminAuthMiddleware(BaseHTTPMiddleware):
         if principal is None:
             had_session = authentication.session_cookie_name in request.cookies
             reason = "session_ended" if had_session else "login_required"
-            return login_redirect(request, f"{url_prefix}/login?error={reason}")
+            return login_redirect(request, paths.login_with_error(reason))
 
         response = await call_next(request)
 

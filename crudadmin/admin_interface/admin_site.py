@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..admin_user.schemas import AdminUserRead
 from ..core.db import DatabaseConfig
 from .auth import AdminAuthentication
+from .paths import AdminPaths
 from .typing import RouteResponse
 
 logger = logging.getLogger(__name__)
@@ -64,65 +65,56 @@ class AdminSite:
     ) -> None:
         self.db_config: DatabaseConfig = database_config
         self.router: APIRouter = APIRouter()
+        self.public_router: APIRouter = APIRouter()
         self.templates: Jinja2Templates = Jinja2Templates(directory=templates_directory)
         self.models: Dict[str, Any] = models
         self.admin_authentication: AdminAuthentication = admin_authentication
         self.mount_path: str = mount_path
+        self.paths = AdminPaths.for_mount_segment(mount_path)
         self.theme: str = theme
         self.event_integration: Optional[Any] = event_integration
 
     def get_url_prefix(self) -> str:
         """Get the URL prefix for admin routes, handling root mount path correctly."""
-        return f"/{self.mount_path}" if self.mount_path else ""
+        return self.paths.prefix
 
     @property
     def dashboard_url(self) -> str:
-        return f"{self.get_url_prefix()}/"
+        return self.paths.home
 
     def setup_routes(self) -> None:
-        """Register the login, logout, dashboard, re-authentication and sessions routes."""
-        current_user = self.admin_authentication.get_current_user()
-        routes: list[tuple[str, EndpointCallable, str, list[Any]]] = [
-            ("/login", self.login_page(), "GET", []),
-            ("/login", self.login_endpoint(), "POST", []),
-            ("/logout", self.logout_endpoint(), "POST", []),
-            ("/sudo", self.sudo_page(), "GET", [Depends(current_user)]),
-            ("/sudo", self.sudo_endpoint(), "POST", [Depends(current_user)]),
-            ("/", self.dashboard_page(), "GET", [Depends(current_user)]),
-            (
-                "/dashboard-content",
-                self.dashboard_content(),
-                "GET",
-                [Depends(current_user)],
-            ),
-            (
-                "/management/sessions",
-                self.sessions_page(),
-                "GET",
-                [Depends(current_user)],
-            ),
-            (
-                "/management/sessions/content",
-                self.sessions_content(),
-                "GET",
-                [Depends(current_user)],
-            ),
-            (
-                "/management/sessions/revoke",
-                self.revoke_session_endpoint(),
-                "POST",
-                [Depends(current_user)],
-            ),
+        """Register the admin site's routes.
+
+        Login and logout go on ``public_router``. Everything else goes on
+        ``router``, which ``CRUDAdmin`` mounts behind the logged-in-admin
+        dependency, so a route added here is protected without declaring it.
+        """
+        public_routes: list[tuple[str, EndpointCallable, str]] = [
+            ("/login", self.login_page(), "GET"),
+            ("/login", self.login_endpoint(), "POST"),
+            ("/logout", self.logout_endpoint(), "POST"),
         ]
-        for path, endpoint, method, dependencies in routes:
-            self.router.add_api_route(
-                path,
-                endpoint,
-                methods=[method],
-                include_in_schema=False,
-                dependencies=dependencies,
-                response_model=None,
-            )
+        protected_routes: list[tuple[str, EndpointCallable, str]] = [
+            ("/sudo", self.sudo_page(), "GET"),
+            ("/sudo", self.sudo_endpoint(), "POST"),
+            ("/", self.dashboard_page(), "GET"),
+            ("/dashboard-content", self.dashboard_content(), "GET"),
+            ("/management/sessions", self.sessions_page(), "GET"),
+            ("/management/sessions/content", self.sessions_content(), "GET"),
+            ("/management/sessions/revoke", self.revoke_session_endpoint(), "POST"),
+        ]
+        for router, routes in (
+            (self.public_router, public_routes),
+            (self.router, protected_routes),
+        ):
+            for path, endpoint, method in routes:
+                router.add_api_route(
+                    path,
+                    endpoint,
+                    methods=[method],
+                    include_in_schema=False,
+                    response_model=None,
+                )
 
     def _login_response(
         self, request: Request, error: Optional[str], status_code: int = 200
@@ -196,9 +188,7 @@ class AdminSite:
             request: Request,
             db: AsyncSession = Depends(self.db_config.get_admin_db),
         ) -> RouteResponse:
-            response = RedirectResponse(
-                url=f"{self.get_url_prefix()}/login", status_code=303
-            )
+            response = RedirectResponse(url=self.paths.login, status_code=303)
             await transport.complete_logout(request, response, db)
             return response
 

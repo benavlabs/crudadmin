@@ -10,6 +10,7 @@ from typing import (
     AsyncGenerator,
     Dict,
     List,
+    NamedTuple,
     Optional,
     Type,
     TypedDict,
@@ -17,7 +18,6 @@ from typing import (
     Union,
     cast,
 )
-from urllib.parse import quote
 
 if sys.version_info >= (3, 10):
     from typing import TypeAlias
@@ -50,6 +50,7 @@ from ..core.db import AdminBase, DatabaseConfig
 from ..session.configs import MemcachedConfig, RedisConfig
 from .admin_site import AdminSite
 from .model_view import ModelView
+from .paths import AdminPaths
 from .typing import RouteResponse
 
 UTC = timezone.utc
@@ -61,6 +62,14 @@ SchemaType = TypeVar("SchemaType", bound=BaseModel)
 EndpointFunction: TypeAlias = Callable[
     [Request, AsyncSession], Awaitable[RouteResponse]
 ]
+
+
+class ProtectedRouter(NamedTuple):
+    """A router mounted behind authentication, and whether it needs a superuser."""
+
+    prefix: str
+    router: APIRouter
+    superuser: bool
 
 
 class ModelConfig(TypedDict):
@@ -404,6 +413,7 @@ class CRUDAdmin:
             self.mount_path = mount_path.strip("/")
         else:
             self.mount_path = "admin"
+        self.paths = AdminPaths.for_mount_segment(self.mount_path)
         self.theme = theme or "dark-theme"
         self.track_events = track_events
         self._session_backend = self._resolve_session_backend(
@@ -418,7 +428,7 @@ class CRUDAdmin:
             os.path.dirname(os.path.abspath(__file__)), "..", "static"
         )
 
-        self.app = FastAPI()
+        self.app = FastAPI(openapi_url=None, docs_url=None, redoc_url=None)
         self.app.mount(
             "/static", StaticFiles(directory=self.static_directory), name="admin_static"
         )
@@ -460,6 +470,8 @@ class CRUDAdmin:
         self.initial_admin = initial_admin
         self.models: Dict[str, ModelConfig] = {}
         self.router = APIRouter(tags=["admin"])
+        self.protected_routers: list[ProtectedRouter] = []
+        self._is_set_up = False
         self.secure_cookies = secure_cookies
 
         self._redis_client = (
@@ -471,7 +483,7 @@ class CRUDAdmin:
         self.admin_authentication = AdminAuthentication(
             database_config=self.db_config,
             secret_key=SECRET_KEY,
-            cookie_path=f"{self.get_url_prefix()}/",
+            cookie_path=self.paths.cookie_path,
             secure_cookies=secure_cookies,
             session_backend=self._session_backend,
             redis_client=self._redis_client,
@@ -500,8 +512,6 @@ class CRUDAdmin:
             from .middleware.https import HTTPSRedirectMiddleware
 
             self.app.add_middleware(HTTPSRedirectMiddleware, https_port=https_port)
-
-        self.app.include_router(self.router)
 
     def _add_missing_event_models(self) -> None:
         """Give a ``db_config`` passed in without event models its own, on its base."""
@@ -698,14 +708,14 @@ class CRUDAdmin:
 
     def _add_exception_handlers(self) -> None:
         """Turn authentication failures into pages and redirects a browser can follow."""
-        prefix = self.get_url_prefix()
+        paths = self.paths
 
         async def unauthorized(request: Request, exc: Exception) -> Any:
-            return login_redirect(request, f"{prefix}/login?error=session_ended")
+            return login_redirect(request, paths.login_with_error("session_ended"))
 
         async def reauthenticate(request: Request, exc: Exception) -> Any:
             assert isinstance(exc, ReauthenticationRequired)
-            target = f"{prefix}/sudo?next={quote(exc.next_path, safe='/')}"
+            target = paths.sudo(exc.next_path)
             if request.headers.get("HX-Request"):
                 return HTMLResponse(status_code=204, headers={"HX-Redirect": target})
             return RedirectResponse(url=target, status_code=303)
@@ -726,7 +736,29 @@ class CRUDAdmin:
 
     def get_url_prefix(self) -> str:
         """Get the URL prefix for admin routes, handling root mount path correctly."""
-        return f"/{self.mount_path}" if self.mount_path else ""
+        return self.paths.prefix
+
+    def _mount_protected(
+        self, router: APIRouter, prefix: str = "", superuser: bool = False
+    ) -> None:
+        """Mount a router behind the logged-in-admin dependency (or the superuser one).
+
+        Every admin route except login, logout and static files reaches the app
+        through here, so none can be added without authentication.
+        """
+        authentication = self.admin_authentication
+        admin_dependency = (
+            authentication.get_current_superuser()
+            if superuser
+            else authentication.get_current_user()
+        )
+        self.protected_routers.append(ProtectedRouter(prefix, router, superuser))
+        self.app.include_router(
+            router,
+            prefix=prefix,
+            dependencies=[Depends(admin_dependency)],
+            include_in_schema=False,
+        )
 
     async def initialize(self) -> None:
         """
@@ -1021,8 +1053,13 @@ class CRUDAdmin:
         Notes:
             - Called automatically if setup_on_initialization=True
             - Can be called manually after initialization
+            - Runs once; later calls return without mounting anything again
             - Respects allowed_actions configuration
         """
+        if self._is_set_up:
+            return
+        self._is_set_up = True
+
         self.admin_site = AdminSite(
             database_config=self.db_config,
             templates_directory=self.templates_directory,
@@ -1060,7 +1097,6 @@ class CRUDAdmin:
                 allowed_actions=allowed_actions,
             )
 
-        get_user_dependency = self.admin_authentication.get_current_user()
         get_superuser_dependency = self.admin_authentication.get_current_superuser()
 
         self.router.add_api_route(
@@ -1068,7 +1104,6 @@ class CRUDAdmin:
             self.health_check_page(),
             methods=["GET"],
             include_in_schema=False,
-            dependencies=[Depends(get_user_dependency)],
             response_model=None,
         )
 
@@ -1077,7 +1112,6 @@ class CRUDAdmin:
             self.health_check_content(),
             methods=["GET"],
             include_in_schema=False,
-            dependencies=[Depends(get_user_dependency)],
             response_model=None,
         )
 
@@ -1099,7 +1133,9 @@ class CRUDAdmin:
                 response_model=None,
             )
 
-        self.router.include_router(router=self.admin_site.router)
+        self._mount_protected(self.admin_site.router)
+        self._mount_protected(self.router)
+        self.app.include_router(self.admin_site.public_router, include_in_schema=False)
 
     def add_view(
         self,
@@ -1383,16 +1419,8 @@ class CRUDAdmin:
         if self.track_events and self.event_integration:
             admin_view.event_integration = self.event_integration
 
-        router_dependency = (
-            authentication.get_current_superuser()
-            if is_admin_user
-            else authentication.get_current_user()
-        )
-        self.app.include_router(
-            admin_view.router,
-            prefix=f"/{model_key}",
-            dependencies=[Depends(router_dependency)],
-            include_in_schema=False,
+        self._mount_protected(
+            admin_view.router, prefix=f"/{model_key}", superuser=is_admin_user
         )
 
     def health_check_page(
