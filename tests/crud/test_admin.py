@@ -311,24 +311,6 @@ async def test_crud_admin_add_view_exclude_from_models(
 
 
 @pytest.mark.asyncio
-async def test_crud_admin_setup_event_routes(async_session):
-    """Test setting up event routes."""
-    secret_key = "test-secret-key-for-testing-only-32-chars"
-    db_config = create_test_db_config(async_session, include_event_models=True)
-
-    admin = CRUDAdmin(
-        session=async_session,
-        SECRET_KEY=secret_key,
-        track_events=True,
-        db_config=db_config,
-        setup_on_initialization=False,
-    )
-
-    admin.admin_authentication.get_current_user = Mock(return_value=Mock())  # type: ignore[method-assign]
-    admin.setup_event_routes()
-
-
-@pytest.mark.asyncio
 async def test_crud_admin_initialize(async_session):
     """Test CRUDAdmin initialization process."""
     secret_key = "test-secret-key-for-testing-only-32-chars"

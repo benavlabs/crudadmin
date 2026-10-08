@@ -58,7 +58,6 @@ UTC = timezone.utc
 logger = logging.getLogger("crudadmin")
 
 ModelType = TypeVar("ModelType", bound=DeclarativeBase)
-SchemaType = TypeVar("SchemaType", bound=BaseModel)
 EndpointFunction: TypeAlias = Callable[
     [Request, AsyncSession], Awaitable[RouteResponse]
 ]
@@ -80,17 +79,6 @@ class ModelConfig(TypedDict):
     delete_schema: Optional[Type[BaseModel]]
     crud: FastCRUD
     display_field: Optional[str]
-
-
-class AdminModelProtocol:
-    """
-    Protocol-like class to indicate an Admin model.
-    (For simpler mypy compatibility, we avoid `Protocol` here and
-    ensure it fits `DeclarativeBase`.)
-    """
-
-    __tablename__: str
-    metadata: Any
 
 
 class CRUDAdmin:
@@ -807,40 +795,6 @@ class CRUDAdmin:
         await self.admin_authentication.shutdown()
         if self._redis_client is not None:
             await self._redis_client.aclose()
-
-    def setup_event_routes(self) -> None:
-        """
-        Set up routes for event log management.
-
-        Creates endpoints:
-        - GET /management/events - Event log page
-        - GET /management/events/content - Event log data
-
-        Notes:
-            - Only created if track_events=True
-            - Routes require authentication
-        """
-        if self.track_events:
-            self.router.add_api_route(
-                "/management/events",
-                self.event_log_page(),
-                methods=["GET"],
-                include_in_schema=False,
-                dependencies=[
-                    Depends(self.admin_authentication.get_current_superuser())
-                ],
-                response_model=None,
-            )
-            self.router.add_api_route(
-                "/management/events/content",
-                self.event_log_content(),
-                methods=["GET"],
-                include_in_schema=False,
-                dependencies=[
-                    Depends(self.admin_authentication.get_current_superuser())
-                ],
-                response_model=None,
-            )
 
     def event_log_page(
         self,
