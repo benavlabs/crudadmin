@@ -1,8 +1,8 @@
 """Searching and sorting a model list, through real requests.
 
 A search matches by the column's type: text anywhere and case-insensitively,
-numbers and booleans exactly. A value that doesn't fit the column filters
-nothing.
+numbers, booleans and UUIDs exactly. A value that doesn't fit the column
+filters nothing.
 """
 
 import re
@@ -105,6 +105,8 @@ def _search(client, column: str, value: str) -> list[str]:
         ("weight", "1.5", ["Alpha", "gamma"]),
         ("active", "yes", ["Alpha", "alphabet"]),
         ("active", "0", ["beta", "gamma"]),
+        ("token", str(TOKENS[1]), ["beta"]),
+        ("token", TOKENS[2].hex.upper(), ["alphabet"]),
     ],
 )
 def test_a_search_matches_by_the_column_type(client, column, value, expected):
@@ -116,6 +118,7 @@ def test_a_search_matches_by_the_column_type(client, column, value, expected):
     [
         ("stock", "many"),
         ("active", "maybe"),
+        ("token", "not-a-uuid"),
         ("no_such_column", "5"),
         ("name", "   "),
     ],

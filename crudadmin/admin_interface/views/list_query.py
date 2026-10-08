@@ -55,7 +55,7 @@ def search_filters(
         if python_type is str:
             return {f"{column_name}__ilike": f"%{value}%"}
         if python_type is UUID:
-            return {column_name: str(value)}
+            return {column_name: UUID(value)}
     except (ValueError, TypeError):
         return {}
     return {}
