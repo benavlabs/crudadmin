@@ -66,13 +66,15 @@ admin = CRUDAdmin(
 
 The URL is passed to the Redis client whole, so a `rediss://` URL keeps TLS. `pool_size` sets the client's maximum number of connections and `connect_timeout` its connection timeout in seconds.
 
-CRUDAdmin opens the Redis client and closes it in `admin.shutdown()`. All keys are prefixed, so the admin can share a Redis with your application, including one that uses crudauth itself:
+CRUDAdmin opens the Redis client and closes it in `admin.shutdown()`. Every key starts with `crudadmin:`, then a fingerprint of `SECRET_KEY` and the admin's mount path, for example `crudadmin:3fa9c1d2e4b5/admin:`. The admin can therefore share a Redis with your application, including one that uses crudauth itself, and with other admins: two admins in one app at different paths, or two apps that both mount an admin at `/admin`, never read each other's sessions.
 
 | Prefix | Holds |
 |--------|-------|
-| `crudadmin:session:` | Sessions |
-| `crudadmin:csrf:` | CSRF tokens |
-| `crudadmin:rl:` | Login lockout counters |
+| `crudadmin:<fingerprint><mount path>:session:` | Sessions |
+| `crudadmin:<fingerprint><mount path>:csrf:` | CSRF tokens |
+| `crudadmin:<fingerprint><mount path>:rl:` | Login lockout counters |
+
+Changing `SECRET_KEY` or the mount path changes the prefix, so it signs every admin out and resets the lockout counters.
 
 ## Database
 

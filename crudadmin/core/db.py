@@ -96,8 +96,17 @@ ADMIN_USER_COLUMNS_ADDED_IN_0_6 = {
 }
 
 
-class AdminBase(DeclarativeBase):
-    pass
+def new_admin_base() -> Type[DeclarativeBase]:
+    """A declarative base of its own, so each admin's tables get a separate registry.
+
+    Two admins on one base would both define ``admin_user`` on the same metadata,
+    which SQLAlchemy refuses; a base per admin lets several run in one process.
+    """
+
+    class AdminBase(DeclarativeBase):
+        pass
+
+    return AdminBase
 
 
 class _EmptySchema(BaseModel):

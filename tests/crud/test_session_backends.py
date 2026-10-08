@@ -51,7 +51,7 @@ def test_database_backend_keeps_lockout_counters_in_the_database_too(tmp_path):
 
     limiter = admin.admin_authentication.auth.runtime.rate_limiter
     assert isinstance(limiter, DatabaseRateLimiterBackend)
-    assert limiter.prefix == "crudadmin:rl:"
+    assert limiter.prefix == f"{admin.admin_authentication.key_prefix}rl:"
 
 
 @pytest.mark.parametrize("backend", ["memcached", "MEMCACHED"])

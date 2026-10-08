@@ -46,7 +46,7 @@ from ..admin_user.schemas import (
     AdminUserCreate,
     AdminUserCreateInternal,
 )
-from ..core.db import AdminBase, DatabaseConfig
+from ..core.db import DatabaseConfig, new_admin_base
 from ..session.configs import MemcachedConfig, RedisConfig
 from .admin_site import AdminSite
 from .model_view import ModelView
@@ -437,15 +437,16 @@ class CRUDAdmin:
 
         from ..event import create_admin_audit_log, create_admin_event_log
 
+        admin_base = new_admin_base()
         event_log_model: Optional[Type[DeclarativeBase]] = None
         audit_log_model: Optional[Type[DeclarativeBase]] = None
 
-        if self.track_events:
-            event_log_model = create_admin_event_log(AdminBase)
-            audit_log_model = create_admin_audit_log(AdminBase)
+        if self.track_events and db_config is None:
+            event_log_model = create_admin_event_log(admin_base)
+            audit_log_model = create_admin_audit_log(admin_base)
 
         self.db_config = db_config or DatabaseConfig(
-            base=AdminBase,
+            base=admin_base,
             session=session,
             admin_db_url=admin_db_url,
             admin_db_path=admin_db_path,
@@ -483,6 +484,7 @@ class CRUDAdmin:
         self.admin_authentication = AdminAuthentication(
             database_config=self.db_config,
             secret_key=SECRET_KEY,
+            mount_prefix=self.paths.prefix,
             cookie_path=self.paths.cookie_path,
             secure_cookies=secure_cookies,
             session_backend=self._session_backend,

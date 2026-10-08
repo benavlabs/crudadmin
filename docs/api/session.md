@@ -98,9 +98,9 @@ These `CRUDAdmin` arguments configure sessions and logins. The [Session Backends
 | Session cookie | `crudadmin_session` |
 | CSRF cookie | `crudadmin_csrf` |
 | CSRF request header | `X-CSRF-Token` |
-| Session key prefix | `crudadmin:session:` |
-| CSRF key prefix | `crudadmin:csrf:` |
-| Lockout counter prefix | `crudadmin:rl:` |
+| Session key prefix | `crudadmin:<fingerprint><mount path>:session:` |
+| CSRF key prefix | `crudadmin:<fingerprint><mount path>:csrf:` |
+| Lockout counter prefix | `crudadmin:<fingerprint><mount path>:rl:` |
 | `database` backend tables | `crudadmin_auth_store`, `crudadmin_auth_counters` |
 
 ## Deprecated and removed
