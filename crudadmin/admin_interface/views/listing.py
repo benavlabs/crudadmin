@@ -31,11 +31,9 @@ def list_page(
 
     Example:
         ```python
-        # Basic list view
-        response = await client.get("/?page=1&rows-per-page-select=25")
+        first_page = await client.get("/?page=1&rows-per-page-select=25")
 
-        # Sorted and filtered
-        response = await client.get(
+        sorted_and_searched = await client.get(
             "/?sort_by=username&sort_order=desc&column-to-search=email&search-input=example.com"
         )
         ```

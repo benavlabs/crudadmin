@@ -41,7 +41,6 @@ def bulk_delete_endpoint(view: "ModelView") -> EndpointCallable:
 
     Example:
         ```python
-        # Delete multiple records
         await client.delete("/bulk-delete", json={"ids": [1, 2, 3]})
         ```
 

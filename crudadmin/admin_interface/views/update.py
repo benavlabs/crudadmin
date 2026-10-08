@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, Dict, Optional, Union, cast
 
 from fastapi import Depends, Request
 from fastapi.responses import JSONResponse, RedirectResponse, Response
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...admin_user.schemas import AdminUserUpdateInternal
@@ -15,12 +15,8 @@ from ...event import EventType, log_admin_action
 from ..admin_accounts import end_sessions_after_admin_change, last_superuser_guard
 from ..helper import _get_form_fields_from_schema
 from ..typing import EndpointCallable
-from .forms import (
-    clearable_column_names,
-    read_update_form,
-    schema_input,
-)
-from .forms import field_errors as read_field_errors
+from .forms import clearable_column_names, read_update_form, schema_input
+from .submission import Refusal, attempt_write, form_page, internal_object
 
 if TYPE_CHECKING:
     from ..model_view import ModelView
@@ -74,137 +70,105 @@ def update_endpoint(view: "ModelView") -> EndpointCallable:
             )
 
         form_fields = _get_form_fields_from_schema(view.update_schema)
-        error_message: Optional[str] = None
-        field_errors: Dict[str, str] = {}
         field_values: Dict[str, Any] = {}
-
+        refusal: Optional[Refusal] = None
         try:
             submitted = read_update_form(
-                await request.form(),
-                form_fields,
-                clearable_column_names(view.model),
+                await request.form(), form_fields, clearable_column_names(view.model)
             )
-            update_data = submitted.data
             field_values = submitted.field_values
-            if not update_data:
-                error_message = "No changes were provided for update"
+            if not submitted.data:
+                refusal = Refusal("No changes were provided for update")
             else:
-                if view.update_internal_schema is not None and hasattr(
-                    view.update_internal_schema, "model_fields"
-                ):
-                    fields_dict = cast(
-                        Dict[str, Any], view.update_internal_schema.model_fields
-                    )
-                    if "updated_at" in fields_dict:
-                        update_data["updated_at"] = dt.now(datetime.timezone.utc)
-
-                try:
-                    if view.password_transformer is not None:
-                        update_schema_instance = view.update_schema(
-                            **schema_input(view.update_schema, update_data)
-                        )
-
-                        transformed_data = (
-                            view.password_transformer.transform_update_data(
-                                update_data, update_schema_instance
-                            )
-                        )
-
-                        if view.model.__name__ == "AdminUser":
-                            admin_update_schema: AdminUserUpdateInternal = (
-                                AdminUserUpdateInternal(**transformed_data)
-                            )
-                            blocked = await last_superuser_guard(
-                                view.crud, db, converted_id, admin_update_schema
-                            )
-                            if blocked:
-                                raise ValueError(blocked)
-                            await view.crud.update(
-                                db=db,
-                                object=admin_update_schema,
-                                **view._pk_filter(converted_id),
-                            )
-                            await db.commit()
-                            await end_sessions_after_admin_change(
-                                view.admin_site.admin_authentication,
-                                request,
-                                converted_id,
-                                admin_update_schema,
-                            )
-                        else:
-                            if view.update_internal_schema:
-                                generic_update_schema = view.update_internal_schema(
-                                    **transformed_data
-                                )
-                                await view.crud.update(
-                                    db=db,
-                                    object=generic_update_schema,
-                                    **view._pk_filter(converted_id),
-                                )
-                            else:
-                                dynamic_update_schema = type(
-                                    "InternalSchema", (BaseModel,), {}
-                                )(**transformed_data)
-                                await view.crud.update(
-                                    db=db,
-                                    object=dynamic_update_schema,
-                                    **view._pk_filter(converted_id),
-                                )
-
-                        await db.commit()
-                    else:
-                        update_schema_instance = view.update_schema(
-                            **schema_input(view.update_schema, update_data)
-                        )
-                        await view.crud.update(
-                            db=db,
-                            object=update_schema_instance,
-                            **view._pk_filter(converted_id),
-                        )
-                        await db.commit()
-
+                _stamp_updated_at(view, submitted.data)
+                _, refusal = await attempt_write(
+                    db,
+                    lambda: _update_record(
+                        view, db, request, converted_id, submitted.data
+                    ),
+                )
+                if refusal is None:
                     model_list_url = f"{view._model_list_url()}?success=updated"
-                    return RedirectResponse(
-                        url=model_list_url,
-                        status_code=303,
-                    )
+                    return RedirectResponse(url=model_list_url, status_code=303)
+        except Exception as error:
+            refusal = Refusal(str(error))
 
-                except ValidationError as e:
-                    field_errors = read_field_errors(e)
-                    error_message = "Please correct the errors below."
-                except Exception as e:
-                    await db.rollback()
-                    error_message = str(e)
-
-        except Exception as e:
-            error_message = str(e)
-
-        for field in form_fields:
-            field_name = field["name"]
+        for form_field in form_fields:
+            field_name = form_field["name"]
             if field_name not in field_values and field_name in item:
                 field_values[field_name] = item[field_name]
 
-        await view._apply_relationship_form_fields(form_fields, db)
-
-        context: Dict[str, Any] = {
-            "model_name": view.model_key,
-            "form_fields": form_fields,
-            "error": error_message,
-            "field_errors": field_errors,
-            "field_values": field_values,
-            "url_prefix": view.get_url_prefix(),
-            "id": id,
-            "include_sidebar_and_header": False,
-        }
-
-        return view.templates.TemplateResponse(
-            name="admin/model/update.html",
-            request=request,
-            context=context,
-            status_code=400 if error_message else 200,
+        return await form_page(
+            view,
+            request,
+            db,
+            template="admin/model/update.html",
+            form_fields=form_fields,
+            field_values=field_values,
+            refusal=refusal,
+            refused_status=400,
+            extra_context={"id": id, "include_sidebar_and_header": False},
         )
 
     return cast(EndpointCallable, form_update_endpoint_inner)
+
+
+def _stamp_updated_at(view: "ModelView", update_data: Dict[str, Any]) -> None:
+    """Set ``updated_at`` to now when the internal update schema has the field."""
+    internal_schema = view.update_internal_schema
+    if internal_schema is not None and "updated_at" in internal_schema.model_fields:
+        update_data["updated_at"] = dt.now(datetime.timezone.utc)
+
+
+async def _update_record(
+    view: "ModelView",
+    db: AsyncSession,
+    request: Request,
+    record_id: Any,
+    update_data: Dict[str, Any],
+) -> None:
+    """Validate the changes with the update schema, write them and commit.
+
+    With a password transformer, a new password is hashed into the internal
+    object first; an admin account goes through ``_update_admin_account``.
+    """
+    validated = view.update_schema(**schema_input(view.update_schema, update_data))
+    transformer = view.password_transformer
+    if transformer is None:
+        changes: BaseModel = validated
+    else:
+        transformed = transformer.transform_update_data(update_data, validated)
+        if view.model.__name__ == "AdminUser":
+            await _update_admin_account(
+                view, db, request, record_id, AdminUserUpdateInternal(**transformed)
+            )
+            return
+        changes = internal_object(view, transformed, AdminUserUpdateInternal)
+
+    await view.crud.update(db=db, object=changes, **view._pk_filter(record_id))
+    await db.commit()
+
+
+async def _update_admin_account(
+    view: "ModelView",
+    db: AsyncSession,
+    request: Request,
+    admin_id: Any,
+    change: AdminUserUpdateInternal,
+) -> None:
+    """Update an admin, unless no active superuser would remain.
+
+    The sessions the change revokes are ended once it is committed.
+    """
+    assert view.admin_site is not None
+    blocked = await last_superuser_guard(view.crud, db, admin_id, change)
+    if blocked:
+        raise ValueError(blocked)
+    await view.crud.update(db=db, object=change, **view._pk_filter(admin_id))
+    await db.commit()
+    await end_sessions_after_admin_change(
+        view.admin_site.admin_authentication, request, admin_id, change
+    )
 
 
 def update_page(view: "ModelView", template: str) -> EndpointCallable:
