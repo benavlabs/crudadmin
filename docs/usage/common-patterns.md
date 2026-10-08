@@ -561,25 +561,15 @@ CRUDAdmin has two built-in roles. **Superusers** manage admin accounts, see the 
 `allowed_actions` applies to every admin alike. When different groups need different access to the same models, give each group its own admin instance, mounted at its own path, with its own admin database:
 
 ```python
-from sqlalchemy.orm import DeclarativeBase
-
 from crudadmin import CRUDAdmin
-from crudadmin.core.db import DatabaseConfig
 
 
 def admin_instance(mount_path: str, admin_db_path: str) -> CRUDAdmin:
-    class AdminBase(DeclarativeBase):
-        pass
-
     return CRUDAdmin(
         session=get_session,
         SECRET_KEY=os.environ["ADMIN_SECRET_KEY"],
         mount_path=mount_path,
-        db_config=DatabaseConfig(
-            base=AdminBase,
-            session=get_session,
-            admin_db_path=admin_db_path,
-        ),
+        admin_db_path=admin_db_path,
     )
 
 
@@ -608,7 +598,7 @@ app.mount("/content", content_admin.app)
 app.mount("/service", service_admin.app)
 ```
 
-Each instance needs its own declarative base for its admin tables, hence the `DatabaseConfig`. Call `initialize()` and `shutdown()` on each in your lifespan. The instances keep separate admin accounts, and their session cookies are scoped to their own paths. With the Redis or database session backend, point them at different Redis databases or admin databases so their sessions stay apart.
+Call `initialize()` and `shutdown()` on each in your lifespan. The instances keep separate admin accounts, and their session cookies are scoped to their own paths. With the Redis or database session backend, point them at different Redis databases or admin databases so their sessions stay apart.
 
 ---
 
