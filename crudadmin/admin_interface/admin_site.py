@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..admin_user.schemas import AdminUserRead
 from ..core.db import DatabaseConfig
 from .auth import AdminAuthentication
+from .paths import AdminPaths
 from .typing import RouteResponse
 
 logger = logging.getLogger(__name__)
@@ -68,16 +69,17 @@ class AdminSite:
         self.models: Dict[str, Any] = models
         self.admin_authentication: AdminAuthentication = admin_authentication
         self.mount_path: str = mount_path
+        self.paths = AdminPaths.for_mount_segment(mount_path)
         self.theme: str = theme
         self.event_integration: Optional[Any] = event_integration
 
     def get_url_prefix(self) -> str:
         """Get the URL prefix for admin routes, handling root mount path correctly."""
-        return f"/{self.mount_path}" if self.mount_path else ""
+        return self.paths.prefix
 
     @property
     def dashboard_url(self) -> str:
-        return f"{self.get_url_prefix()}/"
+        return self.paths.home
 
     def setup_routes(self) -> None:
         """Register the login, logout, dashboard, re-authentication and sessions routes."""
@@ -196,9 +198,7 @@ class AdminSite:
             request: Request,
             db: AsyncSession = Depends(self.db_config.get_admin_db),
         ) -> RouteResponse:
-            response = RedirectResponse(
-                url=f"{self.get_url_prefix()}/login", status_code=303
-            )
+            response = RedirectResponse(url=self.paths.login, status_code=303)
             await transport.complete_logout(request, response, db)
             return response
 

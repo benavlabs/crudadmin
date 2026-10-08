@@ -32,6 +32,7 @@ from ..core.db import (
 )
 from ..event import EventType, log_admin_action
 from .helper import _get_form_fields_from_schema
+from .paths import AdminPaths
 from .relationships import (
     RelationshipInfo,
     RelationshipType,
@@ -447,11 +448,17 @@ class ModelView:
 
     def get_url_prefix(self) -> str:
         """Get the URL prefix for admin routes, handling root mount path correctly."""
-        if self.admin_site:
-            return (
-                f"/{self.admin_site.mount_path}" if self.admin_site.mount_path else ""
-            )
-        return ""
+        return self._paths.prefix
+
+    @property
+    def _paths(self) -> AdminPaths:
+        if self.admin_site is not None:
+            site_paths: AdminPaths = self.admin_site.paths
+            return site_paths
+        return AdminPaths(prefix="")
+
+    def _model_list_url(self) -> str:
+        return self._paths.model(self.model_key)
 
     def _model_is_admin_model(self, model: Type[DeclarativeBase]) -> bool:
         """Check if a model is considered an admin model."""
@@ -792,10 +799,7 @@ class ModelView:
 
                         if result:
                             request.state.crud_result = result
-                            model_list_url = (
-                                f"{self.get_url_prefix()}/{self.model.__name__}/"
-                                "?success=created"
-                            )
+                            model_list_url = f"{self._model_list_url()}?success=created"
                             if "HX-Request" in request.headers:
                                 return RedirectResponse(
                                     url=model_list_url,
@@ -1497,10 +1501,7 @@ class ModelView:
                             )
                             await db.commit()
 
-                        model_list_url = (
-                            f"{self.get_url_prefix()}/{self.model.__name__}/"
-                            "?success=updated"
-                        )
+                        model_list_url = f"{self._model_list_url()}?success=updated"
                         return RedirectResponse(
                             url=model_list_url,
                             status_code=303,

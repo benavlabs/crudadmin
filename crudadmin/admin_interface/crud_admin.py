@@ -17,7 +17,6 @@ from typing import (
     Union,
     cast,
 )
-from urllib.parse import quote
 
 if sys.version_info >= (3, 10):
     from typing import TypeAlias
@@ -50,6 +49,7 @@ from ..core.db import AdminBase, DatabaseConfig
 from ..session.configs import MemcachedConfig, RedisConfig
 from .admin_site import AdminSite
 from .model_view import ModelView
+from .paths import AdminPaths
 from .typing import RouteResponse
 
 UTC = timezone.utc
@@ -404,6 +404,7 @@ class CRUDAdmin:
             self.mount_path = mount_path.strip("/")
         else:
             self.mount_path = "admin"
+        self.paths = AdminPaths.for_mount_segment(self.mount_path)
         self.theme = theme or "dark-theme"
         self.track_events = track_events
         self._session_backend = self._resolve_session_backend(
@@ -471,7 +472,7 @@ class CRUDAdmin:
         self.admin_authentication = AdminAuthentication(
             database_config=self.db_config,
             secret_key=SECRET_KEY,
-            cookie_path=f"{self.get_url_prefix()}/",
+            cookie_path=self.paths.cookie_path,
             secure_cookies=secure_cookies,
             session_backend=self._session_backend,
             redis_client=self._redis_client,
@@ -698,14 +699,14 @@ class CRUDAdmin:
 
     def _add_exception_handlers(self) -> None:
         """Turn authentication failures into pages and redirects a browser can follow."""
-        prefix = self.get_url_prefix()
+        paths = self.paths
 
         async def unauthorized(request: Request, exc: Exception) -> Any:
-            return login_redirect(request, f"{prefix}/login?error=session_ended")
+            return login_redirect(request, paths.login_with_error("session_ended"))
 
         async def reauthenticate(request: Request, exc: Exception) -> Any:
             assert isinstance(exc, ReauthenticationRequired)
-            target = f"{prefix}/sudo?next={quote(exc.next_path, safe='/')}"
+            target = paths.sudo(exc.next_path)
             if request.headers.get("HX-Request"):
                 return HTMLResponse(status_code=204, headers={"HX-Redirect": target})
             return RedirectResponse(url=target, status_code=303)
@@ -726,7 +727,7 @@ class CRUDAdmin:
 
     def get_url_prefix(self) -> str:
         """Get the URL prefix for admin routes, handling root mount path correctly."""
-        return f"/{self.mount_path}" if self.mount_path else ""
+        return self.paths.prefix
 
     async def initialize(self) -> None:
         """
