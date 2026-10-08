@@ -16,7 +16,7 @@ from typing import (
 )
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request, UploadFile
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from fastcrud import FastCRUD
@@ -40,25 +40,18 @@ from .relationships import (
     load_relationship_options,
     resolve_display_field,
 )
+from .views.forms import (
+    PasswordTransformer,
+    clearable_column_names,
+    read_create_form,
+    read_update_form,
+    schema_input,
+)
+from .views.forms import field_errors as read_field_errors
+from .views.list_query import ListQuery, table_columns
+from .views.list_query import rows_per_page as parse_rows_per_page
 
 logger = logging.getLogger(__name__)
-
-ROWS_PER_PAGE_OPTIONS = (10, 20, 50, 100)
-DEFAULT_ROWS_PER_PAGE = ROWS_PER_PAGE_OPTIONS[0]
-
-
-def _rows_per_page(value: Optional[str]) -> int:
-    """Parse the rows-per-page query value, falling back to the default.
-
-    Only the page sizes the list page offers are accepted, so a request cannot
-    ask for an unbounded number of rows.
-    """
-    try:
-        rows = int(value) if value is not None else DEFAULT_ROWS_PER_PAGE
-    except ValueError:
-        return DEFAULT_ROWS_PER_PAGE
-    return rows if rows in ROWS_PER_PAGE_OPTIONS else DEFAULT_ROWS_PER_PAGE
-
 
 EndpointCallable = Callable[..., Coroutine[Any, Any, Response]]
 
@@ -74,95 +67,6 @@ class BulkDeleteRequest(BaseModel):
     """Request model for bulk delete operations containing IDs to delete."""
 
     ids: List[Union[int, str]]
-
-
-class PasswordTransformer:
-    """
-    Configuration for transforming password fields in forms.
-
-    This allows models to have different field names and hashing methods
-    for password handling.
-    """
-
-    def __init__(
-        self,
-        password_field: str = "password",
-        hashed_field: str = "hashed_password",
-        hash_function: Optional[Callable[[str], str]] = None,
-        required_fields: Optional[List[str]] = None,
-    ):
-        """
-        Initialize password transformer.
-
-        Args:
-            password_field: Name of the password field in the form/schema
-            hashed_field: Name of the hashed password field in the internal schema/model
-            hash_function: Function to hash passwords (takes string, returns string).
-                Required: without it the password would be stored as plaintext.
-            required_fields: List of other required fields that must be present
-
-        Raises:
-            ValueError: If ``hash_function`` is not provided.
-        """
-        if hash_function is None:
-            raise ValueError(
-                "PasswordTransformer requires a hash_function; without one the "
-                "password would be stored as plaintext."
-            )
-        self.password_field = password_field
-        self.hashed_field = hashed_field
-        self.hash_function: Callable[[str], str] = hash_function
-        self.required_fields = required_fields or []
-
-    def transform_create_data(
-        self, form_data: Dict[str, Any], item_data: BaseModel
-    ) -> Dict[str, Any]:
-        """
-        Transform form data for create operations.
-
-        Args:
-            form_data: Raw form data dictionary
-            item_data: Validated schema instance
-
-        Returns:
-            Dictionary with transformed data for internal schema
-        """
-        transformed_data = {}
-
-        for field_name, field_value in form_data.items():
-            if field_name != self.password_field:
-                transformed_data[field_name] = field_value
-
-        password = getattr(item_data, self.password_field, None)
-        if password is not None:
-            transformed_data[self.hashed_field] = self.hash_function(password)
-
-        return transformed_data
-
-    def transform_update_data(
-        self, form_data: Dict[str, Any], item_data: BaseModel
-    ) -> Dict[str, Any]:
-        """
-        Transform form data for update operations.
-
-        Args:
-            form_data: Raw form data dictionary
-            item_data: Validated schema instance
-
-        Returns:
-            Dictionary with transformed data for internal schema
-        """
-        transformed_data = {"updated_at": dt.now(datetime.timezone.utc)}
-
-        for field_name, field_value in form_data.items():
-            if field_name not in (self.password_field, "updated_at"):
-                transformed_data[field_name] = field_value
-
-        password = getattr(item_data, self.password_field, None)
-        if password is not None:
-            transformed_data[self.hashed_field] = self.hash_function(password)  # type: ignore[assignment]
-
-        return transformed_data
 
 
 class ModelView:
@@ -690,38 +594,9 @@ class ModelView:
 
             try:
                 if request.method == "POST":
-                    form_data_raw = await request.form()
-                    form_data: Dict[str, Any] = {}
-
-                    for field in form_fields:
-                        key = field["name"]
-                        raw_value = form_data_raw.getlist(key)
-
-                        if field["type"] == "checkbox":
-                            field_has_default = field.get("default") is not None
-                            if raw_value and len(raw_value) == 1:
-                                value_str = raw_value[0]
-                                if value_str == "true":
-                                    form_data[key] = True
-                                    field_values[key] = True
-                                elif value_str == "false":
-                                    form_data[key] = False
-                                    field_values[key] = False
-                                else:
-                                    form_data[key] = bool(value_str)
-                                    field_values[key] = bool(value_str)
-                            elif not field_has_default:
-                                form_data[key] = False
-                                field_values[key] = False
-                        elif len(raw_value) == 1:
-                            value = raw_value[0]
-                            form_data[key] = value if value else field.get("default")
-                            field_values[key] = value
-                        elif len(raw_value) > 1:
-                            form_data[key] = raw_value
-                            field_values[key] = raw_value
-                        else:
-                            form_data[key] = field.get("default")
+                    submitted = read_create_form(await request.form(), form_fields)
+                    form_data = submitted.data
+                    field_values = submitted.field_values
 
                     try:
                         if self.password_transformer is not None:
@@ -808,9 +683,7 @@ class ModelView:
                             )
 
                     except ValidationError as e:
-                        field_errors = {
-                            str(err["loc"][0]): err["msg"] for err in e.errors()
-                        }
+                        field_errors = read_field_errors(e)
                         error_message = "Please correct the errors below."
                     except Exception as e:
                         await db.rollback()
@@ -894,7 +767,7 @@ class ModelView:
 
                 page_str = request.query_params.get("page", "1")
                 page = int(page_str)
-                rows_per_page = _rows_per_page(
+                rows_per_page = parse_rows_per_page(
                     request.query_params.get("rows-per-page-select")
                 )
 
@@ -966,18 +839,12 @@ class ModelView:
                     "total_count": items_result.get("total_count", 0),
                 }
 
-                if self.select_schema:
-                    table_columns = list(self.select_schema.model_fields.keys())
-                else:
-                    table_columns = [
-                        column.key for column in self.model.__table__.columns
-                    ]
                 primary_key_info = self.db_config.get_primary_key_info(self.model)
 
                 context: Dict[str, Any] = {
                     "model_items": items["data"],
                     "model_name": self.model_key,
-                    "table_columns": table_columns,
+                    "table_columns": table_columns(self.model, self.select_schema),
                     "total_items": items["total_count"],
                     "current_page": adjusted_page,
                     "rows_per_page": rows_per_page,
@@ -1055,64 +922,17 @@ class ModelView:
                     redirect_url += "?" + request.url.query
                 return RedirectResponse(redirect_url, status_code=307)
 
-            try:
-                page = max(1, int(request.query_params.get("page", "1")))
-            except ValueError:
-                page = 1
-            rows_per_page = _rows_per_page(
-                request.query_params.get("rows-per-page-select")
-            )
-
-            sort_column: Optional[str] = request.query_params.get("sort_by")
-            if sort_column not in self.model.__table__.columns.keys():
-                sort_column = None
-            sort_order = request.query_params.get("sort_order")
-            if sort_order not in ("asc", "desc"):
-                sort_order = "asc"
-
-            sort_columns = [sort_column] if sort_column else None
-            sort_orders = [sort_order] if sort_column else None
-
-            search_column = request.query_params.get("column-to-search")
-            search_value = request.query_params.get("search-input", "").strip()
-
-            filter_criteria: Dict[str, Any] = {}
-            if search_column and search_value:
-                column = self.model.__table__.columns.get(search_column)
-                if column is not None:
-                    python_type = column.type.python_type
-                    try:
-                        if python_type is int:
-                            filter_criteria[search_column] = int(search_value)
-                        elif python_type is float:
-                            filter_criteria[search_column] = float(search_value)
-                        elif python_type is bool:
-                            lower_search = search_value.lower()
-                            if lower_search in ("true", "yes", "1", "t", "y"):
-                                filter_criteria[search_column] = True
-                            elif lower_search in ("false", "no", "0", "f", "n"):
-                                filter_criteria[search_column] = False
-                        elif python_type is str:
-                            filter_criteria[f"{search_column}__ilike"] = (
-                                f"%{search_value}%"
-                            )
-                        elif python_type is UUID:
-                            filter_criteria[search_column] = str(search_value)
-                    except (ValueError, TypeError):
-                        pass
-
+            query = ListQuery.from_request(request, self.model)
+            filter_criteria = query.filters(self.model)
             total_items = await self.crud.count(db=db, **cast(Any, filter_criteria))
-            max_page = max(1, (total_items + rows_per_page - 1) // rows_per_page)
-            page = min(page, max_page)
-            offset = (page - 1) * rows_per_page
+            page = min(query.page, query.last_page(total_items))
 
             items_result = await self.crud.get_multi(
                 db=db,
-                offset=offset,
-                limit=rows_per_page,
-                sort_columns=sort_columns,
-                sort_orders=sort_orders,
+                offset=(page - 1) * query.rows_per_page,
+                limit=query.rows_per_page,
                 schema_to_select=self.select_schema,
+                **cast(Any, query.sorting()),
                 **cast(Any, filter_criteria),
             )
 
@@ -1121,10 +941,6 @@ class ModelView:
                 "total_count": items_result.get("total_count", 0),
             }
 
-            if self.select_schema:
-                table_columns = list(self.select_schema.model_fields.keys())
-            else:
-                table_columns = [column.key for column in self.model.__table__.columns]
             primary_key_info = self.db_config.get_primary_key_info(self.model)
 
             success_messages = {
@@ -1139,15 +955,15 @@ class ModelView:
             context: Dict[str, Any] = {
                 "model_items": items["data"],
                 "model_name": self.model_key,
-                "table_columns": table_columns,
+                "table_columns": table_columns(self.model, self.select_schema),
                 "total_items": items["total_count"],
                 "current_page": page,
-                "rows_per_page": rows_per_page,
-                "selected_column": search_column,
+                "rows_per_page": query.rows_per_page,
+                "selected_column": query.search_column,
                 "primary_key_info": primary_key_info,
                 "url_prefix": self.get_url_prefix(),
-                "sort_column": sort_column,
-                "sort_order": sort_order,
+                "sort_column": query.sort_column,
+                "sort_order": query.sort_order,
                 "allowed_actions": self.allowed_actions,
                 "relationships": self.relationships,
                 "success_message": success_message,
@@ -1267,27 +1083,6 @@ class ModelView:
 
         return cast(EndpointCallable, get_model_update_page_inner)
 
-    def _clearable_column_names(self) -> set[str]:
-        """Columns an empty form input sets to NULL: nullable ones that aren't keys.
-
-        Whether a field may be cleared comes from the database column, not the
-        update schema, where ``Optional`` usually means "may be left out".
-        """
-        return {
-            column.key
-            for column in self.model.__table__.columns
-            if column.nullable and not column.primary_key
-        }
-
-    @staticmethod
-    def _schema_input(schema: Type[BaseModel], data: Dict[str, Any]) -> Dict[str, Any]:
-        """``data`` limited to the fields ``schema`` declares.
-
-        The update form adds ``updated_at`` for the internal schema; an update
-        schema that forbids extra fields (like ``AdminUserUpdate``) would reject it.
-        """
-        return {key: value for key, value in data.items() if key in schema.model_fields}
-
     async def _last_superuser_guard(
         self, db: AsyncSession, user_id: Any, change: AdminUserUpdateInternal
     ) -> Optional[str]:
@@ -1381,49 +1176,14 @@ class ModelView:
             field_values: Dict[str, Any] = {}
 
             try:
-                form_data = await request.form()
-                update_data: Dict[str, Any] = {}
-                has_updates = False
-
-                for field in form_fields:
-                    key = field["name"]
-                    if field["type"] == "checkbox":
-                        raw_values = form_data.getlist(key)
-                        if raw_values and len(raw_values) == 1:
-                            value_str = raw_values[0]
-                            if value_str == "true":
-                                update_data[key] = True
-                                field_values[key] = True
-                            elif value_str == "false":
-                                update_data[key] = False
-                                field_values[key] = False
-                            else:
-                                update_data[key] = bool(value_str)
-                                field_values[key] = bool(value_str)
-                            has_updates = True
-                        elif field.get("default") is None:
-                            update_data[key] = False
-                            field_values[key] = False
-                            has_updates = True
-
-                clearable_columns = self._clearable_column_names()
-                for key, raw_val in form_data.items():
-                    if isinstance(raw_val, UploadFile):
-                        field_values[key] = raw_val
-                        update_data[key] = raw_val
-                        has_updates = True
-                    elif isinstance(raw_val, str):
-                        val_str = raw_val.strip()
-                        if val_str:
-                            update_data[key] = val_str
-                            field_values[key] = val_str
-                            has_updates = True
-                        elif key in clearable_columns:
-                            update_data[key] = None
-                            field_values[key] = None
-                            has_updates = True
-
-                if not has_updates:
+                submitted = read_update_form(
+                    await request.form(),
+                    form_fields,
+                    clearable_column_names(self.model),
+                )
+                update_data = submitted.data
+                field_values = submitted.field_values
+                if not update_data:
                     error_message = "No changes were provided for update"
                 else:
                     if self.update_internal_schema is not None and hasattr(
@@ -1438,7 +1198,7 @@ class ModelView:
                     try:
                         if self.password_transformer is not None:
                             update_schema_instance = self.update_schema(
-                                **self._schema_input(self.update_schema, update_data)
+                                **schema_input(self.update_schema, update_data)
                             )
 
                             transformed_data = (
@@ -1488,7 +1248,7 @@ class ModelView:
                             await db.commit()
                         else:
                             update_schema_instance = self.update_schema(
-                                **self._schema_input(self.update_schema, update_data)
+                                **schema_input(self.update_schema, update_data)
                             )
                             await self.crud.update(
                                 db=db,
@@ -1504,9 +1264,7 @@ class ModelView:
                         )
 
                     except ValidationError as e:
-                        field_errors = {
-                            str(err["loc"][0]): err["msg"] for err in e.errors()
-                        }
+                        field_errors = read_field_errors(e)
                         error_message = "Please correct the errors below."
                     except Exception as e:
                         await db.rollback()
