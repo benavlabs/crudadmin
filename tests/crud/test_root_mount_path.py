@@ -1,11 +1,8 @@
 from typing import Any, cast
-from unittest.mock import AsyncMock, Mock
 
 import pytest
-from fastapi import Request, Response
 
 from crudadmin import CRUDAdmin
-from crudadmin.admin_interface.middleware.auth import AdminAuthMiddleware
 from tests.crud.test_admin import create_test_db_config
 
 
@@ -153,30 +150,21 @@ async def test_root_mount_path_vs_admin_mount_path_comparison(async_session):
     assert regular_manager.cookie_path == "/admin/"
 
 
-@pytest.mark.asyncio
-async def test_root_mount_path_middleware_static_files(async_session):
-    """Test that middleware correctly handles static files for root mount path."""
-    secret_key = "test-secret-key-for-testing-only-32-chars"
-    db_config = create_test_db_config(async_session)
+def test_root_mount_path_serves_static_files_without_login(async_session):
+    """Static files on a root-mounted admin are served to an anonymous request."""
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
 
     admin = CRUDAdmin(
         session=async_session,
-        SECRET_KEY=secret_key,
+        SECRET_KEY="test-secret-key-for-testing-only-32-chars",
         mount_path="/",
-        db_config=db_config,
-        setup_on_initialization=False,
+        db_config=create_test_db_config(async_session),
     )
+    app = FastAPI()
+    app.mount("/", admin.app)
 
-    # Create middleware instance
-    middleware = AdminAuthMiddleware(Mock(), admin)
+    response = TestClient(app, follow_redirects=False).get("/static/admin.js")
 
-    # Test that static file requests bypass auth
-    mock_request = Mock(spec=Request)
-    mock_request.url.path = "/static/favicon.png"
-    mock_call_next = AsyncMock()
-    mock_call_next.return_value = Mock(spec=Response)
-
-    await middleware.dispatch(mock_request, mock_call_next)
-
-    # Should call next without authentication check
-    mock_call_next.assert_called_once()
+    assert response.status_code == 200
+    assert "X-CSRF-Token" in response.text

@@ -1,10 +1,10 @@
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Optional
 
 from fastapi import Request, Response
 from fastapi.responses import RedirectResponse
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.types import ASGIApp
+from starlette.datastructures import MutableHeaders
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 if TYPE_CHECKING:
     from crudadmin import CRUDAdmin
@@ -28,71 +28,98 @@ def login_redirect(request: Request, login_url: str) -> Response:
     return RedirectResponse(url=login_url, status_code=303)
 
 
-def redirect_for_fetch(request: Request, response: Response) -> Response:
-    """Answer a redirect to an admin.js form submission with a 204 naming its target.
+NO_CACHE_HEADERS = {
+    "Cache-Control": "no-cache, no-store, must-revalidate, private",
+    "Pragma": "no-cache",
+    "Expires": "0",
+}
 
-    admin.js submits plain forms with fetch. Were the redirect followed, fetch would
-    load the target page and the browser would then load it again on navigation;
-    with the target in a header, the browser navigates once. The response keeps
-    its other headers, so cookies it sets or clears (a logout, say) still apply.
+
+class AdminResponseHeaders:
+    """Adjust the headers of an admin response as it is sent.
+
+    - A response that isn't a redirect gets ``NO_CACHE_HEADERS``, so admin pages
+      don't show from the browser cache after logout. Redirects are left alone, so
+      browser redirect handling and cookies are untouched.
+    - A redirect answering an admin.js form submission becomes a 204 naming its
+      target in ``X-CRUDAdmin-Location``, and its body is dropped. admin.js submits
+      plain forms with fetch; were the redirect followed, fetch would load the
+      target page and the browser would then load it again on navigation. The
+      response keeps its other headers, so cookies it sets or clears (a logout,
+      say) still apply.
     """
-    location = response.headers.get("location")
-    if not request.headers.get(FORM_SUBMITTED_BY_FETCH_HEADER) or location is None:
-        return response
-    if not 300 <= response.status_code < 400:
-        return response
-    del response.headers["location"]
-    response.headers[REDIRECT_TARGET_HEADER] = location
-    response.status_code = 204
-    return response
+
+    def __init__(self, send: Send, submitted_by_fetch: bool) -> None:
+        self.send = send
+        self.submitted_by_fetch = submitted_by_fetch
+        self.drop_body = False
+
+    async def __call__(self, message: Message) -> None:
+        if message["type"] == "http.response.start":
+            message = self._adjust_start(message)
+        elif message["type"] == "http.response.body" and self.drop_body:
+            message = {**message, "body": b""}
+        await self.send(message)
+
+    def _adjust_start(self, message: Message) -> Message:
+        status = message["status"]
+        headers = MutableHeaders(scope=message)
+        if not 300 <= status < 400:
+            headers.update(NO_CACHE_HEADERS)
+            return message
+        location = headers.get("location")
+        if not self.submitted_by_fetch or location is None:
+            return message
+        del headers["location"]
+        if "content-length" in headers:
+            del headers["content-length"]
+        headers[REDIRECT_TARGET_HEADER] = location
+        self.drop_body = True
+        return {**message, "status": 204}
 
 
-class AdminAuthMiddleware(BaseHTTPMiddleware):
+class AdminAuthMiddleware:
     """Send anonymous visitors to the login page, and keep admin pages out of caches.
 
     It only redirects: every protected route also declares the admin's
     ``get_current_user`` dependency, which authenticates the request again (from
     crudauth's per-request cache) and enforces CSRF on POST, PUT, PATCH and DELETE.
+    Other scopes, such as lifespan, pass through.
     """
 
-    def __init__(self, app: ASGIApp, admin_instance: "CRUDAdmin"):
-        super().__init__(app)
+    def __init__(self, app: ASGIApp, admin_instance: "CRUDAdmin") -> None:
+        self.app = app
         self.admin_instance = admin_instance
 
-    def _add_no_cache_headers(self, response: Response) -> None:
-        """Keep admin pages out of the browser cache, so they don't show after logout."""
-        response.headers["Cache-Control"] = (
-            "no-cache, no-store, must-revalidate, private"
-        )
-        response.headers["Pragma"] = "no-cache"
-        response.headers["Expires"] = "0"
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
 
-    def _should_add_cache_headers(self, response: Response) -> bool:
-        """Leave redirects alone, so browser redirect handling and cookies are untouched."""
-        return not (300 <= response.status_code < 400)
-
-    async def dispatch(self, request: Request, call_next):
+        request = Request(scope, receive)
         paths = self.admin_instance.paths
         if paths.is_public(request.url.path):
-            return await call_next(request)
+            await self.app(scope, receive, send)
+            return
 
+        if await self._resolve_principal(request) is None:
+            authentication = self.admin_instance.admin_authentication
+            had_session = authentication.session_cookie_name in request.cookies
+            reason = "session_ended" if had_session else "login_required"
+            response = login_redirect(request, paths.login_with_error(reason))
+            await response(scope, receive, send)
+            return
+
+        submitted_by_fetch = bool(request.headers.get(FORM_SUBMITTED_BY_FETCH_HEADER))
+        await self.app(scope, receive, AdminResponseHeaders(send, submitted_by_fetch))
+
+    async def _resolve_principal(self, request: Request) -> Optional[Any]:
+        """The logged-in admin's principal, or None when the session is missing or invalid."""
         authentication = self.admin_instance.admin_authentication
         try:
-            principal = await authentication.auth.resolve_principal(
+            return await authentication.auth.resolve_principal(
                 request, update_activity=True
             )
         except Exception:
             logger.exception("Could not resolve the admin session")
-            principal = None
-
-        if principal is None:
-            had_session = authentication.session_cookie_name in request.cookies
-            reason = "session_ended" if had_session else "login_required"
-            return login_redirect(request, paths.login_with_error(reason))
-
-        response = await call_next(request)
-
-        if self._should_add_cache_headers(response):
-            self._add_no_cache_headers(response)
-
-        return redirect_for_fetch(request, response)
+            return None
