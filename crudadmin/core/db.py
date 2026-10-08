@@ -1,5 +1,6 @@
 import logging
 import os
+import warnings
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -15,7 +16,8 @@ from uuid import UUID
 
 from fastcrud import FastCRUD
 from pydantic import BaseModel
-from sqlalchemy import Table, inspect
+from sqlalchemy import Table, inspect, text
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -30,12 +32,6 @@ if TYPE_CHECKING:
         AdminUserRead,
         AdminUserUpdate,
         AdminUserUpdateInternal,
-    )
-    from ..session.schemas import (
-        AdminSessionCreate,
-        AdminSessionRead,
-        AdminSessionUpdate,
-        AdminSessionUpdateInternal,
     )
 
 logger = logging.getLogger(__name__)
@@ -94,6 +90,12 @@ def convert_id_to_pk_type(
         return str(id_value)
 
 
+ADMIN_USER_COLUMNS_ADDED_IN_0_6 = {
+    "is_active": "BOOLEAN NOT NULL DEFAULT TRUE",
+    "token_version": "INTEGER NOT NULL DEFAULT 0",
+}
+
+
 class AdminBase(DeclarativeBase):
     pass
 
@@ -128,17 +130,15 @@ class DatabaseConfig:
                 "AdminUserRead",
             ]
         ] = None,
-        crud_admin_session: Optional[
-            FastCRUD[
-                DeclarativeBase,
-                "AdminSessionCreate",
-                "AdminSessionUpdate",
-                "AdminSessionUpdateInternal",
-                "_EmptySchema",
-                "AdminSessionRead",
-            ]
-        ] = None,
+        crud_admin_session: Any = None,
     ) -> None:
+        if admin_session is not None or crud_admin_session is not None:
+            warnings.warn(
+                "admin_session and crud_admin_session are ignored: sessions are kept "
+                "by crudauth since crudadmin 0.6, not in an admin_session table.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         self.base: Type[DeclarativeBase] = base
         self.session: Callable[[], AsyncGenerator[AsyncSession, None]] = session
 
@@ -197,45 +197,18 @@ class DatabaseConfig:
             AdminUserRead,
         ] = crud_admin_user
 
-        if admin_session is None:
-            from ..session.models import create_admin_session_model
-
-            admin_session = create_admin_session_model(base)
-        self.AdminSession: Type[DeclarativeBase] = admin_session
-
-        if crud_admin_session is None:
-            CRUDSession = FastCRUD[
-                DeclarativeBase,
-                "AdminSessionCreate",
-                "AdminSessionUpdate",
-                "AdminSessionUpdateInternal",
-                "_EmptySchema",
-                "AdminSessionRead",
-            ]
-            crud_admin_session = CRUDSession(admin_session)
-        assert crud_admin_session is not None
-        self.crud_sessions: FastCRUD[
-            DeclarativeBase,
-            AdminSessionCreate,
-            AdminSessionUpdate,
-            AdminSessionUpdateInternal,
-            _EmptySchema,
-            AdminSessionRead,
-        ] = crud_admin_session
-
     async def initialize_admin_db(self) -> None:
-        """Initialize the admin database with required tables.
+        """Create the admin tables, and add columns that older versions lacked.
 
-        Note: Session management is now handled by storage backends,
-        not database tables.
+        Tables are created with ``checkfirst``. On an ``admin_user`` table made by
+        crudadmin 0.5 or earlier, the ``is_active`` and ``token_version`` columns are
+        added in place, so an existing admin database keeps working without a
+        manual migration.
         """
         logger.info("Initializing admin database tables...")
         try:
             async with self.admin_engine.begin() as conn:
-                tables_to_create = [
-                    self.AdminUser,
-                    self.AdminSession,
-                ]
+                tables_to_create = [self.AdminUser]
 
                 if self.AdminEventLog is not None:
                     tables_to_create.append(self.AdminEventLog)
@@ -246,12 +219,58 @@ class DatabaseConfig:
                     logger.info(f"Creating table: {table.__tablename__}")
                     table_obj = cast(Table, table.__table__)
                     await conn.run_sync(table_obj.create, checkfirst=True)
+
+            await self._add_missing_admin_user_columns()
             logger.info("Admin database tables created successfully")
         except Exception as e:
             logger.error(
                 f"Error creating admin database tables: {str(e)}", exc_info=True
             )
             raise
+
+    async def _add_missing_admin_user_columns(self) -> None:
+        """Add the columns crudadmin 0.6 introduced to an older ``admin_user`` table.
+
+        Each column is added in a transaction of its own. Several workers starting
+        at once may all find a column missing; the ones whose ``ALTER TABLE`` loses
+        the race get a duplicate-column error, see that the column now exists, and
+        carry on.
+        """
+        table = cast(Table, self.AdminUser.__table__)
+        for name, definition in ADMIN_USER_COLUMNS_ADDED_IN_0_6.items():
+            if name not in table.columns:
+                continue
+            if name in await self._admin_user_column_names():
+                continue
+            logger.info("Adding column %s.%s", table.name, name)
+            try:
+                async with self.admin_engine.begin() as conn:
+                    await conn.execute(
+                        self._add_column_statement(table, name, definition)
+                    )
+            except DBAPIError:
+                if name not in await self._admin_user_column_names():
+                    raise
+                logger.info(
+                    "Column %s.%s was added by another worker", table.name, name
+                )
+
+    async def _admin_user_column_names(self) -> set[str]:
+        table_name = cast(Table, self.AdminUser.__table__).name
+        async with self.admin_engine.connect() as conn:
+            return await conn.run_sync(
+                lambda sync_conn: {
+                    column["name"]
+                    for column in inspect(sync_conn).get_columns(table_name)
+                }
+            )
+
+    def _add_column_statement(self, table: Table, name: str, definition: str) -> Any:
+        preparer = self.admin_engine.dialect.identifier_preparer
+        return text(
+            f"ALTER TABLE {preparer.format_table(table)} "
+            f"ADD COLUMN {preparer.quote(name)} {definition}"
+        )
 
     def get_admin_session(self) -> AsyncSession:
         """Get a session for the admin database."""

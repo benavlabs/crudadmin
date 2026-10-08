@@ -8,7 +8,6 @@ from .schemas import (
     AdminUserUpdate,
     AdminUserUpdateInternal,
 )
-from .service import AdminUserService
 
 __all__ = [
     "create_admin_user",
@@ -19,5 +18,4 @@ __all__ = [
     "AdminUserCreateInternal",
     "AdminUserUpdate",
     "AdminUserUpdateInternal",
-    "AdminUserService",
 ]

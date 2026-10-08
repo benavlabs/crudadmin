@@ -7,6 +7,7 @@ every admin row got the same ``created_at`` (and every update the same
 
 import time
 from datetime import datetime, timezone
+from typing import Any
 
 import pytest
 from sqlalchemy import update
@@ -21,7 +22,7 @@ async def test_timestamps_are_taken_when_each_row_is_written():
     class Base(DeclarativeBase):
         pass
 
-    AdminUser = create_admin_user(Base)
+    AdminUser: Any = create_admin_user(Base)
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
