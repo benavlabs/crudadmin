@@ -1,17 +1,19 @@
+from typing import Any, cast
 from unittest.mock import AsyncMock, Mock
 
 import pytest
 from fastapi import Request, Response
-from fastapi.responses import RedirectResponse
 
 from crudadmin import CRUDAdmin
 from crudadmin.admin_interface.middleware.auth import AdminAuthMiddleware
 from tests.crud.test_admin import create_test_db_config
 
 
-@pytest.mark.asyncio
-async def test_root_mount_path_middleware_behavior(async_session):
-    """Test that middleware correctly handles root mount path."""
+def test_root_mount_path_middleware_behavior(async_session):
+    """An anonymous request on a root-mounted admin is sent to /login."""
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
     secret_key = "test-secret-key-for-testing-only-32-chars"
     db_config = create_test_db_config(async_session)
 
@@ -20,33 +22,14 @@ async def test_root_mount_path_middleware_behavior(async_session):
         SECRET_KEY=secret_key,
         mount_path="/",
         db_config=db_config,
-        setup_on_initialization=False,
     )
+    app = FastAPI()
+    app.mount("/", admin.app)
 
-    # Create middleware instance
-    middleware = AdminAuthMiddleware(Mock(), admin)
+    result = TestClient(app, follow_redirects=False).get("/")
 
-    # Test that root path requests are processed by middleware
-    mock_request = Mock(spec=Request)
-    mock_request.url.path = "/"
-    mock_call_next = AsyncMock()
-
-    # Mock session validation to fail (no session)
-    mock_request.cookies.get.return_value = None
-
-    # Mock admin database session
-    async def mock_get_admin_db():
-        yield Mock()
-
-    admin.db_config.get_admin_db = mock_get_admin_db
-
-    result = await middleware.dispatch(mock_request, mock_call_next)
-
-    # Should redirect to login for unauthenticated requests
-    assert isinstance(result, RedirectResponse)
-    assert (
-        result.headers["location"] == "/login?error=Please+log+in+to+access+this+page"
-    )
+    assert result.status_code == 303
+    assert result.headers["location"] == "/login?error=login_required"
 
 
 @pytest.mark.asyncio
@@ -114,7 +97,7 @@ async def test_root_mount_path_model_view_urls(async_session):
     model_view = ModelView(
         database_config=db_config,
         templates=Jinja2Templates(directory="templates"),
-        model=TestModel,
+        model=cast(Any, TestModel),
         allowed_actions={"view", "create", "update", "delete"},
         create_schema=TestCreateSchema,
         update_schema=TestUpdateSchema,
@@ -163,8 +146,11 @@ async def test_root_mount_path_vs_admin_mount_path_comparison(async_session):
     assert admin_regular.get_url_prefix() == "/admin"
 
     # Compare OAuth token URLs
-    assert admin_root.oauth2_scheme.model.flows.password.tokenUrl == "/login"
-    assert admin_regular.oauth2_scheme.model.flows.password.tokenUrl == "/admin/login"
+    root_manager = admin_root.admin_authentication.session_transport.manager
+    regular_manager = admin_regular.admin_authentication.session_transport.manager
+    assert root_manager is not None and regular_manager is not None
+    assert root_manager.cookie_path == "/"
+    assert regular_manager.cookie_path == "/admin/"
 
 
 @pytest.mark.asyncio

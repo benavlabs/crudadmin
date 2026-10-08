@@ -1,6 +1,6 @@
 [project]
 name = "crudadmin"
-version = "0.5.2"
+version = "0.6.0"
 description = "FastAPI-based admin interface with authentication, event logging and CRUD operations"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -28,14 +28,13 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "bcrypt>=4.2.1",
+    "crudauth[useragent]>=0.8.2,<0.9",
     "fastapi>=0.115.6",
     "jinja2>=3.1.5",
     "pydantic[email]>=2.10.4",
     "pydantic-settings>=2.6.1",
     "python-multipart>=0.0.20",
     "sqlalchemy>=2.0.36",
-    "user-agents>=2.2.0",
     "aiosqlite>=0.20.0",
     "greenlet>=3.1.1",
     "fastcrud>=0.22.2",
@@ -65,10 +64,6 @@ standard = [
 
 redis = [
     "redis>=6.2.0"
-]
-
-memcached = [
-    "aiomcache>=0.8.2"
 ]
 
 postgres = [
@@ -103,14 +98,13 @@ all = [
 ]
 
 test = [
-    "aiomcache>=0.8.2",
     "redis>=6.2.0",
 ]
 
 [dependency-groups]
 dev = [
     "crudadmin",
-    "crudadmin[standard,redis,memcached,postgres,mysql,dev]",
+    "crudadmin[standard,redis,postgres,mysql,dev]",
     "pytest-cov"
 ]
 
@@ -151,7 +145,10 @@ ignore = [
 known-third-party = ["fastapi", "pydantic", "starlette"]
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.10"
+files = ["crudadmin", "tests"]
+plugins = ["pydantic.mypy", "sqlalchemy.ext.mypy.plugin"]
+ignore_missing_imports = true
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = false

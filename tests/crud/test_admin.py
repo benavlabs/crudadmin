@@ -1,5 +1,6 @@
 import os
 import tempfile
+from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -26,7 +27,7 @@ def create_test_db_config(async_session, include_event_models=False) -> Database
     async def get_session():
         yield async_session
 
-    config_kwargs = {
+    config_kwargs: dict[str, Any] = {
         "base": admin_base,
         "session": get_session,
         "admin_db_url": "sqlite+aiosqlite:///:memory:",
@@ -118,8 +119,9 @@ async def test_crud_admin_root_mount_path(async_session):
     # Test that URL prefix is correctly generated
     assert admin.get_url_prefix() == ""
 
-    # Test that OAuth2 token URL is correctly set for root path
-    assert admin.oauth2_scheme.model.flows.password.tokenUrl == "/login"
+    root_session_manager = admin.admin_authentication.session_transport.manager
+    assert root_session_manager is not None
+    assert root_session_manager.cookie_path == "/"
 
 
 @pytest.mark.asyncio
@@ -156,7 +158,7 @@ async def test_crud_admin_with_allowed_ips(async_session):
         middleware.cls for middleware in admin.app.user_middleware
     ]
     assert any(
-        issubclass(mw_class, IPRestrictionMiddleware)
+        isinstance(mw_class, type) and issubclass(mw_class, IPRestrictionMiddleware)
         for mw_class in registered_middleware_classes
     )
 
@@ -321,7 +323,7 @@ async def test_crud_admin_setup_event_routes(async_session):
         setup_on_initialization=False,
     )
 
-    admin.admin_authentication.get_current_user = Mock(return_value=Mock())
+    admin.admin_authentication.get_current_user = Mock(return_value=Mock())  # type: ignore[method-assign]
     admin.setup_event_routes()
 
 
@@ -477,7 +479,7 @@ async def test_crud_admin_authentication_integration(async_session):
 
     # Verify authentication components are set up
     assert hasattr(admin, "admin_authentication")
-    assert hasattr(admin, "admin_user_service")
+    assert admin.admin_authentication.auth is not None
 
 
 @pytest.mark.asyncio
@@ -489,12 +491,12 @@ async def test_crud_admin_error_handling_invalid_session(async_session):
     admin_base = create_unique_admin_base()
     db_config = DatabaseConfig(
         base=admin_base,
-        session=None,  # Pass None directly here
+        session=None,  # type: ignore[arg-type]
         admin_db_url="sqlite+aiosqlite:///:memory:",
     )
 
     admin = CRUDAdmin(
-        session=None,  # This doesn't raise an error in __init__
+        session=None,  # type: ignore[arg-type]
         SECRET_KEY=secret_key,
         db_config=db_config,
         setup_on_initialization=False,
@@ -528,7 +530,6 @@ async def test_crud_admin_session_backend_configuration(async_session):
         session_backend="database",
     )
     assert "DatabaseSessionStorage" in str(type(admin_db.session_manager.storage))
-    assert admin_db.track_sessions_in_db is True
 
     # Test Redis URL parsing with new config objects
     from crudadmin.session.configs import RedisConfig
@@ -618,40 +619,18 @@ async def test_crud_admin_backend_parameter_validation(async_session):
         # Redis not available, skip Redis tests
         pass
 
-    # Test Memcached parameter validation
-    try:
-        # Test individual parameters work
-        memcached_config = MemcachedConfig(host="localhost", port=11211)
-        admin_memcached_individual = CRUDAdmin(
+    from crudadmin.session.configs import MemcachedConfig
+
+    with pytest.raises(ValueError, match="no longer supported"):
+        CRUDAdmin(
             session=async_session,
             SECRET_KEY=secret_key,
             db_config=db_config,
             setup_on_initialization=False,
             session_backend="memcached",
-            memcached_config=memcached_config,
-        )
-        storage_type_name = type(
-            admin_memcached_individual.session_manager.storage
-        ).__name__
-        assert storage_type_name == "MemcachedSessionStorage"
-
-        # Test defaults work
-        admin_memcached_defaults = CRUDAdmin(
-            session=async_session,
-            SECRET_KEY=secret_key,
-            db_config=db_config,
-            setup_on_initialization=False,
-            session_backend="memcached",
-        )
-        assert (
-            type(admin_memcached_defaults.session_manager.storage).__name__
-            == "MemcachedSessionStorage"
+            memcached_config=MemcachedConfig(host="localhost", port=11211),
         )
 
-        # Test validation works
-        with pytest.raises(ValueError):
-            MemcachedConfig(port=70000)  # Invalid port range
-
-    except ImportError:
-        # Memcached not available, skip Memcached tests
-        pass
+    out_of_range_port = 70000
+    with pytest.raises(ValueError):
+        MemcachedConfig(port=out_of_range_port)

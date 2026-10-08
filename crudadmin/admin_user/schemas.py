@@ -19,13 +19,16 @@ class AdminUserBase(BaseModel):
 class AdminUser(TimestampSchema, AdminUserBase):
     id: int
     hashed_password: str
-    is_superuser: bool = True
+    is_superuser: bool = False
+    is_active: bool = True
+    token_version: int = 0
 
 
 class AdminUserRead(BaseModel):
     id: int
     username: str
     is_superuser: bool
+    is_active: bool
 
 
 class AdminUserCreate(AdminUserBase):
@@ -39,10 +42,12 @@ class AdminUserCreate(AdminUserBase):
             examples=["Str1ngst!"],
         ),
     ]
+    is_superuser: bool = False
 
 
 class AdminUserCreateInternal(AdminUserBase):
     hashed_password: str
+    is_superuser: bool = False
 
 
 class AdminUserUpdate(BaseModel):
@@ -55,18 +60,18 @@ class AdminUserUpdate(BaseModel):
             max_length=20,
             pattern=r"^[a-z0-9]+$",
             examples=["admin"],
-            default=None,
         ),
-    ]
+    ] = None
     password: Annotated[
         Optional[str],
         Field(
             min_length=PASSWORD_MIN_LENGTH,
             max_length=PASSWORD_MAX_LENGTH,
             examples=["NewStr1ngst!"],
-            default=None,
         ),
-    ]
+    ] = None
+    is_superuser: Optional[bool] = None
+    is_active: Optional[bool] = None
 
 
 class AdminUserUpdateInternal(AdminUserUpdate):

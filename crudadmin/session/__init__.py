@@ -1,22 +1,9 @@
-from .manager import SessionManager
-from .schemas import (
-    CSRFToken,
-    SessionCreate,
-    SessionData,
-    SessionUpdate,
-    UserAgentInfo,
-)
-from .storage import AbstractSessionStorage, get_session_storage
+"""Session store settings.
 
-__all__ = [
-    # Core components
-    "SessionManager",
-    "AbstractSessionStorage",
-    "get_session_storage",
-    # Schemas
-    "SessionData",
-    "SessionCreate",
-    "SessionUpdate",
-    "UserAgentInfo",
-    "CSRFToken",
-]
+Sessions themselves are kept by crudauth since crudadmin 0.6; this package only
+holds the configuration objects ``CRUDAdmin`` accepts.
+"""
+
+from .configs import MemcachedConfig, RedisConfig
+
+__all__ = ["RedisConfig", "MemcachedConfig"]

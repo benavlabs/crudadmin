@@ -189,7 +189,7 @@ async def test_get_multi_uses_select_schema_parameter(async_session):
     )
 
     # Mock the CRUD get_multi method to capture its call
-    model_view.crud.get_multi = AsyncMock(
+    model_view.crud.get_multi = AsyncMock(  # type: ignore[method-assign]
         return_value={
             "data": [{"id": 1, "title": "Test", "content": "Test content"}],
             "total_count": 1,
@@ -229,7 +229,7 @@ async def test_get_uses_select_schema_parameter(async_session):
     )
 
     # Mock the CRUD get method
-    model_view.crud.get = AsyncMock(
+    model_view.crud.get = AsyncMock(  # type: ignore[method-assign]
         return_value={"id": 1, "title": "Test", "content": "Test content"}
     )
 
@@ -266,8 +266,8 @@ async def test_crud_operations_pass_none_when_no_select_schema(async_session):
     )
 
     # Mock CRUD operations
-    model_view.crud.get_multi = AsyncMock(return_value={"data": [], "total_count": 0})
-    model_view.crud.get = AsyncMock(return_value={"id": 1, "title": "Test"})
+    model_view.crud.get_multi = AsyncMock(return_value={"data": [], "total_count": 0})  # type: ignore[method-assign]
+    model_view.crud.get = AsyncMock(return_value={"id": 1, "title": "Test"})  # type: ignore[method-assign]
 
     # Test get_multi
     await model_view.crud.get_multi(

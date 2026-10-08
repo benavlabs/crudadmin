@@ -175,15 +175,18 @@ def test_login_page_reachable_with_trailing_slash(admin_client):
     ],
 )
 def test_route_dependencies_hold_when_the_middleware_is_skipped(admin_client, path):
-    """Auth must not depend on the middleware alone.
+    """Mounting the admin somewhere other than its ``mount_path`` exposes nothing.
 
-    Mounting the admin app somewhere other than its configured ``mount_path``
-    makes the middleware's prefix check miss, so these requests reach the
-    endpoints directly. The per-route dependencies have to reject them.
+    The middleware used to skip requests whose path didn't start with the
+    configured prefix, leaving the per-route dependencies as the only defense.
+    It now authenticates every request it sees, and the route dependencies still
+    back it up (see the structural test below).
     """
     response = admin_client.get(path)
 
-    assert response.status_code == 401, response.status_code
+    assert response.status_code in (303, 401), response.status_code
+    if response.status_code == 303:
+        assert "/login" in response.headers["location"]
     assert SECRET_BODY not in response.text
 
 

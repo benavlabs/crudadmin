@@ -27,4 +27,4 @@ jobs:
       run: uv pip install -e ".[dev]"
 
     - name: Run mypy
-      run: uv run mypy crudadmin --config-file mypy.ini
+      run: uv run mypy

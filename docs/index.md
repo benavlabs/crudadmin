@@ -35,9 +35,9 @@
 
 ## Features
 
-- **🔒 Multi-Backend Session Management**: Flexible session storage with Memory, Redis, Memcached, Database, and Hybrid backends
-- **🛡️ Built-in Security**: IP allowlists, HTTPS enforcement, and secure session cookies (HttpOnly, Secure, SameSite=Strict)
-- **🚦 Rate Limiting**: Login attempt protection with IP and username-based tracking
+- **🔒 Session Management**: Sessions in memory, Redis or the admin database, built on [crudauth](https://github.com/benavlabs/crudauth), with a Sessions page to sign devices out
+- **🛡️ Built-in Security**: CSRF protection, login lockout, password confirmation before admin-account changes, IP allowlists, HTTPS enforcement, and secure session cookies (HttpOnly, Secure, SameSite=Strict)
+- **👥 Roles**: Superusers manage admin accounts and see the event log; other admins work with your models
 - **📝 Event Tracking & Audit Logs**: Comprehensive audit trails for all admin actions with user agent parsing and attribution
 - **📊 Auto-generated Interface**: Creates admin UI directly from your SQLAlchemy models with intelligent field detection
 - **🔍 Advanced Filtering**: Type-aware field filtering, search, and pagination with bulk operations
@@ -94,44 +94,40 @@ from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from crudadmin import CRUDAdmin
 
-# Database setup
 engine = create_async_engine("sqlite+aiosqlite:///app.db")
 
-# Create database session dependency
+
 async def get_session():
     async with AsyncSession(engine) as session:
         yield session
 
-# Create admin interface
+
 admin = CRUDAdmin(
     session=get_session,
     SECRET_KEY="your-secret-key-here",
     initial_admin={
         "username": "admin",
-        "password": "secure_password123"
-    }
+        "password": "secure_password123",
+    },
 )
 
-# Add models to admin
 admin.add_view(
     model=User,
     create_schema=UserCreate,
     update_schema=UserUpdate,
-    allowed_actions={"view", "create", "update"}
+    allowed_actions={"view", "create", "update"},
 )
 
-# Setup FastAPI with proper initialization
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Initialize database tables
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    
-    # Initialize admin interface
     await admin.initialize()
     yield
+    await admin.shutdown()
 
-# Create and mount the app
+
 app = FastAPI(lifespan=lifespan)
 app.mount("/admin", admin.app)
 ```
@@ -170,26 +166,13 @@ pip install crudadmin
 
 For production use with different session backends:
 
+`redis` adds the Redis session backend; `postgres` and `mysql` add drivers for keeping the admin database there:
+
 ```sh
-# For Redis sessions (recommended for production)
 uv add "crudadmin[redis]"
-
-# For Memcached sessions  
-uv add "crudadmin[memcached]"
-
-# For PostgreSQL/MySQL admin databases
-uv add "crudadmin[postgres]"  # PostgreSQL
-uv add "crudadmin[mysql]"     # MySQL
-```
-
-You can also combine multiple extras:
-
-```sh
-# Redis sessions + PostgreSQL admin database
+uv add "crudadmin[postgres]"
+uv add "crudadmin[mysql]"
 uv add "crudadmin[redis,postgres]"
-
-# All session and database options
-uv add "crudadmin[redis,memcached,postgres,mysql]"
 ```
 
 ### Development Installation
@@ -213,19 +196,17 @@ admin = CRUDAdmin(
     session=get_session,
     SECRET_KEY="your-secret-key",
     initial_admin={
-        "username": "admin", 
-        "password": "admin123"
-    }
+        "username": "admin",
+        "password": "admin123",
+    },
 )
 
-# Add your models
 admin.add_view(
     model=User,
     create_schema=UserCreate,
-    update_schema=UserUpdate
+    update_schema=UserUpdate,
 )
 
-# Mount to FastAPI
 app.mount("/admin", admin.app)
 ```
 
@@ -234,40 +215,30 @@ app.mount("/admin", admin.app)
 ```python
 from crudadmin import CRUDAdmin, RedisConfig
 
-# Configure Redis backend
-redis_config = RedisConfig(url="redis://localhost:6379")
-
 admin = CRUDAdmin(
     session=get_session,
     SECRET_KEY=os.environ["ADMIN_SECRET_KEY"],
-    
-    # Session backend
     session_backend="redis",
-    redis_config=redis_config,
-    
-    # Session management settings
+    redis_config=RedisConfig(url="redis://localhost:6379"),
     max_sessions_per_user=3,
     session_timeout_minutes=15,
-    
-    # Security features
     allowed_ips=["10.0.0.1"],
     allowed_networks=["192.168.1.0/24"],
+    trusted_proxy_hops=1,
     secure_cookies=True,
     enforce_https=True,
-    
-    # Event tracking
     track_events=True,
-    track_sessions_in_db=True,
-    admin_db_url="postgresql+asyncpg://user:pass@localhost/admin"
+    admin_db_url="postgresql+asyncpg://user:pass@localhost/admin",
 )
 ```
+
+`trusted_proxy_hops=1` reads the client IP from `X-Forwarded-For` behind one reverse proxy; leave it at `0` when the app is exposed directly. `track_events=True` records logins, failed logins, lockouts and every change in the event log.
 
 ### Advanced Model Configuration
 
 ```python
 from crudadmin.admin_interface.model_view import PasswordTransformer
 
-# Password handling for user models
 password_transformer = PasswordTransformer(
     password_field="password",
     hashed_field="hashed_password", 
@@ -280,54 +251,41 @@ admin.add_view(
     create_schema=UserCreateWithPassword,
     update_schema=UserUpdate,
     allowed_actions={"view", "create", "update"},
-    password_transformer=password_transformer
+    password_transformer=password_transformer,
 )
 
-# Read-only audit logs
 admin.add_view(
     model=AuditLog,
     create_schema=AuditLogSchema,
     update_schema=AuditLogSchema,
-    allowed_actions={"view"}  # Read-only
+    allowed_actions={"view"},
 )
 ```
 
 ### Session Backend Configuration
 
+Sessions, CSRF tokens and login-lockout counters live in one of three backends:
+
 ```python
-from crudadmin import CRUDAdmin, RedisConfig, MemcachedConfig
+from crudadmin import CRUDAdmin, RedisConfig
 
-# Redis Sessions (Recommended for Production)
-redis_config = RedisConfig(
-    url="redis://localhost:6379",
-    password="redis-password"
-)
+admin = CRUDAdmin(session=get_session, SECRET_KEY=SECRET_KEY)
+
 admin = CRUDAdmin(
     session=get_session,
     SECRET_KEY=SECRET_KEY,
     session_backend="redis",
-    redis_config=redis_config
+    redis_config=RedisConfig(host="localhost", port=6379, password="redis-password"),
 )
 
-# Memcached Sessions
-memcached_config = MemcachedConfig(servers=["localhost:11211"])
 admin = CRUDAdmin(
     session=get_session,
     SECRET_KEY=SECRET_KEY,
-    session_backend="memcached",
-    memcached_config=memcached_config
-)
-
-# Hybrid Sessions (Redis + Database)
-redis_config = RedisConfig(url="redis://localhost:6379")
-admin = CRUDAdmin(
-    session=get_session,
-    SECRET_KEY=SECRET_KEY,
-    session_backend="redis",
-    redis_config=redis_config,
-    track_sessions_in_db=True
+    session_backend="database",
 )
 ```
+
+The default, `memory`, is per process: fine for development and a single worker. With several workers, use `redis`, or `database` to keep them in the admin database without extra infrastructure. See [Session Backends](usage/session-backends.md).
 
 ## What You Get
 
@@ -335,7 +293,7 @@ Once set up, CRUDAdmin provides:
 
 - **Admin Dashboard**: Overview of your models and system health
 - **Model Management**: Auto-generated forms for CRUD operations
-- **User Authentication**: Secure login/logout with session management  
+- **User Authentication**: Login with lockout, CSRF-protected changes, and a Sessions page to sign devices out
 - **Event Logs**: Track all admin actions with full audit trails
 - **Health Monitoring**: Real-time system status and diagnostics
 - **Security Features**: IP allowlists, HTTPS enforcement, secure session cookies

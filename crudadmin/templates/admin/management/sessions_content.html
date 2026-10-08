@@ -1,0 +1,44 @@
+{% for group in session_groups %}
+<section class="session-group">
+    <h2>{{ group.username }}</h2>
+    {% if group.sessions %}
+    <table class="session-table">
+        <thead>
+            <tr>
+                <th>Device</th>
+                <th>IP address</th>
+                <th>Signed in</th>
+                <th>Last active</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for session in group.sessions %}
+            <tr>
+                <td>
+                    {{ session.device.browser|default('Unknown browser', true) }}
+                    {% if session.device.os and session.device.os != 'Unknown' %}on {{ session.device.os }}{% endif %}
+                    {% if session.current %}<span class="current-badge">This session</span>{% endif %}
+                </td>
+                <td>{{ session.ip }}</td>
+                <td>{{ session.created_at.strftime('%Y-%m-%d %H:%M') }} UTC</td>
+                <td>{{ session.last_activity.strftime('%Y-%m-%d %H:%M') }} UTC</td>
+                <td>
+                    {% if not session.current %}
+                    <button class="revoke-button"
+                            hx-post="{{ url_prefix }}/management/sessions/revoke"
+                            hx-vals='{{ {"user_id": group.user_id, "handle": session.id} | tojson }}'
+                            hx-target="#sessions-content">
+                        Sign out
+                    </button>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="empty-state">No active sessions.</p>
+    {% endif %}
+</section>
+{% endfor %}

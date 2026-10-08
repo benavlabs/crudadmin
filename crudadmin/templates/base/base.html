@@ -6,7 +6,9 @@
     <title>{% block title %}FastAPI Admin{% endblock %}</title>
     <link rel="icon" type="image/png" href="{{ url_prefix }}/static/favicon.png?v=1">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <meta name="csrf-cookie-name" content="{{ csrf_cookie_name|default('crudadmin_csrf', true) }}">
     <script src="{{ url_prefix }}/static/htmx.min.js"></script>
+    <script src="{{ url_prefix }}/static/admin.js" defer></script>
     <style>
         /* Modern CSS Reset */
         *, *::before, *::after {
@@ -289,9 +291,11 @@
                     FastAPI Admin
                 </a>
                 <div class="flex items-center gap-4">
-                    <a href="{{ url_prefix }}/logout" style="color: white; text-decoration: none; font-weight: 500; transition: color 0.2s" onmouseover="this.style.color='var(--primary-light)'" onmouseout="this.style.color='white'">
-                        Logout
-                    </a>
+                    <form method="post" action="{{ url_prefix }}/logout" style="margin: 0">
+                        <button type="submit" style="background: none; border: none; cursor: pointer; font: inherit; color: white; font-weight: 500; transition: color 0.2s" onmouseover="this.style.color='var(--primary-light)'" onmouseout="this.style.color='white'">
+                            Logout
+                        </button>
+                    </form>
                 </div>
             </header>
 
@@ -343,6 +347,7 @@
                             <span class="sidebar-section-toggle"></span>
                         </div>
                         <ul class="sidebar-nav">
+                            {% if is_superuser %}
                             {% for auth_table_name in auth_table_names %}
                             <li>
                                 <a href="{{ url_prefix }}/{{ auth_table_name }}/" class="sidebar-link">
@@ -351,6 +356,12 @@
                                 </a>
                             </li>
                             {% endfor %}
+                            {% endif %}
+                            <li>
+                                <a href="{{ url_prefix }}/management/sessions" class="sidebar-link">
+                                    Sessions
+                                </a>
+                            </li>
                         </ul>
                     </div>
 

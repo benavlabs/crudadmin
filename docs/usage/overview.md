@@ -15,12 +15,10 @@ Learn how to set up and configure your CRUDAdmin instance for different environm
 ### 2. [Session Backends](session-backends.md)
 Master session management with flexible backend options for optimal performance.
 
-- **Memory sessions** for development and testing
-- **Redis sessions** for production and high-traffic applications
-- **Memcached sessions** for high-performance caching
-- **Database sessions** for audit trails and compliance
-- **Hybrid sessions** combining performance with auditability
-- **Dynamic backend switching** and environment-based configuration
+- **Memory sessions** for development and a single worker
+- **Redis sessions** for production with several workers
+- **Database sessions** to share sessions between workers without Redis
+- **Login lockout and proxies**: lockout defaults and `trusted_proxy_hops`
 
 ### 3. [Adding Models](adding-models.md)
 Master the core functionality of registering your SQLAlchemy models with CRUDAdmin.
@@ -34,10 +32,10 @@ Master the core functionality of registering your SQLAlchemy models with CRUDAdm
 ### 4. [Managing Admin Users](admin-users.md)
 Set up authentication and manage who can access your admin interface.
 
-- **Creating admin users** and managing credentials
-- **Authentication flow** and session management
-- **User roles and permissions** (if applicable)
-- **Security best practices** for admin access
+- **Creating admin users** and the initial superuser
+- **Superusers and regular admins**: who manages accounts and sees the event log
+- **Password confirmation** before admin-account changes
+- **Deactivating admins and ending sessions** on the Sessions page
 
 ### 5. [Using the Interface](interface.md)
 Navigate and operate the admin interface effectively for daily tasks.
@@ -71,7 +69,7 @@ After completing the Usage section, you'll have a solid foundation for building 
 Need to jump to a specific topic? Here are the most commonly accessed sections:
 
 - **[Quick setup example](configuration.md#minimal-setup)** - Get running in 5 minutes
-- **[Session backends](session-backends.md#redis-sessions)** - Configure Redis for production
+- **[Session backends](session-backends.md)** - Configure Redis or the database for production
 - **[Adding your first model](adding-models.md#basic-model-registration)** - Register a model and start managing data
 - **[Search and filtering](interface.md#search-and-filtering)** - Find records quickly
 - **[Performance tips](common-patterns.md#performance-optimization-patterns)** - Optimize for large datasets

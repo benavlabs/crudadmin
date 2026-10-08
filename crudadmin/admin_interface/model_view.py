@@ -21,10 +21,10 @@ from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from fastcrud import FastCRUD
 from pydantic import BaseModel, ValidationError
-from sqlalchemy import inspect
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 
+from ..admin_user.schemas import AdminUserUpdateInternal
 from ..core.db import (
     DatabaseConfig,
     convert_id_to_pk_type,
@@ -154,11 +154,7 @@ class PasswordTransformer:
         transformed_data = {"updated_at": dt.now(datetime.timezone.utc)}
 
         for field_name, field_value in form_data.items():
-            if (
-                field_name != self.password_field
-                and field_value
-                and field_name != "updated_at"
-            ):
+            if field_name not in (self.password_field, "updated_at"):
                 transformed_data[field_name] = field_value
 
         password = getattr(item_data, self.password_field, None)
@@ -404,8 +400,10 @@ class ModelView:
         admin_site: Optional[Any] = None,
         event_integration: Optional[Any] = None,
         password_transformer: Optional[PasswordTransformer] = None,
+        write_dependencies: Optional[List[Any]] = None,
     ) -> None:
         self.db_config = database_config
+        self.write_dependencies: List[Any] = list(write_dependencies or [])
         self.templates = templates
         self.model = model
         self.model_key = model.__name__
@@ -421,9 +419,7 @@ class ModelView:
         if self._model_is_admin_model(model):
             get_session = self.db_config.get_admin_db
         else:
-            get_session = cast(
-                Callable[[], AsyncGenerator[AsyncSession, None]], self.db_config.session
-            )
+            get_session = self.db_config.session
         self.session = get_session
 
         self.create_schema = create_schema
@@ -432,12 +428,8 @@ class ModelView:
         self.delete_schema = delete_schema
         self.select_schema = select_schema
 
-        self.user_service = (
-            self.admin_site.admin_user_service if self.admin_site else None
-        )
-
         if self.model.__name__ == "AdminUser" and password_transformer is None:
-            from ..core.auth import get_password_hash
+            from crudauth import get_password_hash
 
             self.password_transformer = PasswordTransformer(
                 password_field="password",
@@ -466,7 +458,7 @@ class ModelView:
         return self.admin_model or self.model_key.lower() in {"adminuser", "admin_user"}
 
     def _convert_id_to_pk_type(
-        self, id_value: Union[int, str]
+        self, id_value: Optional[Union[int, str]]
     ) -> Union[int, str, float, UUID, None]:
         """Convert the ID value to the appropriate type based on the model's primary key type."""
         if id_value is None:
@@ -559,6 +551,7 @@ class ModelView:
             if self.admin_site is not None
             else []
         )
+        write_dependencies = auth_dependencies + self.write_dependencies
 
         if "create" in self.allowed_actions:
             self.router.add_api_route(
@@ -566,6 +559,7 @@ class ModelView:
                 self.form_create_endpoint(template="admin/model/create.html"),
                 methods=["POST"],
                 include_in_schema=False,
+                dependencies=self.write_dependencies,
                 response_model=None,
             )
             self.router.add_api_route(
@@ -573,7 +567,7 @@ class ModelView:
                 self.get_model_create_page(template="admin/model/create.html"),
                 methods=["GET"],
                 include_in_schema=False,
-                dependencies=auth_dependencies,
+                dependencies=write_dependencies,
                 response_model=None,
             )
 
@@ -603,6 +597,7 @@ class ModelView:
                 self.bulk_delete_endpoint(),
                 methods=["DELETE"],
                 include_in_schema=False,
+                dependencies=self.write_dependencies,
                 response_model=None,
             )
 
@@ -612,7 +607,7 @@ class ModelView:
                 self.get_model_update_page(template="admin/model/update.html"),
                 methods=["GET"],
                 include_in_schema=False,
-                dependencies=auth_dependencies,
+                dependencies=write_dependencies,
                 response_model=None,
             )
             self.router.add_api_route(
@@ -620,6 +615,7 @@ class ModelView:
                 self.form_update_endpoint(),
                 methods=["POST"],
                 include_in_schema=False,
+                dependencies=self.write_dependencies,
                 response_model=None,
             )
 
@@ -699,6 +695,7 @@ class ModelView:
                         raw_value = form_data_raw.getlist(key)
 
                         if field["type"] == "checkbox":
+                            field_has_default = field.get("default") is not None
                             if raw_value and len(raw_value) == 1:
                                 value_str = raw_value[0]
                                 if value_str == "true":
@@ -710,10 +707,9 @@ class ModelView:
                                 else:
                                     form_data[key] = bool(value_str)
                                     field_values[key] = bool(value_str)
-                            else:
-                                has_default = field.get("default") is not None
-                                form_data[key] = None if has_default else False
-                                field_values[key] = None if has_default else False
+                            elif not field_has_default:
+                                form_data[key] = False
+                                field_values[key] = False
                         elif len(raw_value) == 1:
                             value = raw_value[0]
                             form_data[key] = value if value else field.get("default")
@@ -910,22 +906,12 @@ class ModelView:
                         },
                     )
 
-                inspector = inspect(self.model)
-                primary_key = inspector.primary_key[0]
-                pk_name = primary_key.name
-                pk_type = primary_key.type.python_type
+                pk_name = self.primary_key_name
 
-                valid_ids: List[Union[int, str, float]] = []
+                valid_ids: List[Any] = []
                 for id_value in ids:
                     try:
-                        if pk_type is int:
-                            valid_ids.append(int(id_value))
-                        elif pk_type is str:
-                            valid_ids.append(str(id_value))
-                        elif pk_type is float:
-                            valid_ids.append(float(id_value))
-                        else:
-                            valid_ids.append(id_value)
+                        valid_ids.append(self._convert_id_to_pk_type(id_value))
                     except (ValueError, TypeError):
                         return JSONResponse(
                             status_code=422,
@@ -934,9 +920,7 @@ class ModelView:
                             },
                         )
 
-                filter_criteria: Dict[str, List[Union[int, str, float]]] = {
-                    f"{pk_name}__in": valid_ids
-                }
+                filter_criteria: Dict[str, List[Any]] = {f"{pk_name}__in": valid_ids}
                 records_to_delete = await self.crud.get_multi(
                     db=db,
                     limit=len(valid_ids),
@@ -1115,31 +1099,25 @@ class ModelView:
                     except (ValueError, TypeError):
                         pass
 
-            try:
-                total_items = await self.crud.count(db=db, **cast(Any, filter_criteria))
-                max_page = max(1, (total_items + rows_per_page - 1) // rows_per_page)
-                page = min(page, max_page)
-                offset = (page - 1) * rows_per_page
+            total_items = await self.crud.count(db=db, **cast(Any, filter_criteria))
+            max_page = max(1, (total_items + rows_per_page - 1) // rows_per_page)
+            page = min(page, max_page)
+            offset = (page - 1) * rows_per_page
 
-                items_result = await self.crud.get_multi(
-                    db=db,
-                    offset=offset,
-                    limit=rows_per_page,
-                    sort_columns=sort_columns,
-                    sort_orders=sort_orders,
-                    schema_to_select=self.select_schema,
-                    **cast(Any, filter_criteria),
-                )
+            items_result = await self.crud.get_multi(
+                db=db,
+                offset=offset,
+                limit=rows_per_page,
+                sort_columns=sort_columns,
+                sort_orders=sort_orders,
+                schema_to_select=self.select_schema,
+                **cast(Any, filter_criteria),
+            )
 
-                items: Dict[str, Any] = {
-                    "data": items_result.get("data", []),
-                    "total_count": items_result.get("total_count", 0),
-                }
-
-            except Exception:
-                items = {"data": [], "total_count": 0}
-                total_items = 0
-                page = 1
+            items: Dict[str, Any] = {
+                "data": items_result.get("data", []),
+                "total_count": items_result.get("total_count", 0),
+            }
 
             if self.select_schema:
                 table_columns = list(self.select_schema.model_fields.keys())
@@ -1182,7 +1160,7 @@ class ModelView:
 
             if self.admin_site is not None:
                 base_context = await self.admin_site.get_base_context(
-                    admin_db=admin_db, app_db=app_db
+                    admin_db=admin_db, app_db=app_db, request=request
                 )
                 context.update(base_context)
                 context["include_sidebar_and_header"] = True
@@ -1289,6 +1267,69 @@ class ModelView:
 
         return cast(EndpointCallable, get_model_update_page_inner)
 
+    def _clearable_column_names(self) -> set[str]:
+        """Columns an empty form input sets to NULL: nullable ones that aren't keys.
+
+        Whether a field may be cleared comes from the database column, not the
+        update schema, where ``Optional`` usually means "may be left out".
+        """
+        return {
+            column.key
+            for column in self.model.__table__.columns
+            if column.nullable and not column.primary_key
+        }
+
+    @staticmethod
+    def _schema_input(schema: Type[BaseModel], data: Dict[str, Any]) -> Dict[str, Any]:
+        """``data`` limited to the fields ``schema`` declares.
+
+        The update form adds ``updated_at`` for the internal schema; an update
+        schema that forbids extra fields (like ``AdminUserUpdate``) would reject it.
+        """
+        return {key: value for key, value in data.items() if key in schema.model_fields}
+
+    async def _last_superuser_guard(
+        self, db: AsyncSession, user_id: Any, change: AdminUserUpdateInternal
+    ) -> Optional[str]:
+        """Refuse a change that would leave no active superuser to manage admins."""
+        removes_superuser_access = (
+            change.is_superuser is False or change.is_active is False
+        )
+        if not removes_superuser_access:
+            return None
+        target = await self.crud.get(db=db, **self._pk_filter(user_id))
+        if not target or not target.get("is_superuser") or not target.get("is_active"):
+            return None
+        others = await self.crud.count(
+            db=db, is_superuser=True, is_active=True, id__ne=user_id
+        )
+        if others == 0:
+            return "At least one active superuser must remain."
+        return None
+
+    async def _end_sessions_after_admin_change(
+        self, request: Request, user_id: Any, change: AdminUserUpdateInternal
+    ) -> None:
+        """End an admin's sessions when their password or access changes.
+
+        A new password ends every session except the one making the change; losing
+        access (deactivated, or demoted from superuser) ends them all, so the
+        change applies at once rather than when the sessions expire.
+        """
+        assert self.admin_site is not None
+        authentication = self.admin_site.admin_authentication
+        manager = authentication.auth.sessions
+        lost_access = change.is_active is False or change.is_superuser is False
+        password_changed = change.hashed_password is not None
+        if not (lost_access or password_changed):
+            return
+        current_session = request.cookies.get(authentication.session_cookie_name)
+        is_changing_own_account = request.state.user.get("id") == user_id
+        keep_current_session = is_changing_own_account and not lost_access
+        await manager.revoke_all(
+            user_id, exclude=current_session if keep_current_session else None
+        )
+
     def form_update_endpoint(self) -> EndpointCallable:
         """
         Create endpoint for handling form submissions to update existing records.
@@ -1365,6 +1406,7 @@ class ModelView:
                             field_values[key] = False
                             has_updates = True
 
+                clearable_columns = self._clearable_column_names()
                 for key, raw_val in form_data.items():
                     if isinstance(raw_val, UploadFile):
                         field_values[key] = raw_val
@@ -1375,6 +1417,10 @@ class ModelView:
                         if val_str:
                             update_data[key] = val_str
                             field_values[key] = val_str
+                            has_updates = True
+                        elif key in clearable_columns:
+                            update_data[key] = None
+                            field_values[key] = None
                             has_updates = True
 
                 if not has_updates:
@@ -1391,7 +1437,9 @@ class ModelView:
 
                     try:
                         if self.password_transformer is not None:
-                            update_schema_instance = self.update_schema(**update_data)
+                            update_schema_instance = self.update_schema(
+                                **self._schema_input(self.update_schema, update_data)
+                            )
 
                             transformed_data = (
                                 self.password_transformer.transform_update_data(
@@ -1400,15 +1448,22 @@ class ModelView:
                             )
 
                             if self.model.__name__ == "AdminUser":
-                                from ..admin_user.schemas import AdminUserUpdateInternal
-
                                 admin_update_schema: AdminUserUpdateInternal = (
                                     AdminUserUpdateInternal(**transformed_data)
                                 )
+                                blocked = await self._last_superuser_guard(
+                                    db, converted_id, admin_update_schema
+                                )
+                                if blocked:
+                                    raise ValueError(blocked)
                                 await self.crud.update(
                                     db=db,
                                     object=admin_update_schema,
                                     **self._pk_filter(converted_id),
+                                )
+                                await db.commit()
+                                await self._end_sessions_after_admin_change(
+                                    request, converted_id, admin_update_schema
                                 )
                             else:
                                 if self.update_internal_schema:
@@ -1432,7 +1487,9 @@ class ModelView:
 
                             await db.commit()
                         else:
-                            update_schema_instance = self.update_schema(**update_data)
+                            update_schema_instance = self.update_schema(
+                                **self._schema_input(self.update_schema, update_data)
+                            )
                             await self.crud.update(
                                 db=db,
                                 object=update_schema_instance,

@@ -228,15 +228,19 @@ def test_offered_rows_per_page_is_respected(client):
 
 
 def test_session_list_does_not_show_session_ids(client):
-    session_id = client.cookies.get("session_id")
+    session_id = client.cookies.get("crudadmin_session")
     assert session_id
 
-    for path in ("/admin/AdminSession/", "/admin/AdminSession/get_model_list"):
-        response = client.get(path)
+    response = client.get("/admin/management/sessions/content")
 
-        assert response.status_code == 200, path
-        assert session_id not in response.text, path
-        assert "session_id" not in response.text, path
+    assert response.status_code == 200
+    assert "This session" in response.text
+    assert session_id not in response.text
+
+
+def test_the_old_admin_session_table_view_is_gone(client):
+    for path in ("/admin/AdminSession/", "/admin/AdminSession/get_model_list"):
+        assert client.get(path).status_code == 404, path
 
 
 def test_admin_user_list_does_not_show_password_hashes(client):
@@ -247,3 +251,20 @@ def test_admin_user_list_does_not_show_password_hashes(client):
         assert "hashed_password" not in response.text, path
         assert "$2b$" not in response.text, path
         assert "admin" in response.text, path
+
+
+@pytest.mark.parametrize(
+    "method, path, kwargs",
+    [
+        ("POST", "/admin/Tag/form_create", {"data": {"slug": "x", "label": "y"}}),
+        ("POST", "/admin/Tag/form_update/it's-a-trap", {"data": {"label": "z"}}),
+        ("DELETE", "/admin/Tag/bulk-delete", {"json": {"ids": ["it's-a-trap"]}}),
+    ],
+)
+def test_model_writes_need_the_csrf_header(client, method, path, kwargs):
+    response = client.request(method, path, **kwargs)
+
+    assert response.status_code == 403, (response.status_code, response.text)
+
+    listing = client.get("/admin/Tag/get_model_list")
+    assert "quoted" in listing.text

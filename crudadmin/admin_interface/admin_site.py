@@ -1,106 +1,55 @@
 import logging
 from collections.abc import AsyncGenerator, Callable
-from datetime import datetime, timezone
 from typing import Any, Dict, Optional, cast
 
-from fastapi import APIRouter, Cookie, Depends, Request, Response
+from crudauth.exceptions import (
+    RateLimitException,
+    SudoLockoutError,
+    UnauthorizedException,
+)
+from crudauth.utils import is_cross_site, safe_redirect_path
+from fastapi import APIRouter, Depends, Form, Request, Response
 from fastapi.responses import RedirectResponse
-from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.templating import Jinja2Templates
 from fastcrud import FastCRUD
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..admin_user.service import AdminUserService
+from ..admin_user.schemas import AdminUserRead
 from ..core.db import DatabaseConfig
-from ..core.tokens import session_handle
-from ..event import EventType, log_auth_action
-from ..session.manager import SessionManager
-from ..session.schemas import SessionData
-from ..session.storage import AbstractSessionStorage, get_session_storage
 from .auth import AdminAuthentication
 from .typing import RouteResponse
-
-UTC = timezone.utc
 
 logger = logging.getLogger(__name__)
 
 EndpointCallable = Callable[..., Any]
 
+LOGIN_MESSAGE_FOR_ERROR_CODE = {
+    "login_required": "Please log in to access this page.",
+    "session_ended": "Your session has ended. Please log in again.",
+}
+
+INVALID_CREDENTIALS = "Invalid username or password."
+INCORRECT_PASSWORD = "Incorrect password."
+TOO_MANY_ATTEMPTS = "Too many failed attempts. Please wait a few minutes and try again."
+CROSS_SITE_LOGIN = "Log in from the admin's own login page."
+
 
 class AdminSite:
-    """
-    Core admin interface site handler managing authentication, routing, and views.
+    """Routes for logging in and out, the dashboard and the sessions page.
 
-    **Handles the core functionality of the admin interface including:**
-    - Authentication and session management
-    - Route configuration and URL handling
-    - Template rendering and context management
-    - Dashboard and model views
-    - Event logging and audit trails
-    - Security and access control
-
-    The AdminSite class serves as the central coordinator for all admin functionality,
-    managing user sessions, handling authentication flows, and providing secure access
-    to administrative features.
+    Authentication is crudauth's: passwords are checked by
+    ``authenticate_password`` (with its login lockout), sessions are created by the
+    session transport's ``complete_login`` and ended by ``complete_logout``. This
+    class renders the HTML around them.
 
     Args:
-        database_config: Database configuration for admin interface
-        templates_directory: Path to template files
-        models: Dictionary of registered models
-        admin_authentication: Authentication handler
-        mount_path: URL prefix for admin routes
-        theme: Active UI theme
-        secure_cookies: Enable secure cookie flags
-        event_integration: Optional event logging integration
-        session_manager: Optional session manager
-
-    Attributes:
-        db_config: Database configuration instance
-        router: FastAPI router for admin endpoints
-        templates: Jinja2 template handler
-        models: Dictionary of registered models
-        admin_user_service: Service for user management
-        admin_authentication: Authentication handler
-        mount_path: URL prefix for admin routes
-        theme: Active UI theme
-        event_integration: Event logging handler
-        session_manager: Session tracking service
-        secure_cookies: Cookie security flag
-
-    Examples:
-        Basic setup with SQLite:
-        ```python
-        from fastapi.templating import Jinja2Templates
-        from .auth import AdminAuthentication
-        from .db import DatabaseConfig
-
-        admin_site = AdminSite(
-            database_config=db_config,
-            templates_directory="templates",
-            models={},  # Empty initially
-            admin_authentication=auth_handler,
-            mount_path="/admin",
-            theme="dark-theme",
-            secure_cookies=True
-        )
-
-        # Add routes
-        admin_site.setup_routes()
-        ```
-
-        Production configuration:
-        ```python
-        admin_site = AdminSite(
-            database_config=db_config,
-            templates_directory=templates_path,
-            models=model_registry,
-            admin_authentication=auth_handler,
-            mount_path="/admin",
-            theme="dark-theme",
-            secure_cookies=True,
-            event_integration=event_logger
-        )
-        ```
+        database_config: Database configuration for the admin interface.
+        templates_directory: Path to the template files.
+        models: The registered models.
+        admin_authentication: The admin's authentication.
+        mount_path: URL prefix of the admin routes.
+        theme: Active UI theme.
+        event_integration: Event logging, when enabled.
     """
 
     def __init__(
@@ -111,310 +60,213 @@ class AdminSite:
         admin_authentication: AdminAuthentication,
         mount_path: str,
         theme: str,
-        secure_cookies: bool,
         event_integration: Optional[Any] = None,
-        session_manager: Optional[SessionManager] = None,
     ) -> None:
         self.db_config: DatabaseConfig = database_config
         self.router: APIRouter = APIRouter()
         self.templates: Jinja2Templates = Jinja2Templates(directory=templates_directory)
         self.models: Dict[str, Any] = models
         self.admin_authentication: AdminAuthentication = admin_authentication
-        self.admin_user_service: AdminUserService = admin_authentication.user_service
-
         self.mount_path: str = mount_path
         self.theme: str = theme
         self.event_integration: Optional[Any] = event_integration
-
-        if session_manager:
-            self.session_manager = session_manager
-        else:
-            storage: AbstractSessionStorage[SessionData] = get_session_storage(
-                backend="memory",
-                model_type=SessionData,
-                prefix="session:",
-                expiration=30 * 60,
-            )
-
-            self.session_manager = SessionManager(
-                session_storage=storage,
-                max_sessions_per_user=5,
-                session_timeout_minutes=30,
-                cleanup_interval_minutes=15,
-            )
-
-        self.secure_cookies: bool = secure_cookies
 
     def get_url_prefix(self) -> str:
         """Get the URL prefix for admin routes, handling root mount path correctly."""
         return f"/{self.mount_path}" if self.mount_path else ""
 
+    @property
+    def dashboard_url(self) -> str:
+        return f"{self.get_url_prefix()}/"
+
     def setup_routes(self) -> None:
-        """
-        Configure all admin interface routes including auth, dashboard and model views.
+        """Register the login, logout, dashboard, re-authentication and sessions routes."""
+        current_user = self.admin_authentication.get_current_user()
+        routes: list[tuple[str, EndpointCallable, str, list[Any]]] = [
+            ("/login", self.login_page(), "GET", []),
+            ("/login", self.login_endpoint(), "POST", []),
+            ("/logout", self.logout_endpoint(), "POST", []),
+            ("/sudo", self.sudo_page(), "GET", [Depends(current_user)]),
+            ("/sudo", self.sudo_endpoint(), "POST", [Depends(current_user)]),
+            ("/", self.dashboard_page(), "GET", [Depends(current_user)]),
+            (
+                "/dashboard-content",
+                self.dashboard_content(),
+                "GET",
+                [Depends(current_user)],
+            ),
+            (
+                "/management/sessions",
+                self.sessions_page(),
+                "GET",
+                [Depends(current_user)],
+            ),
+            (
+                "/management/sessions/content",
+                self.sessions_content(),
+                "GET",
+                [Depends(current_user)],
+            ),
+            (
+                "/management/sessions/revoke",
+                self.revoke_session_endpoint(),
+                "POST",
+                [Depends(current_user)],
+            ),
+        ]
+        for path, endpoint, method, dependencies in routes:
+            self.router.add_api_route(
+                path,
+                endpoint,
+                methods=[method],
+                include_in_schema=False,
+                dependencies=dependencies,
+                response_model=None,
+            )
 
-        Routes Created:
-            **Auth Routes:**
-                - POST /login - Handle login form submission
-                - GET /login - Display login page
-                - GET /logout - Process user logout
-
-            **Dashboard Routes:**
-                - GET / - Main dashboard view
-                - GET /dashboard-content - HTMX dashboard updates
-
-        Notes:
-            - All routes except login require authentication
-            - Routes use Jinja2 templates for rendering
-            - HTMX integration for dynamic updates
-            - Event logging integration if enabled
-
-        Example:
-            ```python
-            admin_site = AdminSite(...)
-            admin_site.setup_routes()
-            app.include_router(admin_site.router)
-            ```
-        """
-        self.router.add_api_route(
-            "/login",
-            self.login_page(),
-            methods=["POST"],
-            include_in_schema=False,
-            response_model=None,
-        )
-        self.router.add_api_route(
-            "/logout",
-            self.logout_endpoint(),
-            methods=["GET"],
-            include_in_schema=False,
-            response_model=None,
-        )
-        self.router.add_api_route(
-            "/login",
-            self.admin_login_page(),
-            methods=["GET"],
-            include_in_schema=False,
-            response_model=None,
-        )
-        self.router.add_api_route(
-            "/dashboard-content",
-            self.dashboard_content(),
-            methods=["GET"],
-            include_in_schema=False,
-            dependencies=[Depends(self.admin_authentication.get_current_user())],
-            response_model=None,
-        )
-        self.router.add_api_route(
-            "/",
-            self.dashboard_page(),
-            methods=["GET"],
-            include_in_schema=False,
-            dependencies=[Depends(self.admin_authentication.get_current_user())],
-            response_model=None,
+    def _login_response(
+        self, request: Request, error: Optional[str], status_code: int = 200
+    ) -> Response:
+        return self.templates.TemplateResponse(
+            name="auth/login.html",
+            request=request,
+            context={
+                "error": error,
+                "url_prefix": self.get_url_prefix(),
+                "theme": self.theme,
+            },
+            status_code=status_code,
         )
 
     def login_page(self) -> EndpointCallable:
-        """
-        Create login form handler for admin authentication.
+        """The login form; an admin who is already logged in goes to the dashboard."""
 
-        Returns:
-            FastAPI route handler that processes login form submission.
-
-        Notes:
-            - Validates credentials and creates user session on success
-            - Sets secure cookies with session ID
-            - Logs login attempts if event tracking enabled
-        """
-
-        @log_auth_action(EventType.LOGIN)
-        async def login_page_inner(
-            request: Request,
-            response: Response,
-            form_data: OAuth2PasswordRequestForm = Depends(),
-            db: AsyncSession = Depends(self.db_config.get_admin_db),
-            event_integration: Optional[Any] = Depends(lambda: self.event_integration),
-        ) -> RouteResponse:
-            logger.info("Processing login attempt...")
-            try:
-                user = await self.admin_user_service.authenticate_user(
-                    form_data.username, form_data.password, db=db
-                )
-                if not user:
-                    logger.warning(
-                        f"Authentication failed for user: {form_data.username}"
-                    )
-                    return self.templates.TemplateResponse(
-                        name="auth/login.html",
-                        request=request,
-                        context={
-                            "error": "Invalid credentials. Please try again.",
-                            "url_prefix": self.get_url_prefix(),
-                            "theme": self.theme,
-                        },
-                    )
-
-                request.state.user = user
-                logger.info("User authenticated successfully, creating session")
-
-                try:
-                    logger.info("Creating user session...")
-                    session_id, csrf_token = await self.session_manager.create_session(
-                        request=request,
-                        user_id=user["id"],
-                        metadata={
-                            "login_type": "password",
-                            "username": user["username"],
-                            "creation_time": datetime.now(UTC).isoformat(),
-                        },
-                    )
-
-                    if not session_id:
-                        logger.error("Failed to create session")
-                        raise Exception("Session creation failed")
-
-                    logger.info(
-                        f"Session created successfully: {session_handle(session_id)}"
-                    )
-
-                    dashboard_url = (
-                        f"{self.get_url_prefix()}/" if self.mount_path else "/"
-                    )
-                    response = RedirectResponse(url=dashboard_url, status_code=303)
-
-                    self.session_manager.set_session_cookies(
-                        response=response,
-                        session_id=session_id,
-                        csrf_token=csrf_token,
-                        secure=self.secure_cookies,
-                        path=f"{self.get_url_prefix()}/" if self.mount_path else "/",
-                    )
-
-                    await db.commit()
-                    logger.info("Login completed successfully")
-                    return response
-
-                except Exception as e:
-                    logger.error(
-                        f"Error during session creation: {str(e)}", exc_info=True
-                    )
-                    await db.rollback()
-                    return self.templates.TemplateResponse(
-                        name="auth/login.html",
-                        request=request,
-                        context={
-                            "error": "An error occurred during login. Please try again.",
-                            "url_prefix": self.get_url_prefix(),
-                            "theme": self.theme,
-                        },
-                    )
-
-            except Exception as e:
-                logger.error(f"Error during login: {str(e)}", exc_info=True)
-                return self.templates.TemplateResponse(
-                    name="auth/login.html",
-                    request=request,
-                    context={
-                        "error": "An error occurred during login. Please try again.",
-                        "url_prefix": self.get_url_prefix(),
-                        "theme": self.theme,
-                    },
-                )
+        async def login_page_inner(request: Request) -> RouteResponse:
+            principal = await self.admin_authentication.auth.resolve_principal(request)
+            if principal is not None:
+                return RedirectResponse(url=self.dashboard_url, status_code=303)
+            error_code = request.query_params.get("error", "")
+            error = LOGIN_MESSAGE_FOR_ERROR_CODE.get(error_code)
+            return self._login_response(request, error)
 
         return cast(EndpointCallable, login_page_inner)
 
+    def login_endpoint(self) -> EndpointCallable:
+        """Check the credentials, then create the session and set its cookies.
+
+        The password check is crudauth's: it counts failures toward the login
+        lockout, takes as long for an unknown username as for a wrong password, and
+        upgrades a password hash written by an older crudadmin.
+        """
+        auth = self.admin_authentication.auth
+        transport = self.admin_authentication.session_transport
+
+        async def login_endpoint_inner(
+            request: Request,
+            username: str = Form(),
+            password: str = Form(),
+            db: AsyncSession = Depends(self.db_config.get_admin_db),
+        ) -> RouteResponse:
+            if is_cross_site(request):
+                return self._login_response(request, CROSS_SITE_LOGIN, 403)
+            try:
+                user = await auth.authenticate_password(
+                    db, username, password, request=request
+                )
+            except RateLimitException:
+                return self._login_response(request, TOO_MANY_ATTEMPTS, 429)
+            except UnauthorizedException:
+                return self._login_response(request, INVALID_CREDENTIALS, 401)
+
+            response = RedirectResponse(url=self.dashboard_url, status_code=303)
+            await transport.complete_login(request, response, user, {})
+            return response
+
+        return cast(EndpointCallable, login_endpoint_inner)
+
     def logout_endpoint(self) -> EndpointCallable:
+        """End the session and clear its cookies.
+
+        A POST that needs the ``X-CSRF-Token`` header while the session is live, so
+        a link or an image on another page can't log the admin out.
         """
-        Create logout handler for admin authentication.
+        transport = self.admin_authentication.session_transport
 
-        Returns:
-            FastAPI route handler that terminates session and clears auth cookies.
-
-        Notes:
-            - Revokes access tokens
-            - Terminates active sessions
-            - Cleans up auth cookies
-            - Logs logout events if tracking enabled
-        """
-
-        @log_auth_action(EventType.LOGOUT)
         async def logout_endpoint_inner(
             request: Request,
-            response: Response,
             db: AsyncSession = Depends(self.db_config.get_admin_db),
-            session_id: Optional[str] = Cookie(None),
-            event_integration: Optional[Any] = Depends(lambda: self.event_integration),
         ) -> RouteResponse:
-            if session_id:
-                await self.session_manager.terminate_session(session_id=session_id)
-
-            login_url = f"{self.get_url_prefix()}/login"
-            response = RedirectResponse(url=login_url, status_code=303)
-
-            self.session_manager.clear_session_cookies(
-                response=response,
-                path=f"{self.get_url_prefix()}/" if self.mount_path else "/",
+            response = RedirectResponse(
+                url=f"{self.get_url_prefix()}/login", status_code=303
             )
-
+            await transport.complete_logout(request, response, db)
             return response
 
         return cast(EndpointCallable, logout_endpoint_inner)
 
-    def admin_login_page(self) -> EndpointCallable:
-        """
-        Create login page handler for the admin interface.
+    def sudo_page(self) -> EndpointCallable:
+        """Ask the admin to confirm their password before changing admin accounts."""
 
-        Returns:
-            FastAPI route handler for login page
-
-        Notes:
-            - Checks for existing auth cookies
-            - Validates active sessions
-            - Redirects authenticated users to dashboard
-            - Displays login form with any error messages
-        """
-
-        async def admin_login_page_inner(
-            request: Request,
-            db: AsyncSession = Depends(self.db_config.get_admin_db),
-        ) -> RouteResponse:
-            try:
-                session_id = request.cookies.get("session_id")
-
-                if session_id:
-                    is_valid_session = await self.session_manager.validate_session(
-                        session_id=session_id
-                    )
-
-                    if is_valid_session:
-                        dashboard_url = (
-                            f"{self.get_url_prefix()}/" if self.mount_path else "/"
-                        )
-                        return RedirectResponse(url=dashboard_url, status_code=303)
-
-            except Exception:
-                pass
-
-            error = request.query_params.get("error")
+        async def sudo_page_inner(request: Request) -> RouteResponse:
+            user = request.state.user
             return self.templates.TemplateResponse(
                 name="auth/login.html",
                 request=request,
                 context={
                     "url_prefix": self.get_url_prefix(),
                     "theme": self.theme,
-                    "error": error,
+                    "username": user["username"],
+                    "sudo_next": safe_redirect_path(
+                        request.query_params.get("next"), self.dashboard_url
+                    ),
                 },
             )
 
-        return cast(EndpointCallable, admin_login_page_inner)
+        return cast(EndpointCallable, sudo_page_inner)
+
+    def sudo_endpoint(self) -> EndpointCallable:
+        """Check the password and mark the session as recently confirmed."""
+        sudo = self.admin_authentication.auth.sudo
+        assert sudo is not None
+
+        async def sudo_endpoint_inner(
+            request: Request,
+            password: str = Form(),
+            next: str = Form(default=""),
+        ) -> RouteResponse:
+            next_path = safe_redirect_path(next, self.dashboard_url)
+            try:
+                await sudo.elevate(request.state.principal, password, request=request)
+            except UnauthorizedException:
+                return self._sudo_page_with_error(
+                    request, next_path, INCORRECT_PASSWORD, 401
+                )
+            except (RateLimitException, SudoLockoutError):
+                return self._sudo_page_with_error(
+                    request, next_path, TOO_MANY_ATTEMPTS, 429
+                )
+            return RedirectResponse(url=next_path, status_code=303)
+
+        return cast(EndpointCallable, sudo_endpoint_inner)
+
+    def _sudo_page_with_error(
+        self, request: Request, next_path: str, error: str, status_code: int
+    ) -> Response:
+        return self.templates.TemplateResponse(
+            name="auth/login.html",
+            request=request,
+            context={
+                "url_prefix": self.get_url_prefix(),
+                "theme": self.theme,
+                "username": request.state.user["username"],
+                "sudo_next": next_path,
+                "error": error,
+            },
+            status_code=status_code,
+        )
 
     def dashboard_content(self) -> EndpointCallable:
-        """
-        Create dashboard content handler for HTMX dynamic updates.
-
-        Returns:
-            FastAPI route handler for dashboard content
-        """
+        """Dashboard partial for HTMX updates."""
 
         async def dashboard_content_inner(
             request: Request,
@@ -426,10 +278,9 @@ class AdminSite:
                 )
             ),
         ) -> RouteResponse:
-            """
-            Renders partial content for the dashboard (HTMX).
-            """
-            context = await self.get_base_context(admin_db=admin_db, app_db=app_db)
+            context = await self.get_base_context(
+                admin_db=admin_db, app_db=app_db, request=request
+            )
             return self.templates.TemplateResponse(
                 name="admin/dashboard/dashboard_content.html",
                 request=request,
@@ -439,40 +290,27 @@ class AdminSite:
         return cast(EndpointCallable, dashboard_content_inner)
 
     async def get_base_context(
-        self, admin_db: AsyncSession, app_db: AsyncSession
+        self,
+        admin_db: AsyncSession,
+        app_db: AsyncSession,
+        request: Optional[Request] = None,
     ) -> Dict[str, Any]:
-        """
-        Get common context data needed for base template.
+        """Context every admin page template needs: navigation, counts and the user."""
+        user: Optional[Dict[str, Any]] = (
+            getattr(request.state, "user", None) if request is not None else None
+        )
+        is_superuser = bool(user and user.get("is_superuser"))
 
-        Args:
-            admin_db: Admin database session for authentication queries
-            app_db: Application database session for model queries
-
-        Returns:
-            Dictionary containing auth tables, model data, and config
-
-        Notes:
-            - Queries model counts asynchronously
-            - Includes auth model stats and status
-            - Required by all admin templates
-        """
         auth_model_counts: Dict[str, int] = {}
-        for model_name, model_data in self.admin_authentication.auth_models.items():
-            crud_obj = cast(FastCRUD, model_data["crud"])
-            if model_name == "AdminSession":
-                total_count = await crud_obj.count(admin_db)
-                active_count = await crud_obj.count(admin_db, is_active=True)
-                auth_model_counts[model_name] = total_count
-                auth_model_counts[f"{model_name}_active"] = active_count
-            else:
-                count = await crud_obj.count(admin_db)
-                auth_model_counts[model_name] = count
+        if is_superuser:
+            for model_name, model_data in self.admin_authentication.auth_models.items():
+                crud_obj = cast(FastCRUD, model_data["crud"])
+                auth_model_counts[model_name] = await crud_obj.count(admin_db)
 
         model_counts: Dict[str, int] = {}
         for model_name, model_data in self.models.items():
             crud = cast(FastCRUD, model_data["crud"])
-            cnt = await crud.count(app_db)
-            model_counts[model_name] = cnt
+            model_counts[model_name] = await crud.count(app_db)
 
         return {
             "auth_table_names": self.admin_authentication.auth_models.keys(),
@@ -482,15 +320,13 @@ class AdminSite:
             "url_prefix": self.get_url_prefix(),
             "track_events": self.event_integration is not None,
             "theme": self.theme,
+            "current_user": user,
+            "is_superuser": is_superuser,
+            "csrf_cookie_name": self.admin_authentication.csrf_cookie_name,
         }
 
     def dashboard_page(self) -> EndpointCallable:
-        """
-        Create main dashboard page handler.
-
-        Returns:
-            FastAPI route handler for the admin dashboard
-        """
+        """The admin dashboard."""
 
         async def dashboard_page_inner(
             request: Request,
@@ -502,7 +338,9 @@ class AdminSite:
                 )
             ),
         ) -> RouteResponse:
-            context = await self.get_base_context(admin_db=admin_db, app_db=app_db)
+            context = await self.get_base_context(
+                admin_db=admin_db, app_db=app_db, request=request
+            )
             context.update({"include_sidebar_and_header": True})
             return self.templates.TemplateResponse(
                 name="admin/dashboard/dashboard.html", request=request, context=context
@@ -510,105 +348,93 @@ class AdminSite:
 
         return cast(EndpointCallable, dashboard_page_inner)
 
-    def admin_auth_model_page(self, model_key: str) -> EndpointCallable:
-        """
-        Create page handler for authentication model views.
+    def sessions_page(self) -> EndpointCallable:
+        """The sessions page: an admin's own sessions, or every admin's for a superuser."""
 
-        Args:
-            model_key: Name of authentication model to display
-
-        Returns:
-            FastAPI route handler for auth model list view
-
-        Notes:
-            - Handles pagination and sorting
-            - Formats special fields like JSON
-            - Integrates with event logging if enabled
-        """
-
-        async def admin_auth_model_page_inner(
+        async def sessions_page_inner(
             request: Request,
             admin_db: AsyncSession = Depends(self.db_config.get_admin_db),
-            db: AsyncSession = Depends(self.db_config.get_admin_db),
-        ) -> RouteResponse:
-            auth_model = self.admin_authentication.auth_models[model_key]
-            sqlalchemy_model = cast(Any, auth_model["model"])
-
-            table_columns = []
-            if hasattr(sqlalchemy_model, "__table__"):
-                table_columns = [
-                    column.key for column in sqlalchemy_model.__table__.columns
-                ]
-
-            page_str = request.query_params.get("page", "1")
-            limit_str = request.query_params.get("rows-per-page-select", "10")
-
-            try:
-                page = int(page_str)
-                limit = int(limit_str)
-            except ValueError:
-                page = 1
-                limit = 10
-
-            offset = (page - 1) * limit
-            items: Dict[str, Any] = {"data": [], "total_count": 0}
-            try:
-                crud = cast(FastCRUD, auth_model["crud"])
-                fetched = await crud.get_multi(db=admin_db, offset=offset, limit=limit)
-                items = dict(fetched)
-
-                logger.info(f"Retrieved items for {model_key}: {items}")
-                total_items = items.get("total_count", 0)
-
-                if model_key == "AdminSession":
-                    formatted_items = []
-                    data = items["data"]
-                    for item in data:
-                        if not isinstance(item, dict):
-                            item = {
-                                k: v
-                                for k, v in vars(item).items()
-                                if not k.startswith("_")
-                            }
-                        if "device_info" in item and isinstance(
-                            item["device_info"], dict
-                        ):
-                            item["device_info"] = str(item["device_info"])
-                        if "session_metadata" in item and isinstance(
-                            item["session_metadata"], dict
-                        ):
-                            item["session_metadata"] = str(item["session_metadata"])
-                        formatted_items.append(item)
-                    items["data"] = formatted_items
-            except Exception as e:
-                logger.error(
-                    f"Error retrieving {model_key} data: {str(e)}", exc_info=True
+            app_db: AsyncSession = Depends(
+                cast(
+                    Callable[..., AsyncGenerator[AsyncSession, None]],
+                    self.db_config.session,
                 )
-                total_items = 0
+            ),
+        ) -> RouteResponse:
+            context = await self.get_base_context(
+                admin_db=admin_db, app_db=app_db, request=request
+            )
+            context.update({"include_sidebar_and_header": True})
+            return self.templates.TemplateResponse(
+                name="admin/management/sessions.html",
+                request=request,
+                context=context,
+            )
 
-            total_pages = max(1, (total_items + limit - 1) // limit)
+        return cast(EndpointCallable, sessions_page_inner)
 
-            context = await self.get_base_context(admin_db=admin_db, app_db=db)
-            context.update(
+    async def _visible_admins(
+        self, request: Request, admin_db: AsyncSession
+    ) -> list[Dict[str, Any]]:
+        """The admins whose sessions the current admin may see and end."""
+        user = request.state.user
+        if not user["is_superuser"]:
+            return [user]
+        admins = await self.db_config.crud_users.get_multi(
+            db=admin_db, schema_to_select=AdminUserRead, limit=None
+        )
+        return admins["data"]
+
+    def sessions_content(self) -> EndpointCallable:
+        """The sessions list, grouped by admin."""
+
+        async def sessions_content_inner(
+            request: Request,
+            admin_db: AsyncSession = Depends(self.db_config.get_admin_db),
+        ) -> RouteResponse:
+            return await self._render_sessions(request, admin_db)
+
+        return cast(EndpointCallable, sessions_content_inner)
+
+    async def _render_sessions(
+        self, request: Request, admin_db: AsyncSession
+    ) -> RouteResponse:
+        manager = self.admin_authentication.auth.sessions
+        current_session = request.cookies.get(manager.session_cookie_name)
+        groups = []
+        for admin in await self._visible_admins(request, admin_db):
+            sessions = await manager.list_for_user(
+                admin["id"], current_session_id=current_session
+            )
+            sessions.sort(key=lambda s: s["last_activity"], reverse=True)
+            groups.append(
                 {
-                    "model_items": items["data"],
-                    "model_name": model_key,
-                    "table_columns": table_columns,
-                    "current_page": page,
-                    "rows_per_page": limit,
-                    "total_items": total_items,
-                    "total_pages": total_pages,
-                    "primary_key_info": self.db_config.get_primary_key_info(
-                        cast(Any, sqlalchemy_model)
-                    ),
-                    "sort_column": None,
-                    "sort_order": "asc",
-                    "include_sidebar_and_header": True,
+                    "user_id": admin["id"],
+                    "username": admin["username"],
+                    "sessions": sessions,
                 }
             )
+        return self.templates.TemplateResponse(
+            name="admin/management/sessions_content.html",
+            request=request,
+            context={"session_groups": groups, "url_prefix": self.get_url_prefix()},
+        )
 
-            return self.templates.TemplateResponse(
-                name="admin/model/list.html", request=request, context=context
+    def revoke_session_endpoint(self) -> EndpointCallable:
+        """End one session. An admin may end their own; a superuser, anyone's."""
+
+        async def revoke_session_inner(
+            request: Request,
+            user_id: int = Form(),
+            handle: str = Form(),
+            admin_db: AsyncSession = Depends(self.db_config.get_admin_db),
+        ) -> RouteResponse:
+            user = request.state.user
+            if user_id != user["id"] and not user["is_superuser"]:
+                return Response(status_code=403)
+            await self.admin_authentication.auth.sessions.revoke_by_handle(
+                handle, owner_id=user_id
             )
+            return await self._render_sessions(request, admin_db)
 
-        return cast(EndpointCallable, admin_auth_model_page_inner)
+        return cast(EndpointCallable, revoke_session_inner)

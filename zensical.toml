@@ -94,6 +94,9 @@ toggle.name = "Switch to light mode"
     { "License" = "community/LICENSE.md" },
 ]
 
+[[project.nav]]
+"Changelog" = "changelog.md"
+
 # ==============================================================================
 # Markdown extensions
 # ==============================================================================

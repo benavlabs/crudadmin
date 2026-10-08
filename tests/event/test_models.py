@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from typing import Any, cast
 from unittest.mock import Mock
 
 from sqlalchemy.orm import DeclarativeBase
@@ -21,7 +22,7 @@ class TestCreateAdminEventLog:
     def test_create_admin_event_log_basic_functionality(self):
         """Test basic functionality of create_admin_event_log."""
         base = MockBase
-        EventLogModel = create_admin_event_log(base)
+        EventLogModel: Any = create_admin_event_log(base)
 
         assert EventLogModel.__name__ == "AdminEventLog"
         assert EventLogModel.__tablename__ == "admin_event_log"
@@ -32,7 +33,7 @@ class TestCreateAdminEventLog:
     def test_create_admin_event_log_has_all_required_fields(self):
         """Test that AdminEventLog has all required fields with correct types."""
         base = MockBase
-        EventLogModel = create_admin_event_log(base)
+        EventLogModel: Any = create_admin_event_log(base)
 
         # Check field existence and types
         for field in EventLogModel.__table__.columns:
@@ -41,7 +42,7 @@ class TestCreateAdminEventLog:
     def test_create_admin_event_log_repr_method(self):
         """Test __repr__ method of AdminEventLog."""
         base = MockBase
-        EventLogModel = create_admin_event_log(base)
+        EventLogModel: Any = create_admin_event_log(base)
 
         # Create an instance to test repr
         instance = EventLogModel()
@@ -62,10 +63,10 @@ class TestCreateAdminEventLog:
         base = MockBase
 
         # Create the first instance
-        EventLogModel1 = create_admin_event_log(base)
+        EventLogModel1: Any = create_admin_event_log(base)
 
         # Create the second instance - should return the same class
-        EventLogModel2 = create_admin_event_log(base)
+        EventLogModel2: Any = create_admin_event_log(base)
 
         assert EventLogModel1 is EventLogModel2
         assert EventLogModel1.__name__ == "AdminEventLog"
@@ -77,7 +78,7 @@ class TestCreateAdminEventLog:
         class BaseWithoutRegistry:
             pass
 
-        EventLogModel = create_admin_event_log(BaseWithoutRegistry)
+        EventLogModel: Any = create_admin_event_log(cast(Any, BaseWithoutRegistry))
 
         assert EventLogModel.__name__ == "AdminEventLog"
         assert EventLogModel.__tablename__ == "admin_event_log"
@@ -90,7 +91,7 @@ class TestCreateAdminAuditLog:
     def test_create_admin_audit_log_basic_functionality(self):
         """Test basic functionality of create_admin_audit_log."""
         base = MockBase
-        AuditLogModel = create_admin_audit_log(base)
+        AuditLogModel: Any = create_admin_audit_log(base)
 
         assert AuditLogModel.__name__ == "AdminAuditLog"
         assert AuditLogModel.__tablename__ == "admin_audit_log"
@@ -101,7 +102,7 @@ class TestCreateAdminAuditLog:
     def test_create_admin_audit_log_has_all_required_fields(self):
         """Test that AdminAuditLog has all required fields."""
         base = MockBase
-        AuditLogModel = create_admin_audit_log(base)
+        AuditLogModel: Any = create_admin_audit_log(base)
 
         # Check field existence
         for field in AuditLogModel.__table__.columns:
@@ -110,7 +111,7 @@ class TestCreateAdminAuditLog:
     def test_create_admin_audit_log_repr_method(self):
         """Test __repr__ method of AdminAuditLog."""
         base = MockBase
-        AuditLogModel = create_admin_audit_log(base)
+        AuditLogModel: Any = create_admin_audit_log(base)
 
         # Create an instance to test repr
         instance = AuditLogModel()
@@ -129,10 +130,10 @@ class TestCreateAdminAuditLog:
         base = MockBase
 
         # Create the first instance
-        AuditLogModel1 = create_admin_audit_log(base)
+        AuditLogModel1: Any = create_admin_audit_log(base)
 
         # Create the second instance - should return the same class
-        AuditLogModel2 = create_admin_audit_log(base)
+        AuditLogModel2: Any = create_admin_audit_log(base)
 
         assert AuditLogModel1 is AuditLogModel2
         assert AuditLogModel1.__name__ == "AdminAuditLog"
@@ -144,7 +145,7 @@ class TestCreateAdminAuditLog:
         class BaseWithoutRegistry:
             pass
 
-        AuditLogModel = create_admin_audit_log(BaseWithoutRegistry)
+        AuditLogModel: Any = create_admin_audit_log(cast(Any, BaseWithoutRegistry))
 
         assert AuditLogModel.__name__ == "AdminAuditLog"
         assert AuditLogModel.__tablename__ == "admin_audit_log"
@@ -158,8 +159,8 @@ class TestModelIntegration:
         """Test that both models can be created with the same base class."""
         base = MockBase
 
-        EventLogModel = create_admin_event_log(base)
-        AuditLogModel = create_admin_audit_log(base)
+        EventLogModel: Any = create_admin_event_log(base)
+        AuditLogModel: Any = create_admin_audit_log(base)
 
         assert EventLogModel.__name__ == "AdminEventLog"
         assert AuditLogModel.__name__ == "AdminAuditLog"
@@ -171,8 +172,8 @@ class TestModelIntegration:
         """Test that models have different table names."""
         base = MockBase
 
-        EventLogModel = create_admin_event_log(base)
-        AuditLogModel = create_admin_audit_log(base)
+        EventLogModel: Any = create_admin_event_log(base)
+        AuditLogModel: Any = create_admin_audit_log(base)
 
         assert EventLogModel.__tablename__ != AuditLogModel.__tablename__
         assert EventLogModel.__tablename__ == "admin_event_log"
@@ -182,12 +183,12 @@ class TestModelIntegration:
         """Test timestamp default behavior for both models."""
         base = MockBase
 
-        EventLogModel = create_admin_event_log(base)
-        AuditLogModel = create_admin_audit_log(base)
+        EventLogModel: Any = create_admin_event_log(base)
+        AuditLogModel: Any = create_admin_audit_log(base)
 
         # Test that timestamp columns have default values
-        event_timestamp = EventLogModel.__table__.columns.get("timestamp")
-        audit_timestamp = AuditLogModel.__table__.columns.get("timestamp")
+        event_timestamp = EventLogModel.__table__.columns["timestamp"]
+        audit_timestamp = AuditLogModel.__table__.columns["timestamp"]
 
         assert event_timestamp.default is not None
         assert audit_timestamp.default is not None

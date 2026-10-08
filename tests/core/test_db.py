@@ -200,7 +200,7 @@ async def test_database_config_error_handling():
             admin_base = create_admin_base()
             config = DatabaseConfig(
                 base=admin_base,
-                session=None,  # Invalid session
+                session=None,  # type: ignore[arg-type]
                 admin_db_url="invalid://url",
             )
             await config.initialize_admin_db()

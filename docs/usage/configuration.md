@@ -1,15 +1,12 @@
 # Basic Configuration
 
-This guide covers the essential configuration steps for setting up your CRUDAdmin instance. You'll learn how to create the admin interface with the most common settings to get up and running quickly.
+This guide covers the settings you need to get a CRUDAdmin instance running, and the ones to revisit before production.
 
 ## Prerequisites
-
-Before configuring CRUDAdmin, ensure you have:
 
 - A working FastAPI application
 - SQLAlchemy models defined (see [Quick Start](../quick-start.md))
 - CRUDAdmin installed (`uv add crudadmin`)
-- Basic understanding of FastAPI application structure
 
 ---
 
@@ -17,256 +14,218 @@ Before configuring CRUDAdmin, ensure you have:
 
 ### Minimal Setup
 
-The simplest CRUDAdmin setup requires only two parameters:
+Two parameters are required, the session dependency and the secret key:
 
 ```python
 from crudadmin import CRUDAdmin
-from sqlalchemy.ext.asyncio import AsyncSession
 
-# Minimal CRUDAdmin instance
 admin = CRUDAdmin(
-    session=get_session,  # Your session dependency function
-    SECRET_KEY="your-secret-key-here"
+    session=get_session,
+    SECRET_KEY="your-secret-key-here",
 )
 ```
 
 ### Common Configuration
 
-Here are the most commonly customized settings for getting started:
-
 ```python
 import os
-from crudadmin import CRUDAdmin
+
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
 
-# Database setup
-DATABASE_URL = "sqlite+aiosqlite:///./app.db"
-engine = create_async_engine(DATABASE_URL, echo=True)
+from crudadmin import CRUDAdmin
 
-# Create database session dependency
+engine = create_async_engine("sqlite+aiosqlite:///./app.db")
+
+
 async def get_session():
     async with AsyncSession(engine) as session:
         yield session
 
-# Create admin with common settings
+
 admin = CRUDAdmin(
-    # Required parameters (no defaults)
     session=get_session,
-    SECRET_KEY=os.environ.get("ADMIN_SECRET_KEY", "dev-key-change-in-production"),
-    
-    # Basic interface settings
-    mount_path="/admin",  # Default: "/admin"
-    theme="dark-theme",   # Default: "dark-theme" (or "light-theme")
-    
-    # Database configuration
-    admin_db_path=None,   # Default: None (creates ./crudadmin_data/admin.db)
-    
-    # Initial admin user
-    initial_admin={       # Default: None - no auto-creation
+    SECRET_KEY=os.environ["ADMIN_SECRET_KEY"],
+    mount_path="/admin",
+    theme="dark-theme",
+    admin_db_path=None,
+    initial_admin={
         "username": "admin",
-        "password": "secure_password_123"
+        "password": os.environ["ADMIN_INITIAL_PASSWORD"],
     },
 )
 ```
 
-**Understanding Defaults:**
-
-- **Required parameters**: `session` and `SECRET_KEY` have no defaults and must be provided
-- **Optional parameters**: All other parameters have sensible defaults and can be omitted
-- **Most minimal setup**: `CRUDAdmin(session=get_session, SECRET_KEY="your-key")` uses all defaults
+Every parameter except `session` and `SECRET_KEY` has a default. `mount_path` defaults to `/admin`, `theme` to `dark-theme`, and with `admin_db_path=None` the admin database is created at `./crudadmin_data/admin.db`.
 
 !!! warning "Security Best Practices"
-    **Database Security:** When using SQLite, always add `*.db`, `*.sqlite`, and `crudadmin_data/` to your `.gitignore` to prevent committing sensitive data.
+    **Database Security:** When using SQLite, add `*.db`, `*.sqlite` and `crudadmin_data/` to your `.gitignore`.
 
-    **Production Security:** For production environments, always follow these best practices:
-    
-    - Use strong, randomly generated secret keys.
-    - Use environment variables for all sensitive configuration.
-    - Use a robust session backend like Redis: `uv add "crudadmin[redis]"` (see [Session Backends](session-backends.md))
-    - Enable HTTPS and secure cookies to protect data in transit.
-    - Set up proper logging and monitoring to detect security events.
+    **Production Security:**
+
+    - Use a strong, randomly generated `SECRET_KEY` from the environment, and keep it stable.
+    - With more than one worker, use the `redis` or `database` session backend (see [Session Backends](session-backends.md)).
+    - Behind a reverse proxy, set `trusted_proxy_hops`.
+    - Restrict access with `allowed_ips` / `allowed_networks`, and serve the admin over HTTPS.
 
 ---
 
 ## Parameter Details
 
 ### `session` (Callable, required)
-Your SQLAlchemy async session factory or callable that returns sessions:
+
+An async dependency that yields a SQLAlchemy `AsyncSession` for your application database:
 
 ```python
-# Session dependency function (recommended)
 async def get_session():
     async with AsyncSession(engine) as session:
         yield session
 
+
 admin = CRUDAdmin(session=get_session, SECRET_KEY=secret_key)
 ```
 
-#### `SECRET_KEY` (str)
-Critical for session security and cookie signing. **Never use default values in production!**
+### `SECRET_KEY` (str, required)
+
+Keys the stored session and CSRF identifiers, so a copy of the session store can't be turned into working sessions. CRUDAdmin refuses to start without it. Changing it signs every admin out, so keep it stable and load it from the environment:
 
 ```python
-# ✅ Use environment variables
 admin = CRUDAdmin(
-    session=get_session, 
-    SECRET_KEY=os.environ["ADMIN_SECRET_KEY"]
-)
-
-# ✅ Generate secure keys
-# python -c "import secrets; print(secrets.token_urlsafe(32))"
-```
-
-### Common Optional Parameters
-
-#### `mount_path` (str, default: "/admin")
-URL path where the admin interface will be accessible. **If you want a different path than "/admin", you must explicitly pass the `mount_path` parameter to CRUDAdmin.**
-
-```python
-# Default: accessible at /admin (no mount_path parameter needed)
-admin = CRUDAdmin(session=get_session, SECRET_KEY=key)
-
-# Custom path: accessible at /dashboard (must specify mount_path)
-admin = CRUDAdmin(
-    session=get_session, 
-    SECRET_KEY=key,
-    mount_path="/dashboard"  # Required for non-default paths
+    session=get_session,
+    SECRET_KEY=os.environ["ADMIN_SECRET_KEY"],
 )
 ```
 
-**Important**: Remember to also update your FastAPI mount call to match:
+Generate one with `python -c "import secrets; print(secrets.token_urlsafe(32))"`.
+
+### `mount_path` (str, default: "/admin")
+
+The URL path the admin is served under. If you mount it somewhere else, pass the same path here, so links and the session cookie's path match:
 
 ```python
-# If using custom mount_path="/dashboard"
-app.mount("/dashboard", admin.app)  # Must match the mount_path
-
-# Or dynamically
-app.mount(admin.mount_path, admin.app)  # Uses the configured path
-```
-
-#### `theme` (str, default: "dark-theme")
-Choose between light and dark themes:
-
-```python
-# Dark theme (default)
-admin = CRUDAdmin(session=get_session, SECRET_KEY=key, theme="dark-theme")
-
-# Light theme
-admin = CRUDAdmin(session=get_session, SECRET_KEY=key, theme="light-theme")
-```
-
-#### `admin_db_path` (str, default: None)
-Custom location for the admin database (used for admin users, sessions, etc.):
-
-```python
-# Default: creates ./crudadmin_data/admin.db
-admin = CRUDAdmin(session=get_session, SECRET_KEY=key)
-
-# Custom path
-admin = CRUDAdmin(
-    session=get_session, 
-    SECRET_KEY=key,
-    admin_db_path="./admin/admin_database.db"
-)
-```
-
-#### `initial_admin` (dict, default: None)
-Automatically create an admin user when the system initializes:
-
-```python
-# No initial admin (default - create manually later)
-admin = CRUDAdmin(session=get_session, SECRET_KEY=key)
-
-# Create initial admin automatically
 admin = CRUDAdmin(
     session=get_session,
     SECRET_KEY=key,
-    initial_admin={
-        "username": "admin",
-        "password": "secure_password_123"
-    }
+    mount_path="/dashboard",
+)
+
+app.mount("/dashboard", admin.app)
+```
+
+### `theme` (str, default: "dark-theme")
+
+`"dark-theme"` or `"light-theme"`.
+
+### `admin_db_path` / `admin_db_url`
+
+Where the admin database lives: admin users, the event log and, with `session_backend="database"`, sessions and lockout counters. By default it's SQLite at `./crudadmin_data/admin.db`. Use `admin_db_path` for another SQLite file, or `admin_db_url` for any async SQLAlchemy URL:
+
+```python
+admin = CRUDAdmin(
+    session=get_session,
+    SECRET_KEY=key,
+    admin_db_url="postgresql+asyncpg://user:pass@localhost/admin",
 )
 ```
+
+### `initial_admin` (dict, default: None)
+
+Creates a superuser during `admin.initialize()` if no admin exists yet. See [Managing Admin Users](admin-users.md).
+
+### Sessions
+
+| Parameter | Default | Meaning |
+|---|---|---|
+| `session_backend` | `"memory"` | `"memory"`, `"redis"` or `"database"`; see [Session Backends](session-backends.md) |
+| `redis_config` | `None` | `RedisConfig` or dict for the `redis` backend |
+| `session_timeout_minutes` | `30` | Idle time after which a session ends |
+| `max_sessions_per_user` | `5` | Sessions an admin may hold at once; the oldest ends past this |
+| `cleanup_interval_minutes` | `15` | How often idle sessions are swept |
+| `secure_cookies` | `True` | Send session cookies over HTTPS only |
+
+### Security
+
+| Parameter | Default | Meaning |
+|---|---|---|
+| `allowed_ips` / `allowed_networks` | `None` | Only these addresses reach the admin, login page included |
+| `enforce_https` / `https_port` | `False` / `443` | Redirect HTTP requests to HTTPS |
+| `trusted_proxy_hops` | `0` | Reverse proxies in front of the app; with `0`, `X-Forwarded-For` is ignored |
+| `lockout` | crudadmin's | A `crudauth.ratelimit.LockoutConfig` for the login lockout |
+
+Login lockout defaults to 5 failures, a first lock of one minute, and at most five minutes. A successful login clears the counters. Anyone who knows an admin's username can trigger a lockout, which is why the cap is short and why `allowed_ips` is worth setting.
+
+Requests that change data need the session's CSRF token in an `X-CSRF-Token` header. The interface's bundled `admin.js` sends it for forms, htmx requests and `fetch` calls, and logging out is a POST.
+
+### `track_events` (bool, default: False)
+
+Records logins, failed logins, lockouts and every create, update and delete in the event log, visible to superusers.
 
 ---
 
 ## FastAPI Integration
 
-### Basic Integration
+Call `admin.initialize()` on startup and `admin.shutdown()` on shutdown:
 
 ```python
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Initialize database
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    
-    # Initialize admin
     await admin.initialize()
     yield
+    await admin.shutdown()
+
 
 app = FastAPI(lifespan=lifespan)
 app.mount("/admin", admin.app)
 ```
 
-### Custom Mount Path
-
-```python
-# If you configured a custom mount_path
-admin = CRUDAdmin(
-    session=get_session,
-    SECRET_KEY=key,
-    mount_path="/dashboard"
-)
-
-# Mount at the same path
-app.mount("/dashboard", admin.app)
-```
+`initialize()` creates the admin tables, adds columns introduced by newer versions to existing ones, opens the session store, and creates the initial admin. `shutdown()` closes the session store and any Redis client CRUDAdmin opened.
 
 ---
 
 ## Development vs Production
 
-### Development Setup
+### Development
 
 ```python
-# Simple development configuration
 admin = CRUDAdmin(
     session=get_session,
-    SECRET_KEY="dev-key-change-in-production",  # Simple key for development
-    initial_admin={                             # Convenient auto-admin
+    SECRET_KEY="dev-key-change-in-production",
+    secure_cookies=False,
+    initial_admin={
         "username": "admin",
-        "password": "admin123"
-    }
+        "password": "admin123",
+    },
 )
 ```
 
-### Production Considerations
+`secure_cookies=False` lets the session cookie work over plain HTTP. Chrome and Firefox already accept secure cookies on `http://localhost`; other hosts, and Safari, need this in development.
+
+### Production
 
 ```python
-# Basic production configuration
 admin = CRUDAdmin(
     session=get_session,
-    SECRET_KEY=os.environ["ADMIN_SECRET_KEY"],  # Required environment variable
-    initial_admin=None,                         # Create admin users manually
-    secure_cookies=True,                        # Default: True (good for production)
-    enforce_https=True,                         # Redirect HTTP to HTTPS
+    SECRET_KEY=os.environ["ADMIN_SECRET_KEY"],
+    session_backend="database",
+    trusted_proxy_hops=1,
+    allowed_networks=["10.0.0.0/8"],
+    enforce_https=True,
+    track_events=True,
 )
 ```
 
-For comprehensive production configuration, see the **[Advanced Topics](../advanced/overview.md)** section.
+With the memory backend CRUDAdmin logs a warning at startup, because sessions and lockout counters aren't shared between workers.
 
 ---
 
 ## Next Steps
 
-After configuring your CRUDAdmin instance:
-
 1. **[Add Models](adding-models.md)** to create your admin interface
-2. **[Set up Admin Users](admin-users.md)** for access control  
-3. **[Learn the Interface](interface.md)** to manage your data effectively
-
-For production deployments and advanced configurations, explore the **[Advanced Topics](../advanced/overview.md)** section for scalable session handling, comprehensive security, and audit logging.
+2. **[Set up Admin Users](admin-users.md)** for access control
+3. **[Learn the Interface](interface.md)** to manage your data

@@ -229,9 +229,9 @@ from schemas import (
 
 # Initialize CRUDAdmin
 crud_admin = CRUDAdmin(
+    session=get_session,
     session_backend="database",
-    secret_key="your-secret-key-here",
-    title="Blog Admin"
+    SECRET_KEY="your-secret-key-here",
 )
 
 # Register models in logical order
@@ -239,35 +239,35 @@ crud_admin.add_view(
     model=User,
     create_schema=UserCreate,
     update_schema=UserUpdate,
-    read_schema=UserRead
+    select_schema=UserRead
 )
 
 crud_admin.add_view(
     model=Category,
     create_schema=CategoryCreate,
     update_schema=CategoryUpdate,
-    read_schema=CategoryRead
+    select_schema=CategoryRead
 )
 
 crud_admin.add_view(
     model=Tag,
     create_schema=TagCreate,
     update_schema=TagUpdate,
-    read_schema=TagRead
+    select_schema=TagRead
 )
 
 crud_admin.add_view(
     model=Post,
     create_schema=PostCreate,
     update_schema=PostUpdate,
-    read_schema=PostRead
+    select_schema=PostRead
 )
 
 crud_admin.add_view(
     model=Comment,
     create_schema=CommentCreate,
     update_schema=CommentUpdate,
-    read_schema=CommentRead
+    select_schema=CommentRead
 )
 ```
 
@@ -509,12 +509,10 @@ from crudadmin import CRUDAdmin, RedisConfig
 
 redis_config = RedisConfig(url="redis://localhost:6379")
 crud_admin = CRUDAdmin(
+    session=get_session,
     session_backend="redis",  # Better for high traffic
     redis_config=redis_config,
-    secret_key="your-ecommerce-secret-key",
-    title="E-commerce Admin",
-    default_page_size=50,  # More records per page
-    max_page_size=200
+    SECRET_KEY="your-ecommerce-secret-key",
 )
 
 # Register in business workflow order
@@ -522,28 +520,28 @@ crud_admin.add_view(
     model=ProductCategory,
     create_schema=ProductCategoryCreate,
     update_schema=ProductCategoryUpdate,
-    read_schema=ProductCategoryRead
+    select_schema=ProductCategoryRead
 )
 
 crud_admin.add_view(
     model=Product,
     create_schema=ProductCreate,
     update_schema=ProductUpdate,
-    read_schema=ProductRead
+    select_schema=ProductRead
 )
 
 crud_admin.add_view(
     model=Customer,
     create_schema=CustomerCreate,
     update_schema=CustomerUpdate,
-    read_schema=CustomerRead
+    select_schema=CustomerRead
 )
 
 crud_admin.add_view(
     model=Order,
     create_schema=OrderCreate,
     update_schema=OrderUpdate,
-    read_schema=OrderRead
+    select_schema=OrderRead
 )
 ```
 
@@ -553,153 +551,64 @@ crud_admin.add_view(
 2. **Enum handling**: Order status as proper enums
 3. **Decimal precision**: Proper handling of money values
 4. **Scalable session backend**: Redis for high traffic
-5. **Larger page sizes**: Better for inventory management
 
 ---
 
 ## Role-Based Access Pattern
 
-!!! note "Workaround Pattern"
-    **Important**: CRUDAdmin does not currently support built-in role-based access control. The patterns shown below are workarounds that create separate admin instances with different configurations to simulate different access levels. 
-    
-    Future versions of CRUDAdmin may include native RBAC features. For now, use these patterns if you need different admin interfaces for different user roles.
+CRUDAdmin has two built-in roles. **Superusers** manage admin accounts, see the event log and every admin's sessions. **Regular admins** work with your models according to each view's `allowed_actions`, and see only their own sessions. See [Managing Admin Users](admin-users.md).
 
-### Different Admin Levels
-
-Creating different access levels for various admin roles using separate CRUDAdmin instances.
-
-#### Super Admin Pattern
+`allowed_actions` applies to every admin alike. When different groups need different access to the same models, give each group its own admin instance, mounted at its own path, with its own admin database:
 
 ```python
+from sqlalchemy.orm import DeclarativeBase
+
 from crudadmin import CRUDAdmin
+from crudadmin.core.db import DatabaseConfig
 
-# Super Admin - Full access
-super_admin = CRUDAdmin(
-    session_backend="redis",
-    secret_key="super-admin-secret",
-    title="Super Admin Panel",
-    mount_path="/superadmin"
-)
 
-# All models with full CRUD
-super_admin.add_view(
-    model=User,
-    create_schema=UserCreate,
-    update_schema=UserUpdate,
-    read_schema=UserRead,
-    # Full permissions (default)
-)
+def admin_instance(mount_path: str, admin_db_path: str) -> CRUDAdmin:
+    class AdminBase(DeclarativeBase):
+        pass
 
-super_admin.add_view(
-    model=Order,
-    create_schema=OrderCreate,
-    update_schema=OrderUpdate,
-    read_schema=OrderRead
-)
-```
+    return CRUDAdmin(
+        session=get_session,
+        SECRET_KEY=os.environ["ADMIN_SECRET_KEY"],
+        mount_path=mount_path,
+        db_config=DatabaseConfig(
+            base=AdminBase,
+            session=get_session,
+            admin_db_path=admin_db_path,
+        ),
+    )
 
-#### Content Editor Pattern
 
-```python
-# Content Editor - Limited access
-content_admin = CRUDAdmin(
-    session_backend="redis",
-    secret_key="content-editor-secret", 
-    title="Content Editor",
-    mount_path="/content"
-)
-
-# Posts - Full access
+content_admin = admin_instance("/content", "./admin_content.db")
 content_admin.add_view(
     model=Post,
     create_schema=PostCreate,
     update_schema=PostUpdate,
-    read_schema=PostRead
 )
-
-# Comments - Read and moderate only
 content_admin.add_view(
     model=Comment,
-    create_schema=None,  # No creation
-    update_schema=CommentModerationUpdate,  # Limited updates
-    read_schema=CommentRead,
-    delete_permission=True  # Can delete inappropriate comments
+    create_schema=CommentCreate,
+    update_schema=CommentModerationUpdate,
+    allowed_actions={"view", "update", "delete"},
 )
 
-# Users - Read only
-content_admin.add_view(
-    model=User,
-    create_schema=None,
-    update_schema=None,
-    read_schema=UserRead,
-    delete_permission=False
-)
-```
-
-#### Customer Service Pattern
-
-```python
-# Customer Service - Customer and order focus
-service_admin = CRUDAdmin(
-    session_backend="redis",
-    secret_key="service-secret",
-    title="Customer Service",
-    mount_path="/service"
-)
-
-# Customers - Full access
-service_admin.add_view(
-    model=Customer,
-    create_schema=CustomerCreate,
-    update_schema=CustomerUpdate,
-    read_schema=CustomerRead
-)
-
-# Orders - Update status only
+service_admin = admin_instance("/service", "./admin_service.db")
 service_admin.add_view(
     model=Order,
-    create_schema=None,  # No new order creation
-    update_schema=OrderStatusUpdate,  # Status changes only
-    read_schema=OrderRead,
-    delete_permission=False  # Cannot delete orders
+    create_schema=OrderCreate,
+    update_schema=OrderStatusUpdate,
+    allowed_actions={"view", "update"},
 )
 
-# Products - Read only for reference
-service_admin.add_view(
-    model=Product,
-    create_schema=None,
-    update_schema=None,
-    read_schema=ProductRead,
-    delete_permission=False
-)
+app.mount("/content", content_admin.app)
+app.mount("/service", service_admin.app)
 ```
 
-#### Implementation Considerations
-
-When using this workaround pattern:
-
-**Pros:**
-
-- ✅ Simple to implement and understand
-- ✅ Complete separation between different access levels
-- ✅ Different URLs for different roles (`/superadmin`, `/content`, `/service`)
-- ✅ Independent authentication for each role
-
-**Cons:**
-
-- ❌ Requires separate admin instances and maintenance
-- ❌ No shared user session across different admin interfaces
-- ❌ Duplicate configuration and setup code
-- ❌ Users need separate credentials for different admin areas
-
-**Future RBAC Features:**
-
-When CRUDAdmin adds native role-based access control, you'll be able to:
-
-- Define roles and permissions in a single admin instance
-- Control model visibility and actions per user role
-- Share sessions across the same admin interface
-- Dynamically show/hide features based on user permissions
+Each instance needs its own declarative base for its admin tables, hence the `DatabaseConfig`. Call `initialize()` and `shutdown()` on each in your lifespan. The instances keep separate admin accounts, and their session cookies are scoped to their own paths. With the Redis or database session backend, point them at different Redis databases or admin databases so their sessions stay apart.
 
 ---
 
@@ -802,12 +711,10 @@ Optimizing CRUDAdmin for applications with millions of records.
 ```python
 # Configure for large datasets
 crud_admin = CRUDAdmin(
+    session=get_session,
     session_backend="redis",
-    secret_key="your-key",
-    title="High Volume Admin",
-    default_page_size=25,  # Smaller default for faster loading
-    max_page_size=100,     # Prevent excessive queries
-    session_timeout=1800   # 30 minutes for long admin sessions
+    SECRET_KEY="your-key",
+    session_timeout_minutes=30,
 )
 
 # Enable database indexes in your models
@@ -858,7 +765,7 @@ crud_admin.add_view(
     model=Product,
     create_schema=ProductCreate,
     update_schema=ProductUpdate,
-    read_schema=ProductListRead  # Faster list loading
+    select_schema=ProductListRead  # Faster list loading
 )
 ```
 
@@ -904,11 +811,10 @@ from admin.schemas import AdminUserRead, AdminProductRead, AdminOrderRead
 def setup_admin():
     """Configure and return admin application"""
     crud_admin = CRUDAdmin(
+        session=get_session,
         session_backend="database",
-        database_url="sqlite:///./admin_sessions.db",  # Separate admin DB
-        secret_key="admin-secret-key",
-        title="Your App Admin",
-        mount_path=""  # Mounted at /admin already
+        admin_db_url="sqlite+aiosqlite:///./admin.db",
+        SECRET_KEY="admin-secret-key",
     )
     
     # Register your models
@@ -916,24 +822,24 @@ def setup_admin():
         model=User,
         create_schema=UserCreate,
         update_schema=UserUpdate,
-        read_schema=AdminUserRead
+        select_schema=AdminUserRead
     )
     
     crud_admin.add_view(
         model=Product,
         create_schema=ProductCreate,
         update_schema=ProductUpdate,
-        read_schema=AdminProductRead
+        select_schema=AdminProductRead
     )
     
     crud_admin.add_view(
         model=Order,
         create_schema=OrderCreate,
         update_schema=OrderUpdate,
-        read_schema=AdminOrderRead
+        select_schema=AdminOrderRead
     )
     
-    return crud_admin.get_app()
+    return crud_admin.app
 ```
 
 #### Environment-Based Configuration
@@ -947,7 +853,7 @@ class AdminConfig:
     SECRET_KEY: str = os.getenv("ADMIN_SECRET_KEY", "change-this-in-production")
     SESSION_BACKEND: str = os.getenv("ADMIN_SESSION_BACKEND", "database")
     REDIS_URL: Optional[str] = os.getenv("ADMIN_REDIS_URL")
-    DATABASE_URL: str = os.getenv("ADMIN_DATABASE_URL", "sqlite:///./admin_sessions.db")
+    DATABASE_URL: str = os.getenv("ADMIN_DATABASE_URL", "sqlite+aiosqlite:///./admin.db")
     TITLE: str = os.getenv("ADMIN_TITLE", "Admin Panel")
     DEBUG: bool = os.getenv("ADMIN_DEBUG", "false").lower() == "true"
 
@@ -963,15 +869,15 @@ def setup_admin():
         redis_config = RedisConfig(url=config.REDIS_URL)
     
     crud_admin = CRUDAdmin(
+        session=get_session,
         session_backend=config.SESSION_BACKEND,
         redis_config=redis_config,
-        database_url=config.DATABASE_URL,
-        secret_key=config.SECRET_KEY,
-        title=config.TITLE
+        admin_db_url=config.DATABASE_URL,
+        SECRET_KEY=config.SECRET_KEY,
     )
     
     # Register models...
-    return crud_admin.get_app()
+    return crud_admin.app
 ```
 
 ---
@@ -987,33 +893,33 @@ Comprehensive security setup for production environments using built-in CRUDAdmi
 CRUDAdmin provides built-in IP restriction functionality:
 
 ```python
-from crudadmin import CRUDAdmin
 import os
 
-# Production security configuration with built-in IP restrictions
+from crudauth.ratelimit import LockoutConfig
+
 from crudadmin import CRUDAdmin, RedisConfig
 
-redis_config = RedisConfig(url=os.getenv("REDIS_URL"))
-
 crud_admin = CRUDAdmin(
-    # Session security
+    session=get_session,
+    SECRET_KEY=os.environ["ADMIN_SECRET_KEY"],
     session_backend="redis",
-    redis_config=redis_config,
-    secret_key=os.getenv("ADMIN_SECRET_KEY"),  # Strong random key
-    
-    # Session management settings
-    session_timeout_minutes=60,  # 1 hour timeout
+    redis_config=RedisConfig(url=os.environ["REDIS_URL"]),
+    session_timeout_minutes=60,
     max_sessions_per_user=5,
-    
-    # Built-in IP restrictions
-    allowed_ips=["127.0.0.1", "192.168.1.100"],  # Specific IPs
-    allowed_networks=["192.168.1.0/24", "10.0.0.0/8"],  # Network ranges
-    
-    # Additional security
+    allowed_ips=["127.0.0.1", "192.168.1.100"],
+    allowed_networks=["192.168.1.0/24", "10.0.0.0/8"],
+    trusted_proxy_hops=1,
+    lockout=LockoutConfig(max_attempts=5, lockout_max_seconds=5 * 60),
     secure_cookies=True,
-    enforce_https=True
+    enforce_https=True,
+    track_events=True,
 )
 ```
+
+- `allowed_ips` / `allowed_networks` keep everyone else away from the admin, login page included. Since anyone who can reach the login page can lock out an admin by guessing wrong on purpose, this is the main defense against that.
+- `trusted_proxy_hops` is the number of reverse proxies in front of the app. With it, the allowlist and the lockout see the real client IP from `X-Forwarded-For`; leave it at `0` when the app is exposed directly, so the header can't be forged.
+- `lockout` shown here matches crudadmin's defaults: five failures lock the username and IP, starting at one minute and capped at five.
+- Changes need the session's CSRF token in an `X-CSRF-Token` header, which the interface sends for you; creating or editing an admin account also asks for the admin's password again.
 
 ---
 
