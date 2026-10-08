@@ -215,27 +215,21 @@ class DatabaseConfig:
         manual migration.
         """
         logger.info("Initializing admin database tables...")
-        try:
-            async with self.admin_engine.begin() as conn:
-                tables_to_create = [self.AdminUser]
+        async with self.admin_engine.begin() as conn:
+            tables_to_create = [self.AdminUser]
 
-                if self.AdminEventLog is not None:
-                    tables_to_create.append(self.AdminEventLog)
-                if self.AdminAuditLog is not None:
-                    tables_to_create.append(self.AdminAuditLog)
+            if self.AdminEventLog is not None:
+                tables_to_create.append(self.AdminEventLog)
+            if self.AdminAuditLog is not None:
+                tables_to_create.append(self.AdminAuditLog)
 
-                for table in tables_to_create:
-                    logger.info(f"Creating table: {table.__tablename__}")
-                    table_obj = cast(Table, table.__table__)
-                    await conn.run_sync(table_obj.create, checkfirst=True)
+            for table in tables_to_create:
+                logger.info("Creating table: %s", table.__tablename__)
+                table_obj = cast(Table, table.__table__)
+                await conn.run_sync(table_obj.create, checkfirst=True)
 
-            await self._add_missing_admin_user_columns()
-            logger.info("Admin database tables created successfully")
-        except Exception as e:
-            logger.error(
-                f"Error creating admin database tables: {str(e)}", exc_info=True
-            )
-            raise
+        await self._add_missing_admin_user_columns()
+        logger.info("Admin database tables created successfully")
 
     async def _add_missing_admin_user_columns(self) -> None:
         """Add the columns crudadmin 0.6 introduced to an older ``admin_user`` table.

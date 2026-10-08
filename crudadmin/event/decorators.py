@@ -106,32 +106,25 @@ def log_admin_action(
             crud: Optional[FastCRUD] = None
 
             if event_type in [EventType.UPDATE, EventType.DELETE]:
-                try:
-                    if model is not None:
-                        crud = FastCRUD(model)
-                    else:
-                        logger.error("Model is None. Cannot initialize FastCRUD.")
-                        raise ValueError("Model must not be None.")
+                if model is not None:
+                    crud = FastCRUD(model)
+                else:
+                    logger.error("Model is None. Cannot initialize FastCRUD.")
+                    raise ValueError("Model must not be None.")
 
-                    if "id" in kwargs:
-                        assert crud is not None, "CRUD instance should be initialized."
-                        assert model is not None
-                        request_id = kwargs["id"]
-                        if db_config:
-                            request_id = convert_id_to_pk_type(
-                                request_id, db_config, model
-                            )
+                if "id" in kwargs:
+                    assert crud is not None, "CRUD instance should be initialized."
+                    assert model is not None
+                    request_id = kwargs["id"]
+                    if db_config:
+                        request_id = convert_id_to_pk_type(request_id, db_config, model)
 
-                        pk_name = get_primary_key_name(model)
-                        item = await crud.get(db=db, **{pk_name: request_id})
-                        if item:
-                            previous_state = {
-                                k: v for k, v in item.items() if not k.startswith("_")
-                            }
-                except Exception as e:
-                    logger.error(f"Error fetching previous state: {str(e)}")
-                    raise
-
+                    pk_name = get_primary_key_name(model)
+                    item = await crud.get(db=db, **{pk_name: request_id})
+                    if item:
+                        previous_state = {
+                            k: v for k, v in item.items() if not k.startswith("_")
+                        }
             result = await func(
                 *args,
                 request=request,
@@ -174,8 +167,8 @@ def log_admin_action(
                                     if not k.startswith("_")
                                 }
                                 new_state = get_model_changes(new_state)
-                        except Exception as e:
-                            logger.error(f"Error fetching updated state: {str(e)}")
+                        except Exception:
+                            logger.exception("Could not read the updated record")
 
                     elif hasattr(request.state, "crud_result"):
                         crud_result = request.state.crud_result
@@ -195,7 +188,7 @@ def log_admin_action(
                         try:
                             body = await request.json()
                             ids = body.get("ids", [])
-                            logger.info(f"Delete request received for ids: {ids}")
+                            logger.info("Delete request received for ids: %s", ids)
 
                             deleted_records = []
                             if hasattr(request.state, "deleted_records"):
@@ -222,8 +215,8 @@ def log_admin_action(
                                     "requested_ids": ids,
                                 },
                             }
-                        except Exception as e:
-                            logger.error(f"Error in bulk delete process: {str(e)}")
+                        except Exception:
+                            logger.exception("Could not describe the deleted records")
 
                     elif event_type == EventType.UPDATE:
                         changes = compare_states(previous_state, new_state)
@@ -271,8 +264,11 @@ def log_admin_action(
                         primary_key_name=primary_key_name,
                     )
 
-            except Exception as e:
-                logger.error(f"Error logging event: {str(e)}")
+            except Exception:
+                logger.exception(
+                    "Could not record the %s event; the change itself stands",
+                    event_type.value,
+                )
                 await admin_db.rollback()
 
             return result
