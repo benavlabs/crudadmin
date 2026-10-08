@@ -1,478 +1,212 @@
 # Managing Admin Users
 
-This guide covers how to create, manage, and configure admin user accounts for accessing your CRUDAdmin interface. You'll learn about user creation, editing user details, understanding permissions, and following security best practices.
+This guide covers creating and managing the accounts that log in to the admin interface: who may do what, how passwords and sessions behave, and how accounts are deactivated.
 
 ## Prerequisites
 
-Before managing admin users, ensure you have:
-
 - A configured CRUDAdmin instance (see [Basic Configuration](configuration.md))
-- Access to your admin interface (typically at `/admin`)
-- Understanding of password security requirements
+- `admin.initialize()` called in your app's lifespan, which creates the admin tables
+
+---
+
+## Roles
+
+An admin is either a **superuser** or a regular admin.
+
+| | Regular admin | Superuser |
+|---|---|---|
+| Your models (per `allowed_actions`) | ✅ | ✅ |
+| Dashboard and health checks | ✅ | ✅ |
+| Own sessions on the Sessions page | ✅ | ✅ |
+| Every admin's sessions | ❌ | ✅ |
+| Admin users (`/admin/AdminUser`) | ❌ | ✅ |
+| Event log | ❌ | ✅ |
+
+New admins are **not** superusers unless you make them one. The admin created from `initial_admin` is always a superuser.
+
+Admin users can be viewed, created and updated, but not deleted; deactivate them instead (see below).
 
 ---
 
 ## Creating Admin Users
 
-### Automatic Creation (Initial Admin)
-
-The easiest way to create your first admin user is during CRUDAdmin initialization:
+### The initial admin
 
 ```python
-# Create admin interface with initial admin user
 admin = CRUDAdmin(
     session=get_session,
     SECRET_KEY=os.environ["ADMIN_SECRET_KEY"],
     initial_admin={
         "username": "admin",
-        "password": "SecurePassword123!"
-    }
+        "password": os.environ["ADMIN_INITIAL_PASSWORD"],
+    },
 )
 ```
 
-**How it works:**
+During `admin.initialize()`, this account is created as a superuser if no admin exists yet. If several workers start at once, only one creates it. Changing `initial_admin` later has no effect once an admin exists.
 
-- Only creates the admin user if no admin users exist
-- Password is automatically hashed using bcrypt
-- User is created with superuser privileges
-- Runs during `admin.initialize()` or at startup
+### In the interface
 
-### Manual Creation via Admin Interface
+1. Go to `/admin/AdminUser` (superusers only).
+2. Click **Add AdminUser**.
+3. Confirm your own password. Creating or editing an admin account asks for it again; the confirmation lasts five minutes, after which the next change asks again. Three wrong passwords lock the confirmation for 15 minutes.
+4. Fill in the username and password, and choose whether the new admin is a superuser.
 
-Once you have access to the admin interface:
-
-1. **Navigate to Admin Users**: Go to `/admin/AdminUser`
-2. **Click "Add AdminUser"**: Use the create button
-3. **Fill the form**:
-    - **Username**: 2-20 characters, lowercase letters and numbers only (`a-z0-9`)
-    - **Password**: 8 to 128 characters
-4. **Submit**: User is created with superuser privileges
-
-### Creation via Code
-
-For programmatic user creation:
+### In code
 
 ```python
-from crudadmin.admin_user.schemas import AdminUserCreate
+from crudauth import get_password_hash_async
 
-async def create_admin_user(username: str, password: str):
-    # Create the user data
-    user_data = AdminUserCreate(
+from crudadmin.admin_user.schemas import AdminUserCreateInternal
+
+
+async def create_admin_user(username: str, password: str, superuser: bool = False):
+    new_admin = AdminUserCreateInternal(
         username=username,
-        password=password  # Will be hashed automatically
+        hashed_password=await get_password_hash_async(password),
+        is_superuser=superuser,
     )
-    
-    # Get admin database session
-    async for admin_session in admin.db_config.get_admin_db():
-        try:
-            # Create user using the admin user service
-            hashed_password = admin.admin_user_service.get_password_hash(password)
-            internal_data = AdminUserCreateInternal(
-                username=username,
-                hashed_password=hashed_password,
-            )
-            
-            await admin.db_config.crud_users.create(
-                admin_session, object=internal_data
-            )
-            await admin_session.commit()
-            print(f"Created admin user: {username}")
-            
-        except Exception as e:
-            print(f"Error creating user: {e}")
-            await admin_session.rollback()
-
-# Usage
-await create_admin_user("manager", "SecurePass456!")
+    async with admin.db_config.admin_session_maker() as db:
+        await admin.db_config.crud_users.create(db, object=new_admin)
+        await db.commit()
 ```
+
+Validate the password with `AdminUserCreate(username=..., password=...)` first if it comes from user input.
 
 ---
 
-## User Requirements and Validation
+## Validation Rules
 
-### Username Requirements
+**Usernames**: 2 to 20 characters, lowercase letters and digits only (`^[a-z0-9]+$`). `admin` and `user123` are valid; `Admin`, `user-name` and `ab` are not.
 
-Admin usernames must follow specific rules:
+**Passwords**: 8 to 128 characters. There are no character-class rules: a long passphrase is stronger than a short "complex" password.
 
-```python
-# ✅ Valid usernames
-"admin"      # Basic admin
-"user123"    # Numbers allowed
-"manager2"   # Alphanumeric
-
-# ❌ Invalid usernames
-"Admin"      # No uppercase letters
-"user-name"  # No hyphens
-"user_name"  # No underscores
-"ab"         # Too short (minimum 2 characters)
-"verylongusernamethatexceedslimit"  # Too long (maximum 20 characters)
-```
-
-**Pattern**: `^[a-z0-9]+$` (lowercase letters and numbers only)
-
-### Password Requirements
-
-Passwords are checked for length only:
-
-```python
-# ✅ Valid passwords
-"SecurePass123!"
-"correct horse battery staple"   # Long passphrases are encouraged
-
-# ❌ Invalid passwords
-"simple"           # Too short (minimum 8 characters)
-"a" * 129          # Too long (maximum 128 characters)
-```
-
-**Requirements**:
-
-- 8 to 128 characters
-- No character-class rules: a long passphrase is stronger than a short complex password
+Passwords are hashed by [crudauth](https://github.com/benavlabs/crudauth): bcrypt over a SHA-256 pre-hash, so there's no 72-byte limit. Hashes written by crudadmin 0.5 and earlier keep working and are upgraded on the admin's next login.
 
 ---
 
-## Managing Existing Users
+## Editing Admin Users
 
-### Viewing Admin Users
+In `/admin/AdminUser`, open an admin to change their username, password, superuser status or active status. Leave the password empty to keep it.
 
-To see all admin users:
+Changes take effect at once:
 
-1. **Access AdminUser section**: Navigate to `/admin/AdminUser`
-2. **View user list**: See all admin accounts with:
-    - Username
-    - Creation date
-    - Last updated date
-    - Superuser status
+- **New password**: every other session of that admin ends. If you change your own password, your current session stays.
+- **Deactivated** (`is_active` unchecked): the admin can't log in, and their open sessions stop working on their next request.
+- **No longer a superuser**: their sessions end, so they log in again with the reduced access.
+- **The last active superuser** can't be demoted or deactivated; the form refuses with "At least one active superuser must remain."
 
-### Editing User Details
-
-To modify an existing admin user:
-
-1. **Select user**: Check the box next to the user in the list
-2. **Click "Update"**: Opens the edit form
-3. **Modify fields**:
-    - **Username**: Change if needed (subject to validation rules)
-    - **Password**: Leave blank to keep current password, or enter new password
-4. **Save changes**: Submit the form
-
-**Code example for programmatic updates:**
+### In code
 
 ```python
-from crudadmin.admin_user.schemas import AdminUserUpdate
+from crudauth import get_password_hash_async
 
-async def update_admin_user(
-    user_id: int,
-    new_password: str = None,
-    new_username: str = None
-):
-    # Prepare update data (only include fields that are changing)
-    update_data = {}
-    if new_username:
-        update_data["username"] = new_username
-    if new_password:
-        update_data["password"] = new_password  # Will be hashed automatically
-    
-    if not update_data:
-        print("No changes to make")
-        return
-    
-    user_update = AdminUserUpdate(**update_data)
-    
-    async for admin_session in admin.db_config.get_admin_db():
-        try:
-            await admin.db_config.crud_users.update(
-                admin_session, 
-                object=user_update, 
-                id=user_id
-            )
-            await admin_session.commit()
-            print(f"Updated user ID {user_id}")
-            
-        except Exception as e:
-            print(f"Error updating user: {e}")
-            await admin_session.rollback()
 
-# Usage
-await update_admin_user(user_id=1, new_password="NewSecurePass789!")
+async def reset_password(user_id: int, new_password: str):
+    async with admin.db_config.admin_session_maker() as db:
+        await admin.db_config.crud_users.update(
+            db,
+            object={"hashed_password": await get_password_hash_async(new_password)},
+            id=user_id,
+        )
+        await db.commit()
+    await admin.session_manager.revoke_all(user_id)
+
+
+async def deactivate(user_id: int):
+    async with admin.db_config.admin_session_maker() as db:
+        await admin.db_config.crud_users.update(db, object={"is_active": False}, id=user_id)
+        await db.commit()
+    await admin.session_manager.revoke_all(user_id)
 ```
 
-### Password Changes
-
-When changing passwords:
-
-1. **Via Interface**: Enter new password in the password field during edit
-2. **Via Code**: Use the update method with a new password
-3. **Security**: Old password is completely replaced (no password history)
-
-**Important Notes:**
-
-- Passwords are automatically hashed using bcrypt
-- Empty password field during update means "no change"
-- New password must meet all validation requirements
+`revoke_all` ends every session the admin has. A deactivated admin is refused on the next request anyway; revoking also removes their sessions from the Sessions page.
 
 ---
 
-## User Permissions and Access Control
+## Sessions
 
-### Superuser Status
-
-All admin users in CRUDAdmin have superuser privileges by default:
+Each login creates a session, stored in the configured [session backend](session-backends.md):
 
 ```python
-# User model structure
-class AdminUser:
-    id: int
-    username: str
-    hashed_password: str
-    created_at: datetime
-    updated_at: Optional[datetime]
-    is_superuser: bool = True  # Always True for admin users
-```
-
-**What superuser means:**
-- Full access to all admin interface features
-- Can view, create, update, and delete all records
-- Access to management features (health checks, event logs)
-- Can manage other admin users
-
-### Available Actions
-
-Admin users can perform these actions in the interface:
-
-| Action | AdminUser | AdminSession | Your Models |
-|--------|-----------|--------------|-------------|
-| **View** | ✅ | ✅ | ✅* |
-| **Create** | ✅ | ❌ | ✅* |
-| **Update** | ✅ | ❌ | ✅* |
-| **Delete** | ❌ | ✅ | ✅* |
-
-**Notes:**
-
-- `*` = Depends on `allowed_actions` configuration for your models
-- AdminUser deletion is disabled to prevent accidental lockouts
-- AdminSessions can be deleted to force logout
-
-### Session Management
-
-Each admin user can have multiple concurrent sessions:
-
-```python
-# Configure session limits (in CRUDAdmin initialization)
 admin = CRUDAdmin(
     session=get_session,
     SECRET_KEY=key,
-    max_sessions_per_user=3,        # Limit concurrent sessions
-    session_timeout_minutes=30,     # Auto-logout after inactivity
-    cleanup_interval_minutes=15,    # How often to clean expired sessions
+    max_sessions_per_user=3,
+    session_timeout_minutes=30,
+    cleanup_interval_minutes=15,
 )
 ```
 
-**Session behavior:**
+- A session ends after `session_timeout_minutes` without activity. The cookie lasts until the browser closes.
+- Past `max_sessions_per_user`, the oldest session is ended.
+- Logging in again from the same browser ends the session it had.
 
-- Each login creates a new session
-- Sessions expire after inactivity timeout
-- Exceeding max sessions removes oldest session
-- Sessions can be viewed/deleted in AdminSession section
+The **Sessions** page (`/admin/management/sessions`) lists sessions with their browser, IP address, sign-in time and last activity, and a **Sign out** button for each. Admins see their own sessions; superusers see everyone's. Session ids are never shown.
 
----
-
-## Security Best Practices
-
-### Environment-Based User Management
+To end sessions from code, use the session manager:
 
 ```python
-# Development: Simple auto-admin
-admin = CRUDAdmin(
-    session=get_session,
-    SECRET_KEY="dev-key-change-in-production",
-    initial_admin={
-        "username": "admin",
-        "password": "admin123"  # Simple for development
-    }
-)
-
-# Production: No auto-admin, manual creation
-admin = CRUDAdmin(
-    session=get_session,
-    SECRET_KEY=os.environ["ADMIN_SECRET_KEY"],
-    initial_admin=None  # Create admin users manually
-)
-```
-
-### Strong Password Policies
-
-Implement additional password checks:
-
-```python
-import re
-
-def validate_strong_password(password: str) -> bool:
-    """Enhanced password validation"""
-    checks = [
-        len(password) >= 12,  # Longer minimum
-        re.search(r'[A-Z]', password),  # Uppercase letter
-        re.search(r'[a-z]', password),  # Lowercase letter
-        re.search(r'\d', password),     # Number
-        re.search(r'[!@#$%^&*(),.?":{}|<>]', password),  # Special char
-        password != password.lower(),   # Mixed case
-        password != password.upper(),   # Mixed case
-    ]
-    return all(checks)
-
-# Use in your application
-def create_secure_admin(username: str, password: str):
-    if not validate_strong_password(password):
-        raise ValueError("Password does not meet security requirements")
-    
-    # Create user...
-```
-
-### Regular User Auditing
-
-Monitor and audit admin users:
-
-```python
-async def audit_admin_users():
-    """List all admin users with their last activity"""
-    async for admin_session in admin.db_config.get_admin_db():
-        # Get all admin users
-        users = await admin.db_config.crud_users.get_multi(admin_session)
-        
-        print("Admin Users Audit:")
-        print("-" * 50)
-        for user in users:
-            print(f"Username: {user.username}")
-            print(f"Created: {user.created_at}")
-            print(f"Updated: {user.updated_at}")
-            print(f"Superuser: {user.is_superuser}")
-            print("-" * 30)
-
-# Run periodically
-await audit_admin_users()
-```
-
-### Session Security
-
-Monitor active sessions:
-
-```python
-async def check_active_sessions():
-    """Review active admin sessions"""
-    async for admin_session in admin.db_config.get_admin_db():
-        sessions = await admin.db_config.crud_sessions.get_multi(admin_session)
-        
-        print("Active Sessions:")
-        print("-" * 40)
-        for session in sessions:
-            print(f"User: {session.user_id}")
-            print(f"Created: {session.created_at}")
-            print(f"Expires: {session.expires_at}")
-            print("-" * 20)
-
-await check_active_sessions()
+sessions = await admin.session_manager.list_for_user(user_id)
+await admin.session_manager.revoke_by_handle(sessions[0]["id"], owner_id=user_id)
+await admin.session_manager.revoke_all(user_id)
 ```
 
 ---
 
-## Common Tasks
+## Login Protection
 
-### Resetting a User Password
+Logins are protected by crudauth's lockout. crudadmin's defaults:
 
-```python
-async def reset_user_password(username: str, new_password: str):
-    """Reset password for a specific user"""
-    if not validate_strong_password(new_password):
-        raise ValueError("New password does not meet requirements")
-    
-    async for admin_session in admin.db_config.get_admin_db():
-        try:
-            # Find user by username
-            user = await admin.db_config.crud_users.get(
-                admin_session, 
-                username=username
-            )
-            
-            if not user:
-                print(f"User '{username}' not found")
-                return
-            
-            # Update password
-            update_data = AdminUserUpdate(password=new_password)
-            await admin.db_config.crud_users.update(
-                admin_session,
-                object=update_data,
-                id=user.id
-            )
-            await admin_session.commit()
-            print(f"Password reset for user '{username}'")
-            
-        except Exception as e:
-            print(f"Error resetting password: {e}")
-            await admin_session.rollback()
+- 5 failed attempts lock the username and the IP address;
+- the first lock lasts one minute, doubling on repeated lockouts up to five minutes;
+- a successful login clears the failure counters (`on_login_success="clear_all"`).
 
-# Usage
-await reset_user_password("admin", "NewSecurePassword123!")
-```
-
-### Disabling a User (Workaround)
-
-Since there's no built-in disable feature, you can change their password:
+Anyone who knows an admin's username can lock it out by failing on purpose, which is why the cap is short. Keep strangers away from the login page with `allowed_ips` or `allowed_networks`. To tune the lockout:
 
 ```python
-async def disable_user(username: str):
-    """Effectively disable a user by setting an unusable password"""
-    import secrets
-    
-    # Set a random, unknown password
-    random_password = secrets.token_urlsafe(32)
-    await reset_user_password(username, random_password)
-    print(f"User '{username}' has been effectively disabled")
-    print("Store this password securely if you need to re-enable:")
-    print(f"Password: {random_password}")
+from crudauth.ratelimit import LockoutConfig
 
-# Usage
-await disable_user("oldadmin")
+admin = CRUDAdmin(
+    session=get_session,
+    SECRET_KEY=key,
+    lockout=LockoutConfig(max_attempts=10, lockout_max_seconds=600),
+    allowed_networks=["10.0.0.0/8"],
+)
 ```
 
-### Force Logout (Session Termination)
+Behind a reverse proxy, set `trusted_proxy_hops` to the number of proxies so lockouts count the real client IP; with the default `0`, `X-Forwarded-For` is ignored.
+
+Logged-in requests that change data (POST, PUT, PATCH, DELETE), including logout, need the session's CSRF token in an `X-CSRF-Token` header. The bundled `admin.js` sends it for the interface's forms, htmx requests and `fetch` calls.
+
+---
+
+## Upgrading from 0.5
+
+`admin.initialize()` adds the `is_active` and `token_version` columns to an existing `admin_user` table, so no manual step is needed. If you manage the admin database with Alembic, add them in a migration instead:
 
 ```python
-async def force_user_logout(username: str):
-    """Terminate all sessions for a specific user"""
-    async for admin_session in admin.db_config.get_admin_db():
-        try:
-            # Get user
-            user = await admin.db_config.crud_users.get(
-                admin_session,
-                username=username
-            )
-            
-            if not user:
-                print(f"User '{username}' not found")
-                return
-            
-            # Delete all sessions for this user
-            await admin.db_config.crud_sessions.delete(
-                admin_session,
-                user_id=user.id
-            )
-            await admin_session.commit()
-            print(f"All sessions terminated for user '{username}'")
-            
-        except Exception as e:
-            print(f"Error terminating sessions: {e}")
-            await admin_session.rollback()
+import sqlalchemy as sa
+from alembic import op
 
-# Usage
-await force_user_logout("admin")
+
+def upgrade():
+    op.add_column(
+        "admin_user",
+        sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.true()),
+    )
+    op.add_column(
+        "admin_user",
+        sa.Column("token_version", sa.Integer(), nullable=False, server_default="0"),
+    )
 ```
+
+Existing admins keep their `is_superuser` value. The old `admin_session` table is no longer used and can be dropped.
 
 ---
 
 ## Next Steps
 
-After setting up admin users:
-
-1. **[Learn the Interface](interface.md)** to effectively navigate and use the admin panel
+1. **[Learn the Interface](interface.md)** to navigate and use the admin panel
 2. **[Add Models](adding-models.md)** to manage your application data
-3. Explore **[Advanced Topics](../advanced/overview.md)** for production-level user management and security features 
+3. **[Session Backends](session-backends.md)** to choose where sessions are kept in production

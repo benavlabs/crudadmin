@@ -1,941 +1,231 @@
 # Session Backends
 
-CRUDAdmin provides flexible, scalable session management with multiple backend options. This guide covers how to configure and use different session backends for optimal performance and functionality across development, staging, and production environments.
+CRUDAdmin keeps admin sessions with [crudauth](https://benavlabs.github.io/crudauth). The session backend decides where sessions, CSRF tokens and login lockout counters are stored. This guide covers the three backends, how to pick one, and the settings that shape sessions and logins.
 
 ## Prerequisites
 
-Before configuring session backends, ensure you have:
+- CRUDAdmin 0.6 or later
+- For the `redis` backend: a Redis server and `pip install "crudadmin[redis]"`
 
-- CRUDAdmin instance created and configured (see [Basic Configuration](configuration.md))
-- Understanding of your deployment environment requirements
-- Optional: Redis or Memcached installed for production backends
+## Choosing a backend
 
----
+| Backend | Where state lives | Shared between workers | Extra infrastructure | Use it for |
+|---------|-------------------|------------------------|----------------------|------------|
+| `memory` (default) | The process's memory | No | None | Development, tests, a single-process deployment |
+| `redis` | Redis | Yes | A Redis server | Production with several workers or several hosts |
+| `database` | Two tables in the admin database | Yes | None | Production with several workers, without Redis |
 
-## Backend Overview
+The backend holds more than sessions: login lockout counters live in the same place. With several workers on the `memory` backend, an admin who logs in on one worker is unknown to the next, and each worker counts failed logins on its own, so lockout is several times weaker. Any deployment that runs more than one worker process (for example `gunicorn -w 4` or `uvicorn --workers 4`) needs `redis` or `database`.
 
-CRUDAdmin supports five session backend types, each optimized for different use cases:
+The value is case-insensitive.
 
-| Backend | Performance | Scalability | Persistence | Admin Visibility | Dependencies | Use Case |
-|---------|-------------|-------------|-------------|------------------|--------------|----------|
-| **Memory** | Excellent | Single node | No | No | None | Development, testing |
-| **Redis** | Excellent | Horizontal | Yes* | No | Redis server | Production, high traffic |
-| **Memcached** | Excellent | Horizontal | No | No | Memcached server | High performance caching |
-| **Database** | Good | Vertical | Yes | Yes | None | Audit requirements |
-| **Hybrid** | Excellent | Horizontal | Yes | Yes | Redis/Memcached + DB | Production with audit |
-
-*Redis persistence depends on configuration
-
----
-
-## Memory Sessions
-
-Perfect for development and testing environments with no external dependencies.
-
-### Basic Usage
+## Memory
 
 ```python
-from crudadmin import CRUDAdmin
-
-# Memory sessions are the default
 admin = CRUDAdmin(
     session=get_session,
-    SECRET_KEY="your-secret-key"
-)
-
-# Or explicitly configure
-admin = CRUDAdmin(
-    session=get_session,
-    SECRET_KEY="your-secret-key",
-    session_backend="memory"
+    SECRET_KEY=SECRET_KEY,
 )
 ```
 
-### Characteristics
+`memory` is the default. Sessions are lost when the process restarts. CRUDAdmin logs a warning at startup when this backend is active, as a reminder that it isn't suitable for multi-worker production.
 
-- **Fast**: No network overhead
-- **Simple**: No setup required
-- **Ephemeral**: Sessions lost on restart
-- **Single node**: Not suitable for load-balanced deployments
-
-### When to Use
-
-✅ **Development environments**  
-✅ **Testing and CI/CD**  
-✅ **Single-node applications**  
-❌ **Production with multiple instances**  
-❌ **Applications requiring session persistence**
-
----
-
-## Redis Sessions
-
-Redis provides high-performance session storage with persistence, clustering support, and advanced features like TTL (Time To Live) and Redis ACL authentication.
-
-### Installation
-
-```bash
-# Install Redis support
-uv add "crudadmin[redis]"
-# or with pip
-pip install "crudadmin[redis]"
-```
-
-### Basic Configuration
+## Redis
 
 ```python
 from crudadmin import CRUDAdmin, RedisConfig
-
-# Method 1: Using configuration object (recommended)
-redis_config = RedisConfig(host="localhost", port=6379, db=0)
-admin = CRUDAdmin(
-    session=get_session,
-    SECRET_KEY="your-secret-key",
-    session_backend="redis",
-    redis_config=redis_config
-)
-
-# Method 2: URL-based configuration
-redis_config = RedisConfig(url="redis://localhost:6379/0")
-admin = CRUDAdmin(
-    session=get_session,
-    SECRET_KEY="your-secret-key",
-    session_backend="redis",
-    redis_config=redis_config
-)
-
-# Method 3: Dictionary configuration
-admin = CRUDAdmin(
-    session=get_session,
-    SECRET_KEY="your-secret-key",
-    session_backend="redis",
-    redis_config={"host": "localhost", "port": 6379, "db": 0}
-)
-```
-
-### Redis with Authentication
-
-```python
-from crudadmin import CRUDAdmin, RedisConfig
-
-# URL with password
-redis_config = RedisConfig(url="redis://user:password@localhost:6379/1")
-admin = CRUDAdmin(
-    session=get_session,
-    SECRET_KEY="your-secret-key",
-    session_backend="redis",
-    redis_config=redis_config
-)
-
-# Configuration object with authentication (recommended)
-redis_config = RedisConfig(
-    host="localhost",
-    port=6379,
-    db=0,
-    username="user",  # Redis 6.0+ ACL support
-    password="your-redis-password"
-)
-admin = CRUDAdmin(
-    session=get_session,
-    SECRET_KEY="your-secret-key",
-    session_backend="redis",
-    redis_config=redis_config
-)
-
-# Dictionary configuration
-admin = CRUDAdmin(
-    session=get_session,
-    SECRET_KEY="your-secret-key",
-    session_backend="redis",
-    redis_config={
-        "host": "localhost",
-        "port": 6379,
-        "db": 0,
-        "password": "your-redis-password"
-    }
-)
-```
-
-### Production Redis Configuration
-
-```python
-import os
-from crudadmin import CRUDAdmin, RedisConfig
-
-# Environment-based configuration
-redis_config = RedisConfig(
-    host=os.getenv("REDIS_HOST", "localhost"),
-    port=int(os.getenv("REDIS_PORT", 6379)),
-    db=int(os.getenv("REDIS_DB", 0)),
-    password=os.getenv("REDIS_PASSWORD"),
-    pool_size=20,
-    connect_timeout=10
-)
-
-admin = CRUDAdmin(
-    session=get_session,
-    SECRET_KEY="your-secret-key",
-    session_backend="redis",
-    redis_config=redis_config
-)
-```
-
-### Advanced Redis Parameters
-
-```python
-from crudadmin import RedisConfig
-
-# Full configuration with all options
-redis_config = RedisConfig(
-    host="redis-cluster.example.com",
-    port=6379,
-    db=0,
-    password="secure-password",
-    username="redis_user",  # Redis 6.0+ ACL support
-    
-    # Connection pooling
-    pool_size=20,
-    connect_timeout=10
-)
-
-admin = CRUDAdmin(
-    session=get_session,
-    SECRET_KEY="your-secret-key",
-    session_backend="redis",
-    redis_config=redis_config
-)
-```
-
-### When to Use
-
-✅ **Production environments**  
-✅ **High-traffic applications**  
-✅ **Multi-instance deployments**  
-✅ **Applications requiring session persistence**  
-✅ **Microservices architectures**
-
-### Configuration Object Examples
-
-For comprehensive Redis configuration:
-
-```python
-from crudadmin import CRUDAdmin, RedisConfig
-
-# Basic configuration
-redis_config = RedisConfig(
-    host="localhost",
-    port=6379,
-    db=0
-)
-admin = CRUDAdmin(
-    session=get_session,
-    SECRET_KEY="your-secret-key-here",
-    session_backend="redis",
-    redis_config=redis_config
-)
-
-# With authentication (Redis 6.0+ ACL support)
-redis_config = RedisConfig(
-    host="redis.example.com",
-    port=6379,
-    db=1,
-    username="myapp_user",      # Redis ACL username
-    password="secure_password"
-)
-admin = CRUDAdmin(
-    session=get_session,
-    SECRET_KEY="your-secret-key-here",
-    session_backend="redis",
-    redis_config=redis_config
-)
-
-# Advanced Redis configuration with connection pooling
-redis_config = RedisConfig(
-    host="localhost",
-    port=6379,
-    db=0,
-    username="admin_user",
-    password="secret123",
-    pool_size=50,
-    connect_timeout=30
-)
-admin = CRUDAdmin(
-    session=get_session,
-    SECRET_KEY="your-secret-key-here",
-    session_backend="redis",
-    redis_config=redis_config
-)
-```
-
-### URL-Based Configuration
-
-Redis URLs support the standard format including usernames through RedisConfig:
-
-```python
-from crudadmin import CRUDAdmin, RedisConfig
-
-# Basic Redis URL
-redis_config = RedisConfig(url="redis://localhost:6379/0")
-admin = CRUDAdmin(
-    session=get_session,
-    SECRET_KEY="your-secret-key-here",
-    session_backend="redis",
-    redis_config=redis_config
-)
-
-# With password only (legacy authentication)
-redis_config = RedisConfig(url="redis://:password123@localhost:6379/0")
-admin = CRUDAdmin(
-    session=get_session,
-    SECRET_KEY="your-secret-key-here",
-    session_backend="redis",
-    redis_config=redis_config
-)
-
-# With username and password (Redis 6.0+ ACL)
-redis_config = RedisConfig(
-    url="redis://myuser:password123@redis.example.com:6379/1"
-)
-admin = CRUDAdmin(
-    session=get_session,
-    SECRET_KEY="your-secret-key-here",
-    session_backend="redis",
-    redis_config=redis_config
-)
-
-# Complex Redis URL with custom port and database
-redis_config = RedisConfig(
-    url="redis://admin_user:secure_pass@redis-cluster.internal:6380/3"
-)
-admin = CRUDAdmin(
-    session=get_session,
-    SECRET_KEY="your-secret-key-here",
-    session_backend="redis",
-    redis_config=redis_config
-)
-```
-
-### Authentication Methods
-
-Redis supports two authentication methods:
-
-1. **Legacy AUTH (Redis < 6.0)**: Uses only password
-   ```python
-   from crudadmin import CRUDAdmin, RedisConfig
-   
-   # URL format
-   redis_config = RedisConfig(url="redis://:password@localhost:6379/0")
-   admin = CRUDAdmin(
-       session=get_session,
-       SECRET_KEY="your-secret-key",
-       session_backend="redis",
-       redis_config=redis_config
-   )
-   
-   # Configuration object format
-   redis_config = RedisConfig(password="password")
-   admin = CRUDAdmin(
-       session=get_session,
-       SECRET_KEY="your-secret-key",
-       session_backend="redis",
-       redis_config=redis_config
-   )
-   ```
-
-2. **ACL Authentication (Redis 6.0+)**: Uses username and password
-   ```python
-   from crudadmin import CRUDAdmin, RedisConfig
-   
-   # URL format
-   redis_config = RedisConfig(url="redis://username:password@localhost:6379/0")
-   admin = CRUDAdmin(
-       session=get_session,
-       SECRET_KEY="your-secret-key",
-       session_backend="redis",
-       redis_config=redis_config
-   )
-   
-   # Configuration object format
-   redis_config = RedisConfig(
-       username="username",
-       password="password"
-   )
-   admin = CRUDAdmin(
-       session=get_session,
-       SECRET_KEY="your-secret-key",
-       session_backend="redis",
-       redis_config=redis_config
-   )
-   ```
-
----
-
-## Memcached Sessions
-
-High-performance caching solution optimized for speed over persistence.
-
-### Installation
-
-```bash
-# Install Memcached support
-uv add "crudadmin[memcached]"
-# or with pip
-pip install "crudadmin[memcached]"
-```
-
-### Basic Configuration
-
-```python
-from crudadmin import CRUDAdmin, MemcachedConfig
-
-# Method 1: Server list
-memcached_config = MemcachedConfig(servers=["localhost:11211"])
-admin = CRUDAdmin(
-    session=get_session,
-    session_backend="memcached",
-    memcached_config=memcached_config
-)
-
-# Method 2: Individual parameters
-memcached_config = MemcachedConfig(host="localhost", port=11211)
-admin = CRUDAdmin(
-    session=get_session,
-    session_backend="memcached",
-    memcached_config=memcached_config
-)
-
-# Method 3: Dictionary configuration
-admin = CRUDAdmin(
-    session=get_session,
-    session_backend="memcached",
-    memcached_config={"host": "localhost", "port": 11211}
-)
-```
-
-### Multiple Servers
-
-```python
-from crudadmin import CRUDAdmin, MemcachedConfig
-
-# Multiple servers (first server used due to aiomcache limitations)
-memcached_config = MemcachedConfig(servers=[
-    "memcached1.example.com:11211",
-    "memcached2.example.com:11211"  # Backup server
-])
-admin = CRUDAdmin(
-    session=get_session,
-    session_backend="memcached",
-    memcached_config=memcached_config
-)
-```
-
-### Production Memcached Configuration
-
-```python
-import os
-from crudadmin import CRUDAdmin, MemcachedConfig
-
-# Environment-based configuration
-memcached_config = MemcachedConfig(
-    host=os.getenv("MEMCACHED_HOST", "localhost"),
-    port=int(os.getenv("MEMCACHED_PORT", 11211)),
-    pool_size=15
-)
-
-admin = CRUDAdmin(
-    session=get_session,
-    SECRET_KEY="your-secret-key",
-    session_backend="memcached",
-    memcached_config=memcached_config
-)
-```
-
-### When to Use
-
-✅ **High-performance requirements**  
-✅ **Applications with simple session needs**  
-✅ **Existing Memcached infrastructure**  
-❌ **Applications requiring session persistence**  
-❌ **Audit requirements**
-
----
-
-## Database Sessions
-
-Store sessions directly in the database for full admin dashboard visibility and audit trails.
-
-### Basic Configuration
-
-```python
-# Database sessions provide full audit trail
-admin = CRUDAdmin(
-    session=get_session,
-    session_backend="database"
-)
-```
-
-### Characteristics
-
-- **Persistent**: Sessions survive application restarts
-- **Auditable**: Full visibility in admin dashboard
-- **Slower**: Database I/O overhead
-- **Simple**: No external dependencies
-
-### When to Use
-
-✅ **Audit requirements**  
-✅ **Compliance needs**  
-✅ **Small to medium applications**  
-✅ **Admin session monitoring**  
-❌ **High-traffic applications**  
-❌ **Performance-critical scenarios**
-
----
-
-## Hybrid Sessions
-
-Combine the performance of Redis/Memcached with the audit capabilities of database storage.
-
-### Redis + Database Hybrid
-
-```python
-from crudadmin import CRUDAdmin, RedisConfig
-
-# Redis for performance + Database for audit trail
-redis_config = RedisConfig(
-    host="localhost",
-    port=6379,
-    db=0,
-    password="redis-password"
-)
-
-admin = CRUDAdmin(
-    session=get_session,
-    SECRET_KEY="your-secret-key",
-    session_backend="redis",
-    redis_config=redis_config,
-    track_sessions_in_db=True  # Enables hybrid mode
-)
-```
-
-### Memcached + Database Hybrid
-
-```python
-from crudadmin import CRUDAdmin, MemcachedConfig
-
-# Memcached for performance + Database for audit trail
-memcached_config = MemcachedConfig(
-    host="localhost",
-    port=11211
-)
-
-admin = CRUDAdmin(
-    session=get_session,
-    SECRET_KEY="your-secret-key",
-    session_backend="memcached",
-    memcached_config=memcached_config,
-    track_sessions_in_db=True  # Enables hybrid mode
-)
-```
-
-### How Hybrid Mode Works
-
-1. **Active sessions** stored in Redis/Memcached for fast access
-2. **Session metadata** stored in database for admin visibility
-3. **Session operations** update both stores
-4. **Admin dashboard** shows all sessions from database
-5. **Performance** maintained through cache-first approach
-
-### When to Use
-
-✅ **Production environments with audit needs**  
-✅ **Compliance requirements + performance**  
-✅ **Admin session monitoring + scalability**  
-✅ **Best of both worlds scenarios**
-
----
-
-## Environment-Based Configuration
-
-### Dynamic Configuration
-
-```python
-import os
-from crudadmin import CRUDAdmin, RedisConfig
-
-# Configure backend based on environment
-environment = os.getenv("ENVIRONMENT", "development")
-
-if environment == "production":
-    redis_config = RedisConfig(
-        host=os.getenv("REDIS_HOST"),
-        port=int(os.getenv("REDIS_PORT")),
-        password=os.getenv("REDIS_PASSWORD")
-    )
-    admin = CRUDAdmin(
-        session=get_session,
-        SECRET_KEY=os.environ["ADMIN_SECRET_KEY"],
-        session_backend="redis",
-        redis_config=redis_config,
-        track_sessions_in_db=True
-    )
-elif environment == "staging":
-    redis_config = RedisConfig(
-        host=os.getenv("REDIS_HOST", "localhost"),
-        port=int(os.getenv("REDIS_PORT", 6379))
-    )
-    admin = CRUDAdmin(
-        session=get_session,
-        SECRET_KEY=os.environ["ADMIN_SECRET_KEY"],
-        session_backend="redis",
-        redis_config=redis_config,
-        track_sessions_in_db=True
-    )
-else:
-    # Development uses memory sessions (default)
-    admin = CRUDAdmin(
-        session=get_session,
-        SECRET_KEY=os.environ["ADMIN_SECRET_KEY"]
-    )
-```
-
----
-
-## Configuration Patterns
-
-### Simple Development Setup
-
-```python
-from crudadmin import CRUDAdmin
-
-# No external dependencies required
-admin = CRUDAdmin(
-    session=get_session,
-    SECRET_KEY="dev-key-change-in-production"
-)
-# Uses memory sessions by default
-```
-
-### Production with Redis
-
-```python
-import os
-from crudadmin import CRUDAdmin, RedisConfig
-
-redis_config = RedisConfig(
-    host=os.environ["REDIS_HOST"],
-    port=int(os.environ["REDIS_PORT"]),
-    password=os.environ["REDIS_PASSWORD"]
-)
-
-admin = CRUDAdmin(
-    session=get_session,
-    SECRET_KEY=os.environ["ADMIN_SECRET_KEY"],
-    session_backend="redis",
-    redis_config=redis_config,
-    track_sessions_in_db=True,
-    secure_cookies=True,
-    enforce_https=True
-)
-```
-
-### High Availability Setup
-
-```python
-import os
-from crudadmin import CRUDAdmin, RedisConfig
-
-# Redis cluster with connection pooling
-redis_config = RedisConfig(
-    host=os.environ["REDIS_HOST"],
-    port=int(os.environ["REDIS_PORT"]),
-    password=os.environ["REDIS_PASSWORD"],
-    pool_size=20,
-    connect_timeout=10
-)
-
-admin = CRUDAdmin(
-    session=get_session,
-    SECRET_KEY=os.environ["ADMIN_SECRET_KEY"],
-    session_backend="redis",
-    redis_config=redis_config,
-    track_sessions_in_db=True
-)
-```
-
-### Docker Compose Example
-
-```yaml
-version: '3.8'
-services:
-  web:
-    build: .
-    environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - REDIS_PASSWORD=secure-password
-      - ENVIRONMENT=production
-    depends_on:
-      - redis
-
-  redis:
-    image: redis:7-alpine
-    command: redis-server --requirepass secure-password
-    volumes:
-      - redis_data:/data
-
-volumes:
-  redis_data:
-```
-
----
-
-## Configuration Validation
-
-### Built-in Validation
-
-CRUDAdmin configuration objects include comprehensive validation:
-
-```python
-from crudadmin import RedisConfig, MemcachedConfig
-
-# ✅ URL takes precedence when both URL and individual params are set
-redis_config = RedisConfig(
-    url="redis://localhost:6379/0",
-    host="ignored",  # URL takes precedence
-    port=9999        # URL takes precedence
-)
-
-# ✅ Server list takes precedence for Memcached
-memcached_config = MemcachedConfig(
-    servers=["server1:11211"],
-    host="ignored",  # servers take precedence
-    port=9999        # servers take precedence
-)
-
-# ❌ This will raise ValidationError (invalid port)
-try:
-    redis_config = RedisConfig(port=70000)  # Invalid port range
-except ValueError as e:
-    print(f"Validation error: {e}")
-
-# ❌ This will raise ValidationError (negative timeout)
-try:
-    redis_config = RedisConfig(connect_timeout=-5)  # Negative timeout
-except ValueError as e:
-    print(f"Validation error: {e}")
-```
-
-
-
-### Error Handling
-
-```python
-from crudadmin import CRUDAdmin, RedisConfig
-
-try:
-    redis_config = RedisConfig(
-        host="unreachable-redis.example.com",
-        port=6379
-    )
-    admin = CRUDAdmin(
-        session=get_session,
-        SECRET_KEY=SECRET_KEY,
-        session_backend="redis",
-        redis_config=redis_config
-    )
-except ImportError:
-    # Redis dependencies not installed
-    print("Redis support not available, falling back to memory")
-    admin = CRUDAdmin(
-        session=get_session,
-        SECRET_KEY=SECRET_KEY,
-        session_backend="memory"
-    )
-except ConnectionError:
-    # Redis server unavailable
-    print("Redis unavailable, using database sessions")
-    admin = CRUDAdmin(
-        session=get_session,
-        SECRET_KEY=SECRET_KEY,
-        session_backend="database"
-    )
-```
-
-
-
----
-
-## Performance Considerations
-
-### Session Cleanup
-
-```python
-from crudadmin import CRUDAdmin
-
-# Configure automatic cleanup
-admin = CRUDAdmin(
-    session=get_session,
-    SECRET_KEY=secret_key,
-    cleanup_interval_minutes=15,  # Clean expired sessions every 15 minutes
-    session_timeout_minutes=30    # Sessions expire after 30 minutes
-)
-```
-
-### Connection Pooling
-
-```python
-from crudadmin import CRUDAdmin, RedisConfig
-
-# Redis with optimized connection pooling
-redis_config = RedisConfig(
-    host="redis.example.com",
-    port=6379,
-    pool_size=20,  # Increase for high traffic
-    connect_timeout=10
-)
 
 admin = CRUDAdmin(
     session=get_session,
     SECRET_KEY=SECRET_KEY,
     session_backend="redis",
-    redis_config=redis_config
+    redis_config=RedisConfig(
+        host="redis.internal",
+        port=6379,
+        db=0,
+        username="crudadmin",
+        password=REDIS_PASSWORD,
+        pool_size=10,
+        connect_timeout=5,
+    ),
 )
 ```
 
-### Session Limits
+`redis_config` takes a `RedisConfig` or a plain dict with the same keys. Without it, CRUDAdmin connects to `localhost:6379`, database `0`.
+
+A connection URL works too:
 
 ```python
-from crudadmin import CRUDAdmin
-
-# Prevent memory exhaustion
 admin = CRUDAdmin(
     session=get_session,
-    SECRET_KEY=secret_key,
-    max_sessions_per_user=10,      # Limit concurrent sessions
-    session_timeout_minutes=30,    # Auto-expire sessions
-    cleanup_interval_minutes=15    # Regular cleanup
-)
-```
-
----
-
-## Monitoring and Debugging
-
-### Session Metrics
-
-```python
-# Monitor active sessions
-user_sessions = await admin.session_manager.get_user_sessions(user_id)
-print(f"User has {len(user_sessions)} active sessions")
-
-# Check session activity
-session_data = await admin.session_manager.validate_session(session_id)
-if session_data:
-    session_age = datetime.now(UTC) - session_data.last_activity
-    print(f"Session last active {session_age} ago")
-```
-
-### Debug Logging
-
-```python
-import logging
-
-# Enable session debug logging
-logging.getLogger('crudadmin.session').setLevel(logging.DEBUG)
-
-# Monitor Redis connections
-logging.getLogger('redis').setLevel(logging.INFO)
-```
-
-### Health Checks
-
-```python
-# Check backend connectivity
-try:
-    await admin.session_manager.session_storage.exists("health-check")
-    print("Session backend healthy")
-except Exception as e:
-    print(f"Session backend error: {e}")
-```
-
----
-
-## Production Deployment Guide
-
-### Environment Variables
-
-Set up these environment variables for production:
-
-```bash
-# Required
-ADMIN_SECRET_KEY=your-secret-key-here
-REDIS_HOST=redis.example.com
-REDIS_PORT=6379
-REDIS_PASSWORD=secure-redis-password
-
-# Optional
-REDIS_DB=0
-REDIS_POOL_SIZE=20
-REDIS_CONNECT_TIMEOUT=10
-ENVIRONMENT=production
-```
-
-Then use them in your configuration:
-
-```python
-import os
-from crudadmin import CRUDAdmin, RedisConfig
-
-# Create configuration from environment variables
-redis_config = RedisConfig(
-    host=os.environ["REDIS_HOST"],
-    port=int(os.environ["REDIS_PORT"]),
-    password=os.environ["REDIS_PASSWORD"],
-    db=int(os.getenv("REDIS_DB", "0")),
-    pool_size=int(os.getenv("REDIS_POOL_SIZE", "10")),
-    connect_timeout=int(os.getenv("REDIS_CONNECT_TIMEOUT", "10"))
-)
-
-admin = CRUDAdmin(
-    session=get_session,
-    SECRET_KEY=os.environ["ADMIN_SECRET_KEY"],
+    SECRET_KEY=SECRET_KEY,
     session_backend="redis",
-    redis_config=redis_config,
-    # Session management settings from environment
-    max_sessions_per_user=int(os.getenv("MAX_SESSIONS_PER_USER", "5")),
-    session_timeout_minutes=int(os.getenv("SESSION_TIMEOUT_MINUTES", "30")),
-    cleanup_interval_minutes=int(os.getenv("CLEANUP_INTERVAL_MINUTES", "15"))
+    redis_config=RedisConfig(url="rediss://crudadmin:secret@redis.example.com:6380/1"),
 )
 ```
 
-### Security Checklist
+The URL is passed to the Redis client whole, so a `rediss://` URL keeps TLS. `pool_size` sets the client's maximum number of connections and `connect_timeout` its connection timeout in seconds.
 
-- [ ] Use strong, unique secret keys
-- [ ] Configure Redis/Memcached authentication
-- [ ] Use TLS/SSL for Redis connections in production
-- [ ] Set appropriate session timeouts
-- [ ] Enable session cleanup
-- [ ] Monitor session backend health
-- [ ] Set up session audit logging
+CRUDAdmin opens the Redis client and closes it in `admin.shutdown()`. All keys are prefixed, so the admin can share a Redis with your application, including one that uses crudauth itself:
 
-### Scaling Considerations
+| Prefix | Holds |
+|--------|-------|
+| `crudadmin:session:` | Sessions |
+| `crudadmin:csrf:` | CSRF tokens |
+| `crudadmin:rl:` | Login lockout counters |
 
-1. **Redis Cluster**: For high availability and horizontal scaling
-2. **Connection Pooling**: Optimize pool sizes for your traffic
-3. **Session Limits**: Prevent resource exhaustion
-4. **Monitoring**: Track session metrics and backend performance
-5. **Backup Strategy**: Plan for session backend failures
+## Database
 
----
+```python
+admin = CRUDAdmin(
+    session=get_session,
+    SECRET_KEY=SECRET_KEY,
+    session_backend="database",
+)
+```
 
-## Next Steps
+Sessions, CSRF tokens and lockout counters are stored in two tables of the admin database, `crudadmin_auth_store` and `crudadmin_auth_counters`. They are created by `admin.initialize()`. This uses crudauth's `DatabaseStore`, which opens a short-lived database session for each operation and works on SQLite, PostgreSQL and MySQL.
 
-After configuring your session backend:
+Choose it when you run several workers but don't run Redis. Every worker reads the same tables, so logins and lockout are shared. For a multi-worker deployment, point the admin database at PostgreSQL or MySQL with `admin_db_url`; SQLite serializes writers and suits a single host.
 
-1. **[Set up Admin Users](admin-users.md)** for authentication
-2. **[Add Models](adding-models.md)** to create your admin interface
-3. **[Learn the Interface](interface.md)** for daily operations
-4. **[Explore Common Patterns](common-patterns.md)** for advanced scenarios
+```python
+admin = CRUDAdmin(
+    session=get_session,
+    SECRET_KEY=SECRET_KEY,
+    admin_db_url="postgresql+asyncpg://user:password@db.internal/admin",
+    session_backend="database",
+)
+```
 
-For production deployments, see [Advanced Topics](../advanced/overview.md) for comprehensive security, monitoring, and scaling strategies. 
+Expired rows are removed in small batches as writes go by, so the tables don't grow without bound.
+
+## Application lifecycle
+
+Call `admin.initialize()` before serving requests and `admin.shutdown()` when the application stops:
+
+```python
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await admin.initialize()
+    yield
+    await admin.shutdown()
+
+
+app = FastAPI(lifespan=lifespan)
+app.mount("/admin", admin.app)
+```
+
+`initialize()` creates the admin tables (and the `database` backend's tables), and opens the session stores. `shutdown()` closes the stores and the Redis client CRUDAdmin opened.
+
+## How sessions work
+
+Sessions are created at login and kept by crudauth:
+
+- The browser gets two cookies, `crudadmin_session` and `crudadmin_csrf`. The names are namespaced, so the admin and an application on the same domain don't overwrite each other's cookies.
+- `crudadmin_session` is `HttpOnly`. Both cookies are `SameSite=Strict`, scoped to the admin's mount path, and `Secure` unless you pass `secure_cookies=False` (only do that for local development over plain HTTP).
+- The cookies have no fixed lifetime. A session ends when the admin is idle for `session_timeout_minutes`; every request moves that deadline forward.
+- The store keeps an HMAC of each session id and CSRF token, keyed with `SECRET_KEY`, never the raw values. Read access to Redis or to the tables doesn't yield a working session. Changing `SECRET_KEY` signs every admin out.
+- Logging in again from the same browser ends the session it presented.
+
+```python
+admin = CRUDAdmin(
+    session=get_session,
+    SECRET_KEY=SECRET_KEY,
+    session_backend="redis",
+    session_timeout_minutes=60,
+    max_sessions_per_user=3,
+    cleanup_interval_minutes=15,
+)
+```
+
+| Setting | Default | Meaning |
+|---------|---------|---------|
+| `session_timeout_minutes` | `30` | Idle time after which a session ends |
+| `max_sessions_per_user` | `5` | Sessions one admin may hold at once; a login over the limit ends the least recently active one |
+| `cleanup_interval_minutes` | `15` | Minimum time between sweeps of idle sessions; each store also expires idle sessions on its own |
+| `secure_cookies` | `True` | Send the cookies over HTTPS only |
+
+## CSRF protection
+
+Every `POST`, `PUT`, `PATCH` and `DELETE` to the admin must carry the session's CSRF token in an `X-CSRF-Token` header, or it gets a `403`. A cookie is sent with cross-site requests but a custom header is not, so requiring the header is what blocks cross-site request forgery.
+
+The admin's own pages handle this for you: the bundled `admin.js` reads the `crudadmin_csrf` cookie and adds the header to htmx requests, `fetch` calls, and the create and update forms. Logout is a `POST` for the same reason, so a link or an image on another page can't log an admin out.
+
+If you call admin endpoints from your own scripts, read the `crudadmin_csrf` cookie and send it back as `X-CSRF-Token`.
+
+## Login protection
+
+### Lockout
+
+Failed logins are counted per username and per IP address. With CRUDAdmin's defaults, five failures lock the login for a minute; repeated lockouts double the duration, up to five minutes. A successful login clears the counters.
+
+Anyone who knows an admin's username can trigger that lockout, so the cap is deliberately short. To keep strangers away from the login page altogether, restrict it with `allowed_ips` or `allowed_networks`.
+
+Pass a crudauth `LockoutConfig` to change the defaults:
+
+```python
+from crudauth.ratelimit import LockoutConfig
+
+admin = CRUDAdmin(
+    session=get_session,
+    SECRET_KEY=SECRET_KEY,
+    session_backend="redis",
+    lockout=LockoutConfig(max_attempts=10, lockout_max_seconds=900),
+)
+```
+
+### Client IP behind a proxy
+
+`trusted_proxy_hops` tells CRUDAdmin how many reverse proxies sit in front of the application. It decides which address is used for lockout and recorded on sessions.
+
+- `0` (the default) ignores `X-Forwarded-For` and uses the connecting address. Use it when clients connect to the application directly.
+- `N` reads the `N`-th entry of `X-Forwarded-For` counted from the right, the address your outermost trusted proxy saw. Values a client adds on the left are never read.
+
+```python
+admin = CRUDAdmin(
+    session=get_session,
+    SECRET_KEY=SECRET_KEY,
+    session_backend="redis",
+    trusted_proxy_hops=1,
+)
+```
+
+Set it to the real number of proxies. Too high a value lets a client choose its own address; too low makes every request look like it comes from the proxy.
+
+## The Sessions page
+
+The admin sidebar links to **Sessions** (`/management/sessions`). It lists active sessions with the browser and operating system, IP address, sign-in time and last activity, and marks the current one. Session ids are never shown.
+
+- An admin sees and can end their own sessions.
+- A superuser sees and can end every admin's sessions.
+
+The same operations are available in code through `admin.session_manager`, crudauth's session manager:
+
+```python
+sessions = await admin.session_manager.list_for_user(user_id)
+await admin.session_manager.revoke_by_handle(sessions[0]["id"], owner_id=user_id)
+await admin.session_manager.revoke_all(user_id)
+```
+
+Logins, logouts, failed logins and lockouts are recorded in the event log when `track_events=True`.
+
+## Removed and deprecated options
+
+| Option | In 0.6 |
+|--------|--------|
+| `session_backend="memcached"`, `memcached_config` | Raises `ValueError` at startup naming the replacements, `redis` and `database`. `MemcachedConfig` can still be imported, so existing imports don't break. |
+| `session_backend="hybrid"` | Deprecated: runs on `redis` and emits a `DeprecationWarning`. It will be removed in a later release. |
+| `track_sessions_in_db=True` | Deprecated: emits a `DeprecationWarning`. With the `memory` backend it switches to `database`, so deployments that relied on it keep a shared store; with `redis` it changes nothing. Use `session_backend="database"` instead. |
+
+Sessions are no longer stored in an `admin_session` table. A database upgraded from an earlier version keeps that table unused; you can drop it once every worker runs 0.6.
+
+## Next steps
+
+- [Basic Configuration](configuration.md) for the rest of the `CRUDAdmin` options
+- [Managing Admin Users](admin-users.md) for accounts, superusers and the password confirmation step
+- [Session Management API](../api/session.md) for the configuration classes

@@ -31,9 +31,9 @@ The admin interface is organized into clear sections:
 The left sidebar contains collapsible sections:
 
 - **Navigation**: Dashboard overview with system statistics
-- **Authentication**: Admin Users and Sessions management
+- **Authentication**: Admin Users (superusers only) and the Sessions page
 - **Models**: Your registered models with record counts
-- **Management**: Health checks and event logs (if enabled)
+- **Management**: Health checks, and the event log for superusers (if enabled)
 
 #### Main Content Area
 
@@ -299,9 +299,16 @@ Access system status through the Management section:
 ![Health Monitoring Dashboard](../assets/screenshots/health-monitoring.png)
 
 - **Database connectivity**: Connection status and response times
-- **Session storage**: Health of your session backend (memory/Redis/etc.)
-- **Event system**: Status of audit logging (if enabled)
+- **Session store**: Whether the session backend (memory, Redis or the database) is reachable
 - **Manual refresh**: Update health checks on demand
+
+### Sessions
+
+The **Sessions** page lists sessions with their browser, IP address, sign-in time and last activity. Each has a **Sign out** button, except the one you're using. Admins see their own sessions; superusers see every admin's.
+
+### Logging Out
+
+**Logout** in the header ends your session. It's a form post that carries the session's CSRF token, so a link or image on another page can't log you out.
 
 ### Event Logs (if enabled)
 
@@ -311,9 +318,11 @@ Monitor admin activity through the event log system:
 
 #### Event Tracking
 
-- **User actions**: Login, logout, record changes
-- **CRUD operations**: Create, update, delete activities
-- **System events**: Authentication failures, system errors
+Only superusers see the event log.
+
+- **Authentication**: Logins, logouts, refused logins and lockouts
+- **Changes**: Creates, updates and deletes, each marked success or failure
+- **Audit rows**: The record before and after each change (only before, for a delete), with passwords and other secrets redacted
 - **Filterable history**: Search by user, date range, event type
 
 ![Event Log Details](../assets/screenshots/event-log-details.png)

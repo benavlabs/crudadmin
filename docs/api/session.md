@@ -1,486 +1,112 @@
 # Session Management API Reference
 
-The CRUDAdmin session management system provides secure, scalable session handling with multiple backend options and comprehensive security features including CSRF protection, session expiration, and device tracking.
+Since 0.6, CRUDAdmin keeps admin sessions with [crudauth](https://benavlabs.github.io/crudauth). This page covers what CRUDAdmin itself exposes: the backend configuration classes and the session manager on a `CRUDAdmin` instance. For choosing a backend and the settings around sessions, see [Session Backends](../usage/session-backends.md).
 
-## Core Components
+## Configuration classes
 
-### Session Manager
+### RedisConfig
 
-The main session management class that handles all session operations.
+Connection settings for `session_backend="redis"`. Pass an instance, or a dict with the same keys, as `redis_config`.
 
-::: crudadmin.session.manager.SessionManager
+::: crudadmin.session.configs.RedisConfig
     rendering:
       show_if_no_docstring: true
 
-### Session Storage Backends
-
-#### Abstract Base Class
-
-::: crudadmin.session.storage.AbstractSessionStorage
-    rendering:
-      show_if_no_docstring: true
-
-#### Storage Factory
-
-::: crudadmin.session.storage.get_session_storage
-    rendering:
-      show_if_no_docstring: true
-
-### Session Storage Implementations
-
-#### Memory Storage
-
-::: crudadmin.session.backends.memory.MemorySessionStorage
-    rendering:
-      show_if_no_docstring: true
-
-#### Redis Storage
-
-::: crudadmin.session.backends.redis.RedisSessionStorage
-    rendering:
-      show_if_no_docstring: true
-
-#### Memcached Storage
-
-::: crudadmin.session.backends.memcached.MemcachedSessionStorage
-    rendering:
-      show_if_no_docstring: true
-
-#### Database Storage
-
-::: crudadmin.session.backends.database.DatabaseSessionStorage
-    rendering:
-      show_if_no_docstring: true
-
-#### Hybrid Storage
-
-::: crudadmin.session.backends.hybrid.HybridSessionStorage
-    rendering:
-      show_if_no_docstring: true
-
-## Session Schemas
-
-### Core Session Data
-
-::: crudadmin.session.schemas.SessionData
-    rendering:
-      show_if_no_docstring: true
-
-::: crudadmin.session.schemas.SessionCreate
-    rendering:
-      show_if_no_docstring: true
-
-### CSRF Protection
-
-::: crudadmin.session.schemas.CSRFToken
-    rendering:
-      show_if_no_docstring: true
-
-### User Agent Information
-
-::: crudadmin.session.schemas.UserAgentInfo
-    rendering:
-      show_if_no_docstring: true
-
-### Database Session Models
-
-::: crudadmin.session.schemas.AdminSessionCreate
-    rendering:
-      show_if_no_docstring: true
-
-::: crudadmin.session.schemas.AdminSessionRead
-    rendering:
-      show_if_no_docstring: true
-
-::: crudadmin.session.schemas.AdminSessionUpdate
-    rendering:
-      show_if_no_docstring: true
-
-## Usage Examples
-
-### Basic Session Management
+| Field | Default | Meaning |
+|-------|---------|---------|
+| `url` | `None` | A full connection URL. When set, it is used as is (a `rediss://` URL keeps TLS) and the other address fields are ignored. |
+| `host` | `"localhost"` | Server host |
+| `port` | `6379` | Server port, 1 to 65535 |
+| `db` | `0` | Database number |
+| `username` | `None` | ACL username (Redis 6+) |
+| `password` | `None` | Password |
+| `pool_size` | `None` | Maximum number of connections in the client's pool |
+| `connect_timeout` | `None` | Connection timeout in seconds |
 
 ```python
-from crudadmin.session.manager import SessionManager
-from crudadmin.session.storage import get_session_storage
+from crudadmin import CRUDAdmin, RedisConfig
 
-# Create session manager with memory backend
-session_manager = SessionManager(
-    session_backend="memory",
-    max_sessions_per_user=5,
-    session_timeout_minutes=30
-)
-
-# Create a new session
-session_id, csrf_token = await session_manager.create_session(
-    request=request,
-    user_id=user.id,
-    metadata={"role": "admin", "permissions": ["read", "write"]}
-)
-
-# Validate session
-session_data = await session_manager.validate_session(session_id)
-if session_data:
-    print(f"Valid session for user {session_data.user_id}")
-```
-
-### Redis Backend Configuration
-
-```python
-# Configure with Redis for production
-session_manager = SessionManager(
+admin = CRUDAdmin(
+    session=get_session,
+    SECRET_KEY=SECRET_KEY,
     session_backend="redis",
-    redis_host="localhost",
-    redis_port=6379,
-    redis_db=0,
-    redis_password="your-redis-password",
-    max_sessions_per_user=10,
-    session_timeout_minutes=60
+    redis_config=RedisConfig(url="redis://localhost:6379/0", pool_size=10),
 )
 ```
 
-### Database Backend for Audit Trail
+### MemcachedConfig
+
+The Memcached backend was removed in 0.6. The class is kept so existing imports keep working, but passing it to `CRUDAdmin` (or using `session_backend="memcached"`) raises a `ValueError` that names the replacements, `redis` and `database`.
+
+::: crudadmin.session.configs.MemcachedConfig
+    rendering:
+      show_if_no_docstring: true
+
+## The session manager
+
+`CRUDAdmin.session_manager` is crudauth's `SessionManager` for the admin's sessions. It is available as soon as the `CRUDAdmin` instance exists; call `admin.initialize()` before using it.
 
 ```python
-from your_app.database import DatabaseConfig
-
-# Configure with database backend for admin visibility
-db_config = DatabaseConfig(...)  # Your database configuration
-
-session_manager = SessionManager(
-    session_backend="database",
-    db_config=db_config,
-    max_sessions_per_user=5,
-    session_timeout_minutes=30
-)
+sessions = await admin.session_manager.list_for_user(user_id)
 ```
 
-### Hybrid Backend (Best of Both Worlds)
+Each entry is a dict with:
+
+| Key | Meaning |
+|-----|---------|
+| `id` | The session's public handle, safe to show and to pass back; never the session id |
+| `device` | Browser and operating system parsed from the user agent |
+| `ip` | Client IP address |
+| `created_at` | When the admin signed in |
+| `last_activity` | The last request on the session |
+| `current` | Whether this is the session given as `current_session_id` |
+
+Ending sessions:
 
 ```python
-# Hybrid: Redis for performance + Database for audit
-session_manager = SessionManager(
-    session_backend="hybrid",
-    db_config=db_config,
-    redis_host="localhost",
-    redis_port=6379,
-    max_sessions_per_user=10,
-    session_timeout_minutes=60
-)
+await admin.session_manager.revoke_by_handle(handle, owner_id=user_id)
+await admin.session_manager.revoke_all(user_id)
+await admin.session_manager.revoke_all(user_id, exclude=current_session_id)
 ```
 
-### CSRF Protection
+`revoke_by_handle` ends one session of `owner_id`, found by the handle from `list_for_user`, and returns whether one was ended. `revoke_all` ends every session of the admin, optionally keeping one, and returns how many were ended.
 
-```python
-# Validate CSRF token for state-changing operations
-is_valid = await session_manager.validate_csrf_token(
-    csrf_token=request.headers.get("X-CSRF-Token"),
-    session_id=session_id,
-    user_id=current_user.id
-)
+The admin interface uses the same calls on its **Sessions** page (`/management/sessions`): admins see and end their own sessions, superusers everyone's.
 
-if not is_valid:
-    raise HTTPException(status_code=403, detail="Invalid CSRF token")
-```
+For the rest of the session manager's API, see [crudauth's documentation](https://benavlabs.github.io/crudauth).
 
-### Session Cleanup
+## Session settings on CRUDAdmin
 
-```python
-# Cleanup expired sessions (should be called periodically)
-await session_manager.cleanup_expired_sessions()
+These `CRUDAdmin` arguments configure sessions and logins. The [Session Backends](../usage/session-backends.md) guide explains each one.
 
-# Terminate specific session
-await session_manager.terminate_session(session_id)
+| Argument | Default | Meaning |
+|----------|---------|---------|
+| `session_backend` | `"memory"` | `"memory"`, `"redis"` or `"database"` |
+| `redis_config` | `None` | `RedisConfig` or dict, for the `redis` backend |
+| `session_timeout_minutes` | `30` | Idle time after which a session ends |
+| `max_sessions_per_user` | `5` | Sessions one admin may hold at once |
+| `cleanup_interval_minutes` | `15` | Minimum time between sweeps of idle sessions |
+| `secure_cookies` | `True` | Send the session cookies over HTTPS only |
+| `trusted_proxy_hops` | `0` | Reverse proxies in front of the app; `0` ignores `X-Forwarded-For` |
+| `lockout` | 5 failures, 1 to 5 minutes | A crudauth `LockoutConfig` for the login lockout |
+| `track_sessions_in_db` | `False` | Deprecated; see below |
 
-# Terminate all user sessions
-await session_manager.terminate_user_sessions(user_id)
-```
+## Names CRUDAdmin uses
 
-## Backend Comparison
+| Name | Value |
+|------|-------|
+| Session cookie | `crudadmin_session` |
+| CSRF cookie | `crudadmin_csrf` |
+| CSRF request header | `X-CSRF-Token` |
+| Session key prefix | `crudadmin:session:` |
+| CSRF key prefix | `crudadmin:csrf:` |
+| Lockout counter prefix | `crudadmin:rl:` |
+| `database` backend tables | `crudadmin_auth_store`, `crudadmin_auth_counters` |
 
-| Backend | Performance | Scalability | Persistence | Admin Visibility | Use Case |
-|---------|-------------|-------------|-------------|------------------|----------|
-| **Memory** | Excellent | Single node | No | No | Development, testing |
-| **Redis** | Excellent | Horizontal | Yes* | No | Production, high traffic |
-| **Memcached** | Excellent | Horizontal | No | No | High performance caching |
-| **Database** | Good | Vertical | Yes | Yes | Audit requirements |
-| **Hybrid** | Excellent | Horizontal | Yes | Yes | Best of all worlds |
+## Deprecated and removed
 
-*Redis persistence depends on configuration
-
-## Security Features
-
-### Session Security
-
-```python
-# Session manager provides multiple security layers
-session_manager = SessionManager(
-    # Limit concurrent sessions per user
-    max_sessions_per_user=5,
-    
-    # Automatic session expiration
-    session_timeout_minutes=30,
-    
-    # CSRF protection
-    csrf_token_bytes=32,
-    
-    # Login rate limiting
-    login_max_attempts=5,
-    login_window_minutes=15
-)
-```
-
-### Device Tracking
-
-Sessions automatically track device information:
-
-```python
-# Device info is automatically parsed and stored
-session_data = await session_manager.validate_session(session_id)
-device_info = session_data.device_info
-
-print(f"Browser: {device_info['browser']}")
-print(f"OS: {device_info['os']}")
-print(f"Mobile: {device_info['is_mobile']}")
-```
-
-### IP Address Monitoring
-
-```python
-# Sessions track IP addresses for security monitoring
-session_data = await session_manager.validate_session(session_id)
-print(f"Session from IP: {session_data.ip_address}")
-
-# Detect IP changes (potential session hijacking)
-if session_data.ip_address != request.client.host:
-    # Handle potential security issue
-    await session_manager.terminate_session(session_id)
-```
-
-## Configuration Options
-
-### Session Manager Settings
-
-```python
-session_manager = SessionManager(
-    # Storage configuration
-    session_backend="redis",
-    redis_host="localhost",
-    redis_port=6379,
-    redis_db=0,
-    redis_password=None,
-    
-    # Session limits
-    max_sessions_per_user=5,
-    session_timeout_minutes=30,
-    
-    # Cleanup
-    cleanup_interval_minutes=15,
-    
-    # CSRF
-    csrf_token_bytes=32,
-    
-    # Rate limiting
-    login_max_attempts=5,
-    login_window_minutes=15
-)
-```
-
-### Backend-Specific Options
-
-#### Redis Configuration
-
-```python
-redis_storage = get_session_storage(
-    backend="redis",
-    model_type=SessionData,
-    host="localhost",
-    port=6379,
-    db=0,
-    password="your-password",
-    pool_size=10,
-    connect_timeout=10,
-    prefix="session:",
-    expiration=1800  # 30 minutes
-)
-```
-
-#### Database Configuration
-
-```python
-database_storage = get_session_storage(
-    backend="database",
-    model_type=SessionData,
-    db_config=your_db_config,
-    prefix="session:",
-    expiration=1800
-)
-```
-
-## Integration with CRUDAdmin
-
-### Automatic Session Management
-
-```python
-from crudadmin import CRUDAdmin
-
-# CRUDAdmin automatically creates and manages sessions
-crud_admin = CRUDAdmin(
-    # Session backend configuration
-    session_backend="redis",
-    redis_url="redis://localhost:6379",
-    
-    # Session settings
-    session_timeout=30,  # minutes
-    max_sessions_per_user=5,
-    
-    # Security
-    secret_key="your-secret-key",
-    csrf_protection=True
-)
-```
-
-### Custom Session Storage
-
-```python
-# Use custom session storage
-custom_storage = YourCustomSessionStorage()
-
-crud_admin = CRUDAdmin(
-    session_storage=custom_storage,
-    secret_key="your-secret-key"
-)
-```
-
-## Session Data Structure
-
-### SessionData Fields
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `user_id` | int | ID of the authenticated user |
-| `session_id` | str | Unique session identifier |
-| `ip_address` | str | IP address when session was created |
-| `user_agent` | str | User agent string from browser |
-| `device_info` | dict | Parsed device/browser information |
-| `created_at` | datetime | When the session was created |
-| `last_activity` | datetime | Last time session was validated |
-| `is_active` | bool | Whether the session is active |
-| `metadata` | dict | Additional session-specific data |
-
-### Device Information
-
-```python
-device_info = {
-    "browser": "Chrome",
-    "browser_version": "120.0.0.0",
-    "os": "Windows",
-    "device": "PC",
-    "is_mobile": False,
-    "is_tablet": False,
-    "is_pc": True
-}
-```
-
-## Error Handling
-
-### Session Validation Errors
-
-```python
-try:
-    session_data = await session_manager.validate_session(session_id)
-    if not session_data:
-        # Session not found, expired, or inactive
-        raise HTTPException(status_code=401, detail="Invalid session")
-except Exception as e:
-    logger.error(f"Session validation error: {e}")
-    raise HTTPException(status_code=500, detail="Session validation failed")
-```
-
-### Backend Connection Errors
-
-```python
-try:
-    await session_manager.create_session(request, user_id)
-except ConnectionError:
-    # Backend (Redis/Memcached) unavailable
-    # Fallback to memory storage or return error
-    pass
-except Exception as e:
-    logger.error(f"Session creation failed: {e}")
-    raise
-```
-
-## Performance Considerations
-
-### Session Cleanup
-
-```python
-import asyncio
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-
-# Schedule periodic cleanup
-scheduler = AsyncIOScheduler()
-scheduler.add_job(
-    session_manager.cleanup_expired_sessions,
-    'interval',
-    minutes=15,
-    id='session_cleanup'
-)
-scheduler.start()
-```
-
-### Connection Pooling
-
-```python
-# Redis with connection pooling
-redis_storage = get_session_storage(
-    backend="redis",
-    model_type=SessionData,
-    host="localhost",
-    port=6379,
-    pool_size=20,  # Increase pool size for high traffic
-    connect_timeout=10
-)
-```
-
-### Session Limits
-
-```python
-# Prevent memory exhaustion
-session_manager = SessionManager(
-    max_sessions_per_user=10,  # Limit per user
-    session_timeout_minutes=30,  # Auto-expire
-    cleanup_interval_minutes=15  # Regular cleanup
-)
-```
-
-## Monitoring and Debugging
-
-### Session Metrics
-
-```python
-# Get active session count for user
-user_sessions = await session_manager.get_user_sessions(user_id)
-print(f"User has {len(user_sessions)} active sessions")
-
-# Monitor session activity
-session_data = await session_manager.validate_session(session_id)
-if session_data:
-    session_age = datetime.now(UTC) - session_data.last_activity
-    print(f"Session last active {session_age} ago")
-```
-
-### Debug Information
-
-```python
-# Enable detailed logging
-import logging
-logging.getLogger('crudadmin.session').setLevel(logging.DEBUG)
-
-# Session data includes debug information
-print(f"Session metadata: {session_data.metadata}")
-print(f"Device info: {session_data.device_info}")
-```
-
-The session management system provides a robust, secure foundation for authentication in CRUDAdmin with flexibility to scale from development to production environments. 
+- `session_backend="hybrid"` runs on `redis` with a `DeprecationWarning`, and will be removed.
+- `track_sessions_in_db=True` emits a `DeprecationWarning`. With the `memory` backend it switches to `database`; with `redis` it changes nothing.
+- `session_backend="memcached"` and `memcached_config` raise a `ValueError` at startup.
+- The `crudadmin.session.manager`, `crudadmin.session.storage` and `crudadmin.session.backends` modules were removed; `crudadmin.session` now only holds `RedisConfig` and `MemcachedConfig`.
+- Sessions are no longer stored in an `admin_session` table. After upgrading, you can drop that table.

@@ -29,15 +29,16 @@
 **Documentation**: [https://benavlabs.github.io/crudadmin/](https://benavlabs.github.io/crudadmin/)
 
 > \[!IMPORTANT\]  
-> **v0.4.0 Breaking Changes**: Session backend configuration has been completely redesigned. The old method-based API (`admin.use_redis_sessions()`, etc.) has been removed in favor of a cleaner constructor-based approach. **Existing code will need updates.** See the [v0.4.0 release notes](https://github.com/benavlabs/crudadmin/releases) for migration guide and examples.
+> **v0.6.0**: Authentication now runs on [crudauth](https://github.com/benavlabs/crudauth). Upgrading signs every admin out once, logout is a POST, the Memcached session backend is gone, and new admins aren't superusers by default. Read the [v0.6.0 release notes](https://github.com/benavlabs/crudadmin/releases) before upgrading.
 
 > \[!WARNING\]  
 > CRUDAdmin is still experimental. While actively developed and tested, APIs may change between versions. Upgrade with caution in production environments, always carefully reading the changelog.
 
 ## Features
 
-- **🔒 Multi-Backend Session Management**: Memory, Redis, Memcached, Database, and Hybrid backends
-- **🛡️ Built-in Security**: IP allowlists, HTTPS enforcement, and secure session cookies (HttpOnly, Secure, SameSite=Strict)
+- **🔒 Session Management**: Sessions in memory, Redis or the admin database, built on [crudauth](https://github.com/benavlabs/crudauth), with a Sessions page to sign devices out
+- **🛡️ Built-in Security**: CSRF protection, login lockout, password confirmation before admin-account changes, IP allowlists, HTTPS enforcement, and secure session cookies (HttpOnly, Secure, SameSite=Strict)
+- **👥 Roles**: Superusers manage admin accounts and see the event log; other admins work with your models
 - **📝 Event Tracking & Audit Logs**: Comprehensive audit trails for all admin actions with user attribution
 - **📊 Auto-generated Interface**: Creates admin UI directly from your SQLAlchemy models with intelligent field detection
 - **🔍 Advanced Filtering**: Type-aware field filtering, search, and pagination with bulk operations
@@ -66,9 +67,9 @@ For production with Redis sessions:
 uv add "crudadmin[redis]"
 ```
 
-Or using pip and memcached:
+Or using pip:
 ```sh
-pip install "crudadmin[memcached]"
+pip install "crudadmin[redis]"
 ```
 
 ### Basic Setup
@@ -86,47 +87,45 @@ from .user import (
     UserUpdate,
 )
 
-# Database setup
 engine = create_async_engine("sqlite+aiosqlite:///app.db")
 
-# Create database session dependency
+
 async def get_session():
     async with AsyncSession(engine) as session:
         yield session
 
-# Create admin interface
+
 admin = CRUDAdmin(
     session=get_session,
     SECRET_KEY="your-secret-key-here",
     initial_admin={
         "username": "admin",
-        "password": "secure_password123"
-    }
+        "password": "secure_password123",
+    },
 )
 
-# Add models to admin
 admin.add_view(
     model=User,
     create_schema=UserCreate,
     update_schema=UserUpdate,
-    allowed_actions={"view", "create", "update"}
+    allowed_actions={"view", "create", "update"},
 )
 
-# Setup FastAPI with proper initialization
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Initialize database tables
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    
-    # Initialize admin interface
     await admin.initialize()
     yield
+    await admin.shutdown()
 
-# Create and mount the app
+
 app = FastAPI(lifespan=lifespan)
 app.mount("/admin", admin.app)
 ```
+
+`SECRET_KEY` keys the stored session and CSRF identifiers; changing it signs every admin out. `admin.initialize()` creates the admin tables and the initial admin, and `admin.shutdown()` closes the session store.
 
 Navigate to `/admin` to access your admin interface with:
 
@@ -139,100 +138,84 @@ Navigate to `/admin` to access your admin interface with:
 > **Important for SQLite users:** If you're using SQLite databases (which is the default for CRUDAdmin), make sure to add database files to your `.gitignore` to avoid committing sensitive data like admin credentials and session tokens.
 >
 > ```gitignore
-> # SQLite databases - NEVER commit these to version control
 > *.db
 > *.sqlite
 > *.sqlite3
 > crudadmin_data/
->
-> # Also exclude database journals
 > *.db-journal
 > *.sqlite3-journal
 > ```
 
 ## Session Backends
 
-### Development (Default)
+Sessions, CSRF tokens and login-lockout counters live in one of three backends.
+
+### Development (default)
 ```python
-admin = CRUDAdmin(session=get_session, SECRET_KEY="key")  # Memory backend (default)
+admin = CRUDAdmin(session=get_session, SECRET_KEY="key")
 ```
 
-### Production with Redis
+Memory is per process: fine for development and a single worker. With several workers an admin would be logged out whenever a request lands on another worker.
+
+### Redis
 ```python
 from crudadmin import CRUDAdmin, RedisConfig
 
-# Using configuration object (recommended)
-redis_config = RedisConfig(host="localhost", port=6379, db=0)
 admin = CRUDAdmin(
-    session=get_session, 
+    session=get_session,
     SECRET_KEY="key",
     session_backend="redis",
-    redis_config=redis_config
-)
-
-# Or using a dictionary
-admin = CRUDAdmin(
-    session=get_session, 
-    SECRET_KEY="key",
-    session_backend="redis",
-    redis_config={"host": "localhost", "port": 6379, "db": 0}
-)
-
-# Or using Redis URL
-redis_config = RedisConfig(url="redis://localhost:6379/0")
-admin = CRUDAdmin(
-    session=get_session, 
-    SECRET_KEY="key",
-    session_backend="redis",
-    redis_config=redis_config
+    redis_config=RedisConfig(url="redis://localhost:6379/0"),
 )
 ```
+
+`redis_config` also accepts `RedisConfig(host=..., port=..., db=..., password=...)` or a plain dict.
+
+### Admin database
+```python
+admin = CRUDAdmin(
+    session=get_session,
+    SECRET_KEY="key",
+    session_backend="database",
+)
+```
+
+Keeps sessions and lockout counters in the admin database, shared by every worker without extra infrastructure.
 
 ### Production with Security Features
 ```python
 from crudadmin import CRUDAdmin, RedisConfig
 
-# Configure Redis backend
-redis_config = RedisConfig(
-    host="localhost",
-    port=6379,
-    db=0,
-    password="your-redis-password"
-)
-
 admin = CRUDAdmin(
     session=get_session,
     SECRET_KEY=SECRET_KEY,
-    # Session backend configuration
     session_backend="redis",
-    redis_config=redis_config,
-    # Session management settings
+    redis_config=RedisConfig(host="localhost", port=6379, db=0, password="your-redis-password"),
     max_sessions_per_user=3,
     session_timeout_minutes=15,
     cleanup_interval_minutes=5,
-    # Security features
     allowed_ips=["10.0.0.1"],
     allowed_networks=["192.168.1.0/24"],
+    trusted_proxy_hops=1,
     secure_cookies=True,
     enforce_https=True,
-    # Event tracking
-    track_events=True
+    track_events=True,
 )
 ```
 
+Logins are locked after 5 failures, for one minute at first and at most five. Anyone who knows an admin's username can trigger that, so pair it with `allowed_ips` / `allowed_networks`. Set `trusted_proxy_hops` to the number of reverse proxies in front of the app so lockouts and the allowlist see the real client IP.
+
 ## Backend Options
 
-| Backend | Use Case | Performance | Persistence | Scalability |
-|---------|----------|-------------|-------------|-------------|
-| **Memory** | Development/Testing | Fastest | No | Single Instance |
-| **Redis** | Production (Recommended) | Very Fast | Optional | High |
-| **Memcached** | High-Traffic Production | Very Fast | No | High |
-| **Database** | Simple Deployments | Good | Yes | Medium |
-| **Hybrid** | Enterprise/Audit Requirements | Fast | Yes | High |
+| Backend | Use Case | Shared Across Workers | Survives Restarts | Extra Infrastructure |
+|---------|----------|-----------------------|-------------------|----------------------|
+| **Memory** | Development, single worker | No | No | None |
+| **Redis** | Production (recommended) | Yes | With Redis persistence | Redis |
+| **Database** | Production without Redis | Yes | Yes | None |
 
 ## What You Get
 
-- **Secure Authentication** - Login/logout with session management  
+- **Secure Authentication** - Login with lockout, CSRF-protected changes, and a Sessions page to sign devices out  
 - **Auto-Generated Forms** - Create and edit forms built from your Pydantic schemas  
 - **Data Tables** - Paginated, sortable tables for viewing your data  
 - **CRUD Operations** - Full Create, Read, Update, Delete functionality  

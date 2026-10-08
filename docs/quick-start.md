@@ -78,8 +78,7 @@ Assuming you have your SQLAlchemy model, Pydantic schemas and database connectio
     
     DATABASE_URL = "sqlite+aiosqlite:///./admin_demo.db"
     engine = create_async_engine(DATABASE_URL, echo=True)
-    
-    # Create database session dependency
+
     async def get_session():
         async with AsyncSession(engine) as session:
             yield session
@@ -87,58 +86,53 @@ Assuming you have your SQLAlchemy model, Pydantic schemas and database connectio
 
 ### Using CRUDAdmin
 
-Create your admin interface and mount it to your FastAPI application
+Create your admin interface and mount it to your FastAPI application. The example expects `Base`, `User`, `UserCreate`, `UserUpdate`, `engine` and `get_session` from the snippets above in the same file. `admin.initialize()` creates the admin tables and the initial admin; `admin.shutdown()` closes the session store when the app stops.
 
 ```python title="main.py"
-from contextlib import asynccontextmanager
-from fastapi import FastAPI
 import os
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
 
 from crudadmin import CRUDAdmin
-# Import your setup (models, schemas, database)
 
-# Create admin interface
 admin = CRUDAdmin(
-    session=get_session,  # Your session dependency function
-    SECRET_KEY=os.environ.get("SECRET_KEY", "your-secret-key-for-development"),
+    session=get_session,
+    SECRET_KEY=os.environ.get("SECRET_KEY", "dev-only-secret-key-change-me"),
     initial_admin={
         "username": "admin",
-        "password": "admin123"  # Change this in production!
-    }
+        "password": "admin123",
+    },
 )
 
-# Add your models to the admin interface
 admin.add_view(
     model=User,
     create_schema=UserCreate,
     update_schema=UserUpdate,
-    allowed_actions={"view", "create", "update", "delete"}
+    allowed_actions={"view", "create", "update", "delete"},
 )
 
-# Initialize database and admin
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Create tables
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    
-    # Initialize admin interface
     await admin.initialize()
     yield
+    await admin.shutdown()
 
-# Create FastAPI app
+
 app = FastAPI(lifespan=lifespan)
-
-# Mount admin interface
 app.mount("/admin", admin.app)
 ```
+
+`SECRET_KEY` keys the stored session and CSRF identifiers. Keep it stable: changing it signs every admin out.
 
 ## 🔒 Security Setup
 
 **Before committing your code**, ensure your `.gitignore` excludes database files:
 
 ```gitignore
-# Add these to your .gitignore
 *.db
 *.sqlite
 *.sqlite3
@@ -177,7 +171,7 @@ This prevents accidentally committing:
 
 ## What You Get Out of the Box
 
-✅ **Secure Authentication** - Login/logout with session management  
+✅ **Secure Authentication** - Login with lockout after repeated failures, CSRF-protected changes, and a Sessions page to sign devices out  
 ✅ **Auto-Generated Forms** - Create and edit forms built from your Pydantic schemas  
 ✅ **Data Tables** - Paginated, sortable tables for viewing your data  
 ✅ **CRUD Operations** - Full Create, Read, Update, Delete functionality  
@@ -200,10 +194,10 @@ Now that you have a basic admin interface running, you might want to:
 !!! warning "Security Notice"
     The example above uses a simple password and secret key for demonstration. In production:
     
-    - Use strong, randomly generated secret keys
-    - Use environment variables for sensitive configuration
-    - Consider using Redis for session storage: `uv add "crudadmin[redis]"`
-    - Enable HTTPS and secure cookies
-    - Set up proper logging and monitoring
+    - Use a strong, randomly generated `SECRET_KEY` from the environment, and keep it stable
+    - With more than one worker, keep sessions in Redis (`session_backend="redis"`, `uv add "crudadmin[redis]"`) or the admin database (`session_backend="database"`); see [Session Backends](usage/session-backends.md)
+    - Behind a reverse proxy, set `trusted_proxy_hops` so lockouts and the IP allowlist see the real client IP
+    - Restrict the admin to known networks with `allowed_ips` / `allowed_networks`
+    - Serve the admin over HTTPS; session cookies are `Secure` by default
 
 For production deployment and advanced configurations, see the **[Advanced Topics](advanced/overview.md)** section.

@@ -9,13 +9,13 @@ The Advanced section is designed for production deployments and complex use case
 ## Planned Advanced Topics
 
 ### 🔒 Advanced Security
-*Coming Soon*
+Covered for now in [Managing Admin Users](../usage/admin-users.md): roles, password confirmation, login lockout, `trusted_proxy_hops` and CSRF.
 
 ### 📊 Session Management
-*Coming Soon*
+Covered in [Session Backends](../usage/session-backends.md): memory, Redis and the admin database, and when to use each.
 
-### 📝 Event Tracking & Audit Logging  
-*Coming Soon*
+### 📝 Event Tracking & Audit Logging
+Covered in the [Event System reference](../api/events.md): what is recorded, redaction, and querying the log.
 
 ### 🚀 Deployment & Scaling
 *Coming Soon*

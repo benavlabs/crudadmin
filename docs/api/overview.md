@@ -18,7 +18,7 @@ CRUDAdmin's API is comprised of several key components, each serving a specific 
 
     - [AdminSite Class Reference](admin_site.md)
 
-4. **Session Management System**: A comprehensive session management system with multiple backend options (Memory, Redis, Memcached, Database, Hybrid) providing secure authentication, CSRF protection, and session tracking.
+4. **Session Management System**: Authentication runs on [crudauth](https://github.com/benavlabs/crudauth): sessions in memory, Redis or the admin database, CSRF protection, login lockout and password confirmation for admin-account changes.
 
     - [Session Management API Reference](session.md)
 
@@ -31,9 +31,9 @@ CRUDAdmin's API is comprised of several key components, each serving a specific 
 CRUDAdmin follows a modular architecture designed for flexibility and scalability:
 
 ### Core Layer
-- **Authentication & Authorization**: Secure admin user management with role-based access
-- **Session Management**: Multi-backend session storage with security features
-- **Rate Limiting**: Protection against abuse and brute force attacks
+- **Authentication & Authorization**: Admin users with a superuser role; superusers manage admin accounts and see the event log
+- **Session Management**: Sessions in memory, Redis or the admin database, listed and revocable on the Sessions page
+- **Login Lockout**: Repeated failed logins lock the username and IP for a short, escalating time
 - **Database Integration**: SQLAlchemy model integration with FastCRUD backend
 
 ### Interface Layer
@@ -45,7 +45,7 @@ CRUDAdmin follows a modular architecture designed for flexibility and scalabilit
 ### Event Layer
 - **Event Logging**: Comprehensive audit trail for all admin actions
 - **Security Events**: Authentication and authorization event tracking
-- **Audit Integration**: Automated logging with decorator support
+- **Audit Integration**: Model changes logged by a decorator; authentication events by crudauth hooks
 
 ## Usage Patterns
 

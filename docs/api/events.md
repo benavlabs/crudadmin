@@ -1,6 +1,32 @@
 # Event System API Reference
 
-The CRUDAdmin event system provides comprehensive audit logging and event tracking for admin operations. This system automatically logs admin actions, authentication events, and security-related activities with full audit trails.
+With `track_events=True`, CRUDAdmin records what admins do: logins, logouts, refused logins, lockouts, and every create, update and delete made through the interface. Superusers read the log on the Event Logs page.
+
+## How Events Are Recorded
+
+**Authentication events** come from [crudauth](https://github.com/benavlabs/crudauth) hooks:
+
+| Event | Type | Status |
+|---|---|---|
+| Successful login | `LOGIN` | `SUCCESS` |
+| Logout | `LOGOUT` | `SUCCESS` |
+| Wrong password, unknown or inactive admin | `FAILED_LOGIN` | `FAILURE` |
+| Login refused by the lockout | `FAILED_LOGIN` | `FAILURE`, with `reason: "lockout"` in the details |
+
+The username tried is stored under `details.username`, which is what `EventService.get_security_alerts` groups failed logins by. A hook that fails is logged and doesn't affect the login.
+
+**Model events** are written by the `log_admin_action` decorator on the create, update and bulk-delete routes:
+
+- The status comes from the response: `SUCCESS` for a status below 400, `FAILURE` otherwise. A failed action writes no audit rows, since nothing changed.
+- A create or update writes one audit row for the record, keyed by the model's primary key, whatever its name.
+- A delete writes one audit row per deleted record, holding the record as it was.
+- The event and its audit rows are written in one transaction. If any write fails, they're rolled back together, logged, and the admin's action itself still succeeds.
+
+**Stored values**:
+
+- `session_id` holds the session's public handle, never the session id itself.
+- In audit snapshots and change sets, values under credential-like keys (any key containing `password`, `secret`, `token`, `session_id` or `api_key`) are stored as `[redacted]`. A changed password still shows up as a change.
+- Request details are stored in the audit row's `audit_metadata`.
 
 ## Core Components
 
@@ -26,7 +52,7 @@ The CRUDAdmin event system provides comprehensive audit logging and event tracki
 
 ## Event Service
 
-The main service class for managing event logging and retrieval.
+The service that writes and queries events and audit rows.
 
 ::: crudadmin.event.service.EventService
     rendering:
@@ -34,7 +60,7 @@ The main service class for managing event logging and retrieval.
 
 ## Event System Integration
 
-High-level integration class for simplified event logging.
+Writes an event together with its audit rows.
 
 ::: crudadmin.event.integration.EventSystemIntegration
     rendering:
@@ -42,13 +68,7 @@ High-level integration class for simplified event logging.
 
 ## Decorators
 
-Convenient decorators for automatic event logging.
-
 ::: crudadmin.event.decorators.log_admin_action
-    rendering:
-      show_if_no_docstring: true
-
-::: crudadmin.event.decorators.log_auth_action
     rendering:
       show_if_no_docstring: true
 
@@ -84,124 +104,97 @@ Convenient decorators for automatic event logging.
 
 ## Usage Examples
 
-### Basic Event Logging
-
-```python
-from crudadmin.event import EventService, EventType, EventStatus
-
-# Initialize event service
-event_service = EventService(db_config)
-
-# Log a successful login
-await event_service.log_event(
-    db=db,
-    event_type=EventType.LOGIN,
-    status=EventStatus.SUCCESS,
-    user_id=user.id,
-    session_id=session_id,
-    request=request,
-    details={"login_method": "password"}
-)
-```
-
-### Automatic Event Logging with Decorators
-
-```python
-from crudadmin.event import log_admin_action, EventType
-
-@log_admin_action(EventType.CREATE, model=User)
-async def create_user_endpoint(
-    request: Request,
-    db: AsyncSession,
-    admin_db: AsyncSession,
-    current_user: User,
-    event_integration=None,
-    user_data: UserCreate
-):
-    # Create user logic here
-    user = await create_user(db, user_data)
-    return user
-```
-
-### Model Event Integration
-
-```python
-from crudadmin.event import EventSystemIntegration
-
-# Initialize integration
-event_integration = EventSystemIntegration(event_service)
-
-# Log model changes
-await event_integration.log_model_event(
-    db=admin_db,
-    event_type=EventType.UPDATE,
-    model=Product,
-    user_id=current_user.id,
-    session_id=session_id,
-    request=request,
-    resource_id=str(product.id),
-    previous_state={"name": "Old Name", "price": 10.00},
-    new_state={"name": "New Name", "price": 15.00},
-    details={"field_changed": "name, price"}
-)
-```
-
-### Querying Event History
-
-```python
-# Get user activity
-activity = await event_service.get_user_activity(
-    db=admin_db,
-    user_id=user.id,
-    start_time=datetime.now() - timedelta(days=7),
-    limit=100
-)
-
-# Get resource audit history
-history = await event_service.get_resource_history(
-    db=admin_db,
-    resource_type="Product",
-    resource_id="123",
-    limit=50
-)
-```
-
-## Event Configuration
-
 ### Enabling Event Tracking
 
 ```python
 from crudadmin import CRUDAdmin
 
-# Enable event tracking
-crud_admin = CRUDAdmin(
+admin = CRUDAdmin(
+    session=get_session,
+    SECRET_KEY=os.environ["ADMIN_SECRET_KEY"],
     track_events=True,
-    session_backend="database",  # Required for event storage
-    secret_key="your-secret-key"
 )
 ```
 
-### Custom Event Details
+The event tables are created in the admin database by `admin.initialize()`, whichever session backend you use. `admin.event_service` and `admin.event_integration` give access to the service and the integration.
 
-Events can include custom details for additional context:
+### Logging an Event Yourself
 
 ```python
-await event_service.log_event(
+from crudadmin.event import EventStatus, EventType
+
+await admin.event_service.log_event(
     db=admin_db,
     event_type=EventType.CREATE,
     status=EventStatus.SUCCESS,
     user_id=user.id,
-    session_id=session_id,
+    session_id=session_handle,
     request=request,
     resource_type="Product",
     resource_id="123",
-    details={
-        "category": "electronics",
-        "bulk_operation": True,
-        "import_batch_id": "batch_001",
-        "validation_warnings": ["price_below_cost"]
-    }
+    details={"import_batch_id": "batch_001"},
 )
+```
+
+`log_event` commits unless you pass `commit=False`; `create_audit_log` takes the same flag, so an event and its audit rows can share a transaction.
+
+### Logging a Model Change with Its Audit Row
+
+```python
+await admin.event_integration.log_model_event(
+    db=admin_db,
+    event_type=EventType.UPDATE,
+    model=Product,
+    user_id=current_user.id,
+    session_id=session_handle,
+    request=request,
+    resource_id=str(product.id),
+    previous_state={"name": "Old Name", "price": 10.00},
+    new_state={"name": "New Name", "price": 15.00},
+)
+```
+
+For a delete, pass the deleted records and the primary key's name instead of `resource_id`: `deleted_records=[...]`, `primary_key_name="sku"`. Pass `succeeded=False` to record a failed action without audit rows.
+
+### Decorating Your Own Endpoint
+
+```python
+from crudadmin.event import EventType, log_admin_action
+
+
+@log_admin_action(EventType.CREATE, model=Product)
+async def create_product_endpoint(
+    request: Request,
+    db: AsyncSession,
+    admin_db: AsyncSession,
+    current_user: dict,
+    event_integration=None,
+):
+    product = await create_product(db, request)
+    request.state.crud_result = product
+    return RedirectResponse("/admin/Product/", status_code=303)
+```
+
+The decorator reads the created record from `request.state.crud_result`, and for deletes the removed records from `request.state.deleted_records`.
+
+### Querying Event History
+
+```python
+activity = await admin.event_service.get_user_activity(
+    db=admin_db,
+    user_id=user.id,
+    start_time=datetime.now(timezone.utc) - timedelta(days=7),
+    limit=100,
+)
+
+history = await admin.event_service.get_resource_history(
+    db=admin_db,
+    resource_type="Product",
+    resource_id="123",
+    limit=50,
+)
+
+alerts = await admin.event_service.get_security_alerts(db=admin_db, lookback_hours=24)
 ```
 
 ## Event Model Fields
@@ -212,94 +205,31 @@ await event_service.log_event(
 |-------|------|-------------|
 | `id` | int | Primary key |
 | `timestamp` | datetime | When the event occurred |
-| `event_type` | EventType | Type of event (CREATE, UPDATE, DELETE, LOGIN, etc.) |
-| `status` | EventStatus | Event status (SUCCESS, FAILURE, WARNING) |
-| `user_id` | int | ID of the user who performed the action |
-| `session_id` | str | Session ID for the request |
-| `ip_address` | str | IP address of the client |
+| `event_type` | EventType | `create`, `update`, `delete`, `login`, `logout` or `failed_login` |
+| `status` | EventStatus | `success`, `failure` or `warning` |
+| `user_id` | int | The admin who acted; `0` when a refused login named no account |
+| `session_id` | str | The session's public handle |
+| `ip_address` | str | Client IP address |
 | `user_agent` | str | User agent string from the request |
-| `resource_type` | str | Type of resource affected (model name) |
-| `resource_id` | str | ID of the specific resource |
-| `details` | dict | Additional event-specific details |
+| `resource_type` | str | Model name, for model events |
+| `resource_id` | str | Primary key of the record, for creates and updates |
+| `details` | dict | Event-specific details |
 
 ### AdminAuditLog Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `id` | int | Primary key |
-| `event_id` | int | Reference to AdminEventLog |
-| `timestamp` | datetime | When the audit record was created |
-| `resource_type` | str | Type of resource (model name) |
-| `resource_id` | str | ID of the specific resource |
-| `action` | str | Action performed (create, update, delete) |
-| `previous_state` | dict | State before the change |
-| `new_state` | dict | State after the change |
-| `changes` | dict | Computed differences between states |
-| `audit_metadata` | dict | Additional audit metadata |
+| `event_id` | int | The `AdminEventLog` row this belongs to |
+| `timestamp` | datetime | When the audit row was written |
+| `resource_type` | str | Model name |
+| `resource_id` | str | Primary key of the record |
+| `action` | str | `create`, `update` or `delete` |
+| `previous_state` | dict | The record before the change (redacted) |
+| `new_state` | dict | The record after the change (redacted) |
+| `changes` | dict | Fields that changed, with old and new values (redacted) |
+| `audit_metadata` | dict | Request details |
 
-## Security Considerations
+## Retention
 
-### Event Integrity
-
-- Events are stored in append-only fashion
-- Original event records are never modified
-- All changes maintain full audit trails
-- Events include request context for security analysis
-
-### Data Privacy
-
-- Sensitive fields can be excluded from audit logs
-- Password fields are automatically excluded
-- PII can be masked or hashed in event details
-- Event retention policies can be implemented
-
-### Performance Impact
-
-- Event logging is asynchronous where possible
-- Failed event logging doesn't interrupt main operations
-- Database indexes optimize event querying
-- Cleanup routines prevent unbounded growth
-
-## Error Handling
-
-The event system includes robust error handling:
-
-```python
-try:
-    await event_service.log_event(...)
-except Exception as e:
-    # Event logging failure doesn't interrupt main operation
-    logger.error(f"Event logging failed: {e}")
-    # Continue with main business logic
-```
-
-## Monitoring and Alerting
-
-### High-Priority Events
-
-```python
-await event_integration.log_security_event(
-    db=admin_db,
-    event_type=EventType.FAILED_LOGIN,
-    user_id=user.id,
-    session_id=session_id,
-    request=request,
-    details={
-        "priority": "high",
-        "requires_attention": True,
-        "failed_attempts": 5,
-        "suspicious_activity": True
-    }
-)
-```
-
-### Event Metrics
-
-Use event data for monitoring:
-
-- Failed login attempt patterns
-- Admin activity volume
-- Resource modification frequency
-- User behavior analysis
-
-The event system provides a complete audit trail for compliance, security monitoring, and operational insights into your CRUDAdmin instance. 
+`EventService.cleanup_old_logs(db, retention_days=90)` deletes older events. Schedule it if the log shouldn't grow without bound.
