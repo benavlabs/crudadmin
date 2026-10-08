@@ -1,89 +1,83 @@
 import logging
-from ipaddress import ip_address, ip_network
-from typing import Optional
+from ipaddress import IPv4Network, IPv6Network, ip_address, ip_network
+from typing import Optional, Union
 
-from fastapi import Request
 from fastapi.responses import JSONResponse
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.types import ASGIApp
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 logger = logging.getLogger(__name__)
 
 
-class IPRestrictionMiddleware(BaseHTTPMiddleware):
+class IPRestrictionMiddleware:
+    """Refuse requests from clients outside the allowed addresses and networks.
+
+    Every request is checked: the middleware is installed on the admin app, so it
+    only ever sees admin requests, whatever the mount path. Other scopes, such as
+    lifespan, pass through.
+
+    Args:
+        app: The admin app.
+        allowed_ips: Individual addresses allowed in. Invalid ones are logged and
+            skipped.
+        allowed_networks: Networks in CIDR notation allowed in. Invalid ones are
+            logged and skipped.
+    """
+
     def __init__(
         self,
         app: ASGIApp,
         allowed_ips: Optional[list[str]] = None,
         allowed_networks: Optional[list[str]] = None,
     ) -> None:
-        """
-        Middleware to restrict access based on client IP addresses and networks.
+        self.app = app
+        self.allowed_ips: set[str] = set()
+        self.allowed_networks: set[Union[IPv4Network, IPv6Network]] = set()
 
-        Args:
-            app (ASGIApp): The FastAPI application instance.
-            allowed_ips (Optional[list[str]]): List of allowed individual IP addresses.
-            allowed_networks (Optional[list[str]]): List of allowed IP networks in CIDR notation.
-        """
-        super().__init__(app)
-        self.allowed_ips = set()
-        self.allowed_networks = set()
+        for ip in allowed_ips or []:
+            try:
+                self.allowed_ips.add(str(ip_address(ip)))
+            except ValueError:
+                logger.error("Invalid IP address provided: %s", ip)
 
-        if allowed_ips:
-            for ip in allowed_ips:
-                try:
-                    self.allowed_ips.add(str(ip_address(ip)))
-                except ValueError:
-                    logger.error(f"Invalid IP address provided: {ip}")
-                    pass
+        for network in allowed_networks or []:
+            try:
+                self.allowed_networks.add(ip_network(network))
+            except ValueError:
+                logger.error("Invalid IP network provided: %s", network)
 
-        if allowed_networks:
-            for network in allowed_networks:
-                try:
-                    self.allowed_networks.add(ip_network(network))
-                except ValueError:
-                    logger.error(f"Invalid IP network provided: {network}")
-                    pass
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
 
-    async def dispatch(self, request: Request, call_next):
-        """
-        Process incoming requests and restrict access based on IP.
+        refusal = self._refusal(scope.get("client"))
+        if refusal is not None:
+            await refusal(scope, receive, send)
+            return
+        await self.app(scope, receive, send)
 
-        Every request is checked: the middleware is installed on the admin app,
-        so it only ever sees admin requests, whatever the mount path.
-
-        Args:
-            request (Request): The incoming HTTP request.
-            call_next (Callable): The next ASGI application to call.
-
-        Returns:
-            Response: The HTTP response.
-        """
-        client = request.client
+    def _refusal(self, client: Optional[tuple[str, int]]) -> Optional[JSONResponse]:
+        """The response refusing this client, or None when it is allowed in."""
         if client is None:
             logger.warning("Request client is None. Unable to determine client IP.")
             return JSONResponse(
                 status_code=400, content={"detail": "Unable to determine client IP."}
             )
-        client_ip = client.host
-
+        client_ip = client[0]
         try:
             ip = ip_address(client_ip)
-
-            if str(ip) in self.allowed_ips:
-                return await call_next(request)
-
-            for network in self.allowed_networks:
-                if ip in network:
-                    return await call_next(request)
-
-            logger.warning(f"Access denied for IP: {client_ip}")
-            return JSONResponse(
-                status_code=403, content={"detail": "Access denied: IP not allowed."}
-            )
-
         except ValueError:
-            logger.error(f"Invalid IP address encountered: {client_ip}")
+            logger.error("Invalid IP address encountered: %s", client_ip)
             return JSONResponse(
                 status_code=400, content={"detail": "Invalid IP address."}
             )
+
+        if str(ip) in self.allowed_ips or any(
+            ip in network for network in self.allowed_networks
+        ):
+            return None
+
+        logger.warning("Access denied for IP: %s", client_ip)
+        return JSONResponse(
+            status_code=403, content={"detail": "Access denied: IP not allowed."}
+        )
