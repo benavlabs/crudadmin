@@ -74,7 +74,11 @@ class RedisConfig(BaseModel):
 
 
 class MemcachedConfig(BaseModel):
-    """Configuration for Memcached session backend."""
+    """Configuration for the removed Memcached session backend.
+
+    Kept so existing imports keep working; passing it to ``CRUDAdmin`` raises a
+    ``ValueError`` that names the replacements (``redis`` or ``database``).
+    """
 
     servers: Optional[List[str]] = None
     host: str = "localhost"

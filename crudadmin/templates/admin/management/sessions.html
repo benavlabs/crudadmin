@@ -1,0 +1,48 @@
+{% extends "base/base.html" %}
+
+{% block title %}Sessions{% endblock %}
+
+{% set include_sidebar_and_header = True %}
+
+{% block content %}
+<style>
+    .admin-content { padding: 2rem; max-width: 1400px; margin: 0 auto; }
+    .dashboard-header {
+        display: flex; justify-content: space-between; align-items: center;
+        margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 2px solid var(--border-light);
+    }
+    .dark-theme .dashboard-header { border-color: var(--border-dark); }
+    .session-group {
+        background: var(--bg-primary-light); border: 1px solid var(--border-light);
+        border-radius: var(--border-radius-lg); padding: 1.5rem; margin-bottom: 1.5rem;
+    }
+    .dark-theme .session-group { background: var(--bg-primary-dark); border-color: var(--border-dark); }
+    .session-group h2 { font-size: 1.1rem; font-weight: 600; margin-bottom: 1rem; }
+    .session-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    .session-table th, .session-table td {
+        text-align: left; padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border-light);
+    }
+    .dark-theme .session-table th, .dark-theme .session-table td { border-color: var(--border-dark); }
+    .current-badge {
+        display: inline-block; margin-left: 0.5rem; padding: 0.1rem 0.5rem; border-radius: 999px;
+        background: var(--primary-color); color: white; font-size: 0.75rem;
+    }
+    .revoke-button {
+        padding: 0.35rem 0.75rem; border: 1px solid #EF4444; color: #EF4444; background: none;
+        border-radius: var(--border-radius-md); cursor: pointer; font-size: 0.8rem;
+    }
+    .revoke-button:hover { background: #EF4444; color: white; }
+    .empty-state { color: var(--text-secondary-light); font-size: 0.875rem; }
+    .dark-theme .empty-state { color: var(--text-secondary-dark); }
+</style>
+
+<div class="admin-content">
+    <div class="dashboard-header">
+        <h1>Sessions</h1>
+    </div>
+    <div id="sessions-content"
+         hx-get="{{ url_prefix }}/management/sessions/content"
+         hx-trigger="load">
+    </div>
+</div>
+{% endblock %}

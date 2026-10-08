@@ -4,6 +4,8 @@ CRUDAdmin must use the model's actual primary-key column name as the filter
 key for get/update/delete, instead of hardcoding ``id``.
 """
 
+from typing import Any
+
 import pytest
 from fastcrud import FastCRUD
 from pydantic import BaseModel
@@ -60,7 +62,7 @@ async def test_get_update_delete_with_non_id_pk():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    crud: FastCRUD = FastCRUD(DeploymentJob)
+    crud: Any = FastCRUD(DeploymentJob)
     pk_name = get_primary_key_name(DeploymentJob)
 
     async with AsyncSession(engine) as db:

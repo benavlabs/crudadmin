@@ -128,9 +128,31 @@
         FastAPI Administration
     </div>
 
+    {% if sudo_next is defined %}
+    <form class="login-form"
+          action="{{ url_prefix }}/sudo"
+          method="post"
+          enctype="application/x-www-form-urlencoded">
+        <p class="form-label">Confirm your password to continue, {{ username }}.</p>
+        {% if error %}
+        <div class="error-message">
+            {{ error }}
+        </div>
+        {% endif %}
+
+        <div class="form-group">
+            <label class="form-label" for="password">Password</label>
+            <input type="password" id="password" name="password" class="form-control" required autofocus>
+        </div>
+
+        <input type="hidden" name="next" value="{{ sudo_next }}">
+
+        <button type="submit" class="login-btn">Confirm</button>
+    {% else %}
     <form class="login-form"
           action="{{ url_prefix }}/login"
           method="post"
+          data-native-submit
           enctype="application/x-www-form-urlencoded">
         {% if error %}
         <div class="error-message">
@@ -148,12 +170,8 @@
             <input type="password" id="password" name="password" class="form-control" required>
         </div>
 
-        <input type="hidden" name="grant_type" value="password">
-        <input type="hidden" name="scope" value="">
-        <input type="hidden" name="client_id" value="">
-        <input type="hidden" name="client_secret" value="">
-
         <button type="submit" class="login-btn">Log in</button>
+    {% endif %}
     </form>
 </div>
 </div>

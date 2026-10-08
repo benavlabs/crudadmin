@@ -1,6 +1,7 @@
 """Tests for relationship detection and display (built on native fastcrud)."""
 
 from dataclasses import replace
+from typing import Any
 
 import pytest
 import pytest_asyncio
@@ -103,7 +104,7 @@ def test_resolve_display_field_falls_back_when_not_a_column():
 @pytest.mark.asyncio
 async def test_load_related_data_has_many(session):
     rels = detect_relationships(Author)
-    crud = FastCRUD(Author)
+    crud: FastCRUD[Any, Any, Any, Any, Any, Any] = FastCRUD(Author)
     books = await load_related_data(crud, session, "id", 1, rels["books"])
     assert len(books) == 2
     assert {b["title"] for b in books} == {"LOTR", "Hobbit"}
@@ -112,7 +113,7 @@ async def test_load_related_data_has_many(session):
 @pytest.mark.asyncio
 async def test_load_related_data_belongs_to(session):
     rels = detect_relationships(Book)
-    crud = FastCRUD(Book)
+    crud: FastCRUD[Any, Any, Any, Any, Any, Any] = FastCRUD(Book)
     author = await load_related_data(crud, session, "id", 1, rels["author"])
     assert len(author) == 1
     assert author[0]["name"] == "Tolkien"
@@ -122,7 +123,7 @@ async def test_load_related_data_belongs_to(session):
 async def test_load_related_data_empty(session):
     """An author with no books returns an empty list."""
     rels = detect_relationships(Author)
-    crud = FastCRUD(Author)
+    crud: FastCRUD[Any, Any, Any, Any, Any, Any] = FastCRUD(Author)
     books = await load_related_data(crud, session, "id", 2, rels["books"])
     assert books == []
 
@@ -130,7 +131,7 @@ async def test_load_related_data_empty(session):
 @pytest.mark.asyncio
 async def test_load_related_data_respects_limit(session):
     rels = detect_relationships(Author)
-    crud = FastCRUD(Author)
+    crud: FastCRUD[Any, Any, Any, Any, Any, Any] = FastCRUD(Author)
     books = await load_related_data(crud, session, "id", 1, rels["books"], limit=1)
     assert len(books) == 1
 

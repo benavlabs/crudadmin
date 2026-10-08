@@ -1,7 +1,8 @@
+import types
 from datetime import date, datetime, time
 from decimal import Decimal
 from enum import Enum
-from typing import Any, Dict, List, Type, TypeVar, cast, get_origin
+from typing import Any, Dict, List, Type, TypeVar, Union, cast, get_args, get_origin
 
 from pydantic import AnyHttpUrl, BaseModel, EmailStr, HttpUrl
 
@@ -59,6 +60,18 @@ def _get_html_input_type(py_type: Type[T]) -> HTMLInputType:
         return "text", extra
 
 
+def _without_none(annotation: Any) -> Any:
+    """``X`` for ``Optional[X]`` (or ``X | None``), so the field gets ``X``'s input type.
+
+    Any other annotation is returned unchanged, including a union of several
+    types, which stays a text input.
+    """
+    if get_origin(annotation) not in (Union, types.UnionType):
+        return annotation
+    non_none = [arg for arg in get_args(annotation) if arg is not type(None)]
+    return non_none[0] if len(non_none) == 1 else annotation
+
+
 def _get_form_fields_from_schema(schema: Type[BaseModel]) -> List[FormField]:
     """
     Generate HTML form field configurations from a Pydantic model schema.
@@ -88,7 +101,7 @@ def _get_form_fields_from_schema(schema: Type[BaseModel]) -> List[FormField]:
     fields_dict = cast(Dict[str, Any], schema.model_fields)
 
     for field_name, field_info in fields_dict.items():
-        field_type = field_info.annotation
+        field_type = _without_none(field_info.annotation)
         origin_type = get_origin(field_type)
 
         if origin_type:

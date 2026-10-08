@@ -7,6 +7,7 @@ and UUID handling in update operations.
 """
 
 import uuid
+from typing import Any
 
 import pytest
 from pydantic import BaseModel
@@ -115,7 +116,7 @@ def test_uuid_validation_pattern():
 def test_bulk_delete_request_type_annotation():
     """Test that BulkDeleteRequest accepts Union[int, str] IDs."""
     # Test with mixed ID types
-    request_data = {
+    request_data: dict[str, Any] = {
         "ids": [
             1,  # integer
             "93c025d9-5831-413c-9460-edb3a28cc729",  # UUID string
@@ -162,7 +163,7 @@ async def test_uuid_crud_operations(async_session, uuid_model, uuid_test_data):
         async_session.add(new_item)
     await async_session.commit()
 
-    crud = FastCRUD(uuid_model)
+    crud: FastCRUD[Any, Any, Any, Any, Any, Any] = FastCRUD(uuid_model)
 
     # Test get by UUID object
     uuid_id = uuid.UUID("93c025d9-5831-413c-9460-edb3a28cc729")
@@ -178,8 +179,9 @@ def test_id_conversion_logic_uuid():
     from uuid import UUID
 
     # Simulate the conversion logic from _convert_id_to_pk_type
-    pk_type = UUID
-    id_value = "93c025d9-5831-413c-9460-edb3a28cc729"
+    pk_type: type = UUID
+    id_value: Any = "93c025d9-5831-413c-9460-edb3a28cc729"
+    converted_id: Any
 
     # This is the logic that would be used in _convert_id_to_pk_type
     if pk_type is int:
@@ -202,8 +204,9 @@ def test_id_conversion_logic_uuid():
 def test_id_conversion_logic_int():
     """Test the ID conversion logic for integer types."""
     # Simulate the conversion logic for integer primary keys
-    pk_type = int
-    id_value = "123"
+    pk_type: type = int
+    id_value: Any = "123"
+    converted_id: Any
 
     if pk_type is int:
         converted_id = int(id_value) if isinstance(id_value, str) else id_value
@@ -221,8 +224,9 @@ def test_id_conversion_logic_int():
 def test_id_conversion_logic_str():
     """Test the ID conversion logic for string types."""
     # Simulate the conversion logic for string primary keys
-    pk_type = str
-    id_value = "test_string_id"
+    pk_type: type = str
+    id_value: Any = "test_string_id"
+    converted_id: Any
 
     if pk_type is int:
         converted_id = int(id_value) if isinstance(id_value, str) else id_value
