@@ -1,5 +1,6 @@
 import logging
 from collections.abc import AsyncGenerator, Callable
+from functools import partial
 from typing import Any, Dict, Optional, cast
 
 from crudauth.exceptions import (
@@ -18,6 +19,7 @@ from ..admin_user.schemas import AdminUserRead
 from ..core.db import DatabaseConfig
 from .auth import AdminAuthentication
 from .paths import AdminPaths
+from .record_counts import RecordCounts
 from .typing import RouteResponse
 
 logger = logging.getLogger(__name__)
@@ -73,6 +75,7 @@ class AdminSite:
         self.paths = AdminPaths.for_mount_segment(mount_path)
         self.theme: str = theme
         self.event_integration: Optional[Any] = event_integration
+        self.record_counts = RecordCounts()
 
     def get_url_prefix(self) -> str:
         """Get the URL prefix for admin routes, handling root mount path correctly."""
@@ -268,8 +271,12 @@ class AdminSite:
                 )
             ),
         ) -> RouteResponse:
-            context = await self.get_base_context(
-                admin_db=admin_db, app_db=app_db, request=request
+            context = self.get_base_context(request)
+            auth_model_counts, model_counts = await self._record_counts(
+                admin_db, app_db, context["is_superuser"]
+            )
+            context.update(
+                {"auth_model_counts": auth_model_counts, "model_counts": model_counts}
             )
             return self.templates.TemplateResponse(
                 name="admin/dashboard/dashboard_content.html",
@@ -279,58 +286,49 @@ class AdminSite:
 
         return cast(EndpointCallable, dashboard_content_inner)
 
-    async def get_base_context(
-        self,
-        admin_db: AsyncSession,
-        app_db: AsyncSession,
-        request: Optional[Request] = None,
-    ) -> Dict[str, Any]:
-        """Context every admin page template needs: navigation, counts and the user."""
+    def get_base_context(self, request: Optional[Request] = None) -> Dict[str, Any]:
+        """Context every admin page template needs: navigation and the user."""
         user: Optional[Dict[str, Any]] = (
             getattr(request.state, "user", None) if request is not None else None
         )
-        is_superuser = bool(user and user.get("is_superuser"))
-
-        auth_model_counts: Dict[str, int] = {}
-        if is_superuser:
-            for model_name, model_data in self.admin_authentication.auth_models.items():
-                crud_obj = cast(FastCRUD, model_data["crud"])
-                auth_model_counts[model_name] = await crud_obj.count(admin_db)
-
-        model_counts: Dict[str, int] = {}
-        for model_name, model_data in self.models.items():
-            crud = cast(FastCRUD, model_data["crud"])
-            model_counts[model_name] = await crud.count(app_db)
-
         return {
             "auth_table_names": self.admin_authentication.auth_models.keys(),
             "table_names": self.models.keys(),
-            "auth_model_counts": auth_model_counts,
-            "model_counts": model_counts,
             "url_prefix": self.get_url_prefix(),
             "track_events": self.event_integration is not None,
             "theme": self.theme,
             "current_user": user,
-            "is_superuser": is_superuser,
+            "is_superuser": bool(user and user.get("is_superuser")),
             "csrf_cookie_name": self.admin_authentication.csrf_cookie_name,
         }
+
+    async def _record_counts(
+        self, admin_db: AsyncSession, app_db: AsyncSession, is_superuser: bool
+    ) -> tuple[Dict[str, int], Dict[str, int]]:
+        """Counts for the dashboard: every model's, and the admins' for a superuser."""
+        auth_model_counts: Dict[str, int] = {}
+        if is_superuser:
+            for model_name, model_data in self.admin_authentication.auth_models.items():
+                auth_crud = cast(FastCRUD, model_data["crud"])
+                auth_model_counts[model_name] = await self.record_counts.get(
+                    model_name, partial(auth_crud.count, admin_db)
+                )
+
+        model_counts: Dict[str, int] = {}
+        for model_name, model_data in self.models.items():
+            model_crud = cast(FastCRUD, model_data["crud"])
+            model_counts[model_name] = await self.record_counts.get(
+                model_name, partial(model_crud.count, app_db)
+            )
+        return auth_model_counts, model_counts
 
     def dashboard_page(self) -> EndpointCallable:
         """The admin dashboard."""
 
         async def dashboard_page_inner(
             request: Request,
-            admin_db: AsyncSession = Depends(self.db_config.get_admin_db),
-            app_db: AsyncSession = Depends(
-                cast(
-                    Callable[..., AsyncGenerator[AsyncSession, None]],
-                    self.db_config.session,
-                )
-            ),
         ) -> RouteResponse:
-            context = await self.get_base_context(
-                admin_db=admin_db, app_db=app_db, request=request
-            )
+            context = self.get_base_context(request)
             context.update({"include_sidebar_and_header": True})
             return self.templates.TemplateResponse(
                 name="admin/dashboard/dashboard.html", request=request, context=context
@@ -343,17 +341,8 @@ class AdminSite:
 
         async def sessions_page_inner(
             request: Request,
-            admin_db: AsyncSession = Depends(self.db_config.get_admin_db),
-            app_db: AsyncSession = Depends(
-                cast(
-                    Callable[..., AsyncGenerator[AsyncSession, None]],
-                    self.db_config.session,
-                )
-            ),
         ) -> RouteResponse:
-            context = await self.get_base_context(
-                admin_db=admin_db, app_db=app_db, request=request
-            )
+            context = self.get_base_context(request)
             context.update({"include_sidebar_and_header": True})
             return self.templates.TemplateResponse(
                 name="admin/management/sessions.html",

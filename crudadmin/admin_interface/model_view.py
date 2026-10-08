@@ -460,6 +460,11 @@ class ModelView:
     def _model_list_url(self) -> str:
         return self._paths.model(self.model_key)
 
+    def _forget_record_count(self) -> None:
+        """Make the dashboard recount this model after the admin added or deleted records."""
+        if self.admin_site is not None:
+            self.admin_site.record_counts.forget(self.model_key)
+
     def _model_is_admin_model(self, model: Type[DeclarativeBase]) -> bool:
         """Check if a model is considered an admin model."""
         return self.admin_model or self.model_key.lower() in {"adminuser", "admin_user"}
@@ -789,6 +794,7 @@ class ModelView:
                             await db.commit()
 
                         if result:
+                            self._forget_record_count()
                             request.state.crud_result = result
                             model_list_url = f"{self._model_list_url()}?success=created"
                             if "HX-Request" in request.headers:
@@ -935,6 +941,7 @@ class ModelView:
                             **{pk_name: id_value},
                         )
                     await db.commit()
+                    self._forget_record_count()
                 except Exception as e:
                     await db.rollback()
                     logger.error("Error during bulk delete: %s", str(e))
@@ -1154,9 +1161,7 @@ class ModelView:
                 )
 
             if self.admin_site is not None:
-                base_context = await self.admin_site.get_base_context(
-                    admin_db=admin_db, app_db=app_db, request=request
-                )
+                base_context = self.admin_site.get_base_context(request)
                 context.update(base_context)
                 context["include_sidebar_and_header"] = True
 

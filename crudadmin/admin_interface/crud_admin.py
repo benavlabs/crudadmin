@@ -856,20 +856,16 @@ class CRUDAdmin:
         admin_db_db_dependency = cast(
             Callable[..., AsyncSession], self.db_config.get_admin_db
         )
-        app_db_dependency = cast(Callable[..., AsyncSession], self.db_config.session)
 
         async def event_log_page_inner(
             request: Request,
             admin_db: AsyncSession = Depends(admin_db_db_dependency),
-            app_db: AsyncSession = Depends(app_db_dependency),
         ) -> RouteResponse:
             from ..event import EventStatus, EventType
 
             users = await self.db_config.crud_users.get_multi(db=admin_db)
 
-            context = await self.admin_site.get_base_context(
-                admin_db=admin_db, app_db=app_db, request=request
-            )
+            context = self.admin_site.get_base_context(request)
             context.update(
                 {
                     "include_sidebar_and_header": True,
@@ -1427,7 +1423,7 @@ class CRUDAdmin:
 
     def health_check_page(
         self,
-    ) -> Callable[[Request, AsyncSession], Awaitable[RouteResponse]]:
+    ) -> Callable[[Request], Awaitable[RouteResponse]]:
         """
         Create endpoint for system health check page.
 
@@ -1435,19 +1431,8 @@ class CRUDAdmin:
             FastAPI route handler that renders health check template
         """
 
-        admin_db_db_dependency = cast(
-            Callable[..., AsyncSession], self.db_config.get_admin_db
-        )
-        app_db_dependency = cast(Callable[..., AsyncSession], self.db_config.session)
-
-        async def health_check_page_inner(
-            request: Request,
-            admin_db: AsyncSession = Depends(admin_db_db_dependency),
-            app_db: AsyncSession = Depends(app_db_dependency),
-        ) -> RouteResponse:
-            context = await self.admin_site.get_base_context(
-                admin_db=admin_db, app_db=app_db, request=request
-            )
+        async def health_check_page_inner(request: Request) -> RouteResponse:
+            context = self.admin_site.get_base_context(request)
             context.update({"include_sidebar_and_header": True})
 
             return self.templates.TemplateResponse(
