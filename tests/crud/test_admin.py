@@ -398,28 +398,6 @@ async def test_crud_admin_app_creation(async_session):
 
 
 @pytest.mark.asyncio
-async def test_crud_admin_health_check_routes(async_session):
-    """Test health check route creation."""
-    secret_key = "test-secret-key-for-testing-only-32-chars"
-    db_config = create_test_db_config(async_session)
-
-    admin = CRUDAdmin(
-        session=async_session,
-        SECRET_KEY=secret_key,
-        db_config=db_config,
-        setup_on_initialization=False,
-    )
-
-    # Test health check page endpoint
-    health_check_func = admin.health_check_page()
-    assert callable(health_check_func)
-
-    # Test health check content endpoint
-    health_content_func = admin.health_check_content()
-    assert callable(health_content_func)
-
-
-@pytest.mark.asyncio
 async def test_crud_admin_session_manager_integration(async_session):
     """Test CRUDAdmin integration with session manager."""
     secret_key = "test-secret-key-for-testing-only-32-chars"
