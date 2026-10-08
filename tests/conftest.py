@@ -7,6 +7,7 @@ from unittest.mock import Mock
 
 import pytest
 import pytest_asyncio
+from docker.errors import DockerException
 from fastapi.testclient import TestClient
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import (
@@ -200,7 +201,7 @@ def is_docker_running() -> bool:
     try:
         DockerClient()
         return True
-    except Exception:
+    except DockerException:
         return False
 
 
