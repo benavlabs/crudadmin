@@ -236,21 +236,6 @@
             color: white;
         }
 
-        /* Count indicator */
-        .model-count {
-            font-size: 0.75rem;
-            color: var(--text-secondary-light);
-            margin-left: auto;
-            padding: 0.125rem 0.5rem;
-            border-radius: var(--border-radius-sm);
-            background: var(--bg-secondary-light);
-        }
-
-        .dark-theme .model-count {
-            color: var(--text-secondary-dark);
-            background: var(--bg-secondary-dark);
-        }
-
         /* Brand */
         .brand {
             font-size: 1.25rem;
@@ -352,7 +337,6 @@
                             <li>
                                 <a href="{{ url_prefix }}/{{ auth_table_name }}/" class="sidebar-link">
                                     {{ auth_table_name }}
-                                    <span class="model-count">{{ auth_model_counts[auth_table_name]|default(0) }}</span>
                                 </a>
                             </li>
                             {% endfor %}
@@ -377,7 +361,6 @@
                             <li>
                                 <a href="{{ url_prefix }}/{{ table_name }}/" class="sidebar-link">
                                     {{ table_name }}
-                                    <span class="model-count">{{ model_counts[table_name]|default(0) }}</span>
                                 </a>
                             </li>
                             {% endfor %}
