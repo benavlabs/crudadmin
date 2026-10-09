@@ -11,7 +11,8 @@ other way is caught too, as is a dependency registered uncalled
 """
 
 import re
-from typing import Any, Iterable, Iterator, Optional
+from collections.abc import Iterable, Iterator
+from typing import Any
 
 import pytest
 from crudauth import get_password_hash
@@ -44,7 +45,7 @@ class WidgetCreate(BaseModel):
 
 
 class WidgetUpdate(BaseModel):
-    name: Optional[str] = None
+    name: str | None = None
 
 
 async def _get_session():

@@ -1,6 +1,5 @@
 import enum
 from datetime import datetime
-from typing import Optional
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
@@ -27,8 +26,8 @@ class AdminEventLogBase(BaseModel):
     session_id: str
     ip_address: str
     user_agent: str
-    resource_type: Optional[str] = None
-    resource_id: Optional[str] = None
+    resource_type: str | None = None
+    resource_id: str | None = None
     details: dict = {}
 
 
@@ -48,8 +47,8 @@ class AdminAuditLogBase(BaseModel):
     resource_type: str
     resource_id: str
     action: str
-    previous_state: Optional[dict] = None
-    new_state: Optional[dict] = None
+    previous_state: dict | None = None
+    new_state: dict | None = None
     changes: dict = {}
     audit_metadata: dict = Field(
         default_factory=dict,

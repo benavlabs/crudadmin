@@ -8,7 +8,6 @@ Tests verify that the select_schema parameter:
 4. Handles TSVector-like scenarios correctly
 """
 
-from typing import Optional
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -48,8 +47,8 @@ class DocumentCreate(BaseModel):
 class DocumentUpdate(BaseModel):
     """Update schema without problematic field"""
 
-    title: Optional[str] = None
-    content: Optional[str] = None
+    title: str | None = None
+    content: str | None = None
 
 
 class DocumentSelect(BaseModel):

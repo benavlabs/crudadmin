@@ -463,11 +463,14 @@ async def test_cleanup_old_logs(event_service):
     """Test cleanup of old logs."""
     retention_days = 30
 
-    with patch.object(
-        event_service.crud_events, "delete", new_callable=AsyncMock
-    ) as mock_delete_events, patch.object(
-        event_service.crud_audits, "delete", new_callable=AsyncMock
-    ) as mock_delete_audits:
+    with (
+        patch.object(
+            event_service.crud_events, "delete", new_callable=AsyncMock
+        ) as mock_delete_events,
+        patch.object(
+            event_service.crud_audits, "delete", new_callable=AsyncMock
+        ) as mock_delete_audits,
+    ):
         await event_service.cleanup_old_logs(
             db=AsyncMock(),
             retention_days=retention_days,

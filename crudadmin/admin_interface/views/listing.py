@@ -2,7 +2,7 @@
 
 import logging
 from collections.abc import AsyncGenerator, Callable
-from typing import TYPE_CHECKING, Any, Dict, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from fastapi import Depends, Request
 from fastapi.responses import RedirectResponse, Response
@@ -75,7 +75,7 @@ def list_page(
             **cast(Any, filter_criteria),
         )
 
-        items: Dict[str, Any] = {
+        items: dict[str, Any] = {
             "data": items_result.get("data", []),
             "total_count": items_result.get("total_count", 0),
         }
@@ -89,7 +89,7 @@ def list_page(
         }
         success_message = success_messages.get(request.query_params.get("success", ""))
 
-        context: Dict[str, Any] = {
+        context: dict[str, Any] = {
             "model_items": items["data"],
             "model_name": view.model_key,
             "table_columns": table_columns(view.model, view.select_schema),

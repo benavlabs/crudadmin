@@ -6,7 +6,6 @@ being dressed up as a form error.
 """
 
 import logging
-from typing import Optional
 
 import pytest
 from fastapi import FastAPI
@@ -60,7 +59,7 @@ class NameSchema(BaseModel):
 
 
 class NameUpdate(BaseModel):
-    name: Optional[str] = None
+    name: str | None = None
 
 
 class MemberCreate(BaseModel):

@@ -2,13 +2,7 @@ from collections.abc import AsyncGenerator, Callable
 from dataclasses import replace
 from typing import (
     Any,
-    Dict,
-    List,
-    Optional,
-    Set,
-    Type,
     TypeVar,
-    Union,
 )
 from uuid import UUID
 
@@ -275,21 +269,21 @@ class ModelView:
         self,
         database_config: DatabaseConfig,
         templates: Jinja2Templates,
-        model: Type[DeclarativeBase],
-        allowed_actions: Set[str],
-        create_schema: Type[CreateSchemaType],
-        update_schema: Type[UpdateSchemaType],
-        update_internal_schema: Optional[Type[UpdateSchemaInternalType]] = None,
-        delete_schema: Optional[Type[DeleteSchemaType]] = None,
-        select_schema: Optional[Type[SelectSchemaType]] = None,
+        model: type[DeclarativeBase],
+        allowed_actions: set[str],
+        create_schema: type[CreateSchemaType],
+        update_schema: type[UpdateSchemaType],
+        update_internal_schema: type[UpdateSchemaInternalType] | None = None,
+        delete_schema: type[DeleteSchemaType] | None = None,
+        select_schema: type[SelectSchemaType] | None = None,
         admin_model: bool = False,
-        admin_site: Optional[Any] = None,
-        event_integration: Optional[Any] = None,
-        password_transformer: Optional[PasswordTransformer] = None,
-        write_dependencies: Optional[List[Any]] = None,
+        admin_site: Any | None = None,
+        event_integration: Any | None = None,
+        password_transformer: PasswordTransformer | None = None,
+        write_dependencies: list[Any] | None = None,
     ) -> None:
         self.db_config = database_config
-        self.write_dependencies: List[Any] = list(write_dependencies or [])
+        self.write_dependencies: list[Any] = list(write_dependencies or [])
         self.templates = templates
         self.model = model
         self.model_key = model.__name__
@@ -326,7 +320,7 @@ class ModelView:
             )
 
         self.crud: FastCRUD[Any, Any, Any, Any, Any, Any] = FastCRUD(self.model)
-        self.relationships: Dict[str, RelationshipInfo] = detect_relationships(
+        self.relationships: dict[str, RelationshipInfo] = detect_relationships(
             self.model
         )
 
@@ -348,7 +342,7 @@ class ModelView:
 
     async def _snapshot(
         self, db: AsyncSession, record_id: Any
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """The whole record for the event log, or None when events aren't recorded.
 
         Every column is read, so a changed password still shows as a change; the
@@ -364,20 +358,20 @@ class ModelView:
         if self.admin_site is not None:
             self.admin_site.record_counts.forget(self.model_key)
 
-    def _model_is_admin_model(self, model: Type[DeclarativeBase]) -> bool:
+    def _model_is_admin_model(self, model: type[DeclarativeBase]) -> bool:
         """Check if a model is considered an admin model."""
         return self.admin_model or self.model_key.lower() in {"adminuser", "admin_user"}
 
     def _convert_id_to_pk_type(
-        self, id_value: Optional[Union[int, str]]
-    ) -> Union[int, str, float, UUID, None]:
+        self, id_value: int | str | None
+    ) -> int | str | float | UUID | None:
         """Convert the ID value to the appropriate type based on the model's primary key type."""
         if id_value is None:
             return None
 
         return convert_id_to_pk_type(id_value, self.db_config, self.model)
 
-    def _pk_filter(self, pk_value: Any) -> Dict[str, Any]:
+    def _pk_filter(self, pk_value: Any) -> dict[str, Any]:
         """Build the primary-key filter kwargs for FastCRUD get/update calls.
 
         Uses the model's actual primary-key column name so models whose key is
@@ -394,7 +388,7 @@ class ModelView:
         admin view, falling back to the related model's primary key. Resolution
         happens at request time so it is independent of ``add_view`` ordering.
         """
-        configured: Optional[str] = None
+        configured: str | None = None
         if self.admin_site is not None:
             related_config = self.admin_site.models.get(relationship.related_model_name)
             if related_config is not None:
@@ -406,7 +400,7 @@ class ModelView:
         return replace(relationship, display_field=display_field)
 
     async def _apply_relationship_form_fields(
-        self, form_fields: List[Dict[str, Any]], db: AsyncSession
+        self, form_fields: list[dict[str, Any]], db: AsyncSession
     ) -> None:
         """Turn foreign-key form fields into relationship dropdowns.
 

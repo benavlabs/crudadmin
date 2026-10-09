@@ -1,15 +1,11 @@
 import logging
 import os
 import warnings
+from collections.abc import AsyncGenerator, Callable
 from typing import (
     TYPE_CHECKING,
     Any,
-    AsyncGenerator,
-    Callable,
-    Optional,
-    Type,
     TypeVar,
-    Union,
     cast,
 )
 from uuid import UUID
@@ -45,7 +41,7 @@ def get_default_db_path() -> str:
     return os.path.join(data_dir, "admin.db")
 
 
-def get_primary_key_name(model: Type[DeclarativeBase]) -> str:
+def get_primary_key_name(model: type[DeclarativeBase]) -> str:
     """Return the name of the model's first primary key column.
 
     Used as the filter key for FastCRUD lookups so models whose primary key is
@@ -64,10 +60,10 @@ def get_primary_key_name(model: Type[DeclarativeBase]) -> str:
 
 
 def convert_id_to_pk_type(
-    id_value: Union[int, str, None],
+    id_value: int | str | None,
     db_config: "DatabaseConfig",
-    model: Type[DeclarativeBase],
-) -> Union[int, str, float, UUID, None]:
+    model: type[DeclarativeBase],
+) -> int | str | float | UUID | None:
     """Convert the ID value to the appropriate type based on the model's primary key type."""
     if id_value is None:
         return None
@@ -96,7 +92,7 @@ ADMIN_USER_COLUMNS_ADDED_IN_0_6 = {
 }
 
 
-def new_admin_base() -> Type[DeclarativeBase]:
+def new_admin_base() -> type[DeclarativeBase]:
     """A declarative base of its own, so each admin's tables get a separate registry.
 
     Two admins on one base would both define ``admin_user`` on the same metadata,
@@ -121,24 +117,23 @@ ModelType = TypeVar("ModelType", bound=DeclarativeBase)
 class DatabaseConfig:
     def __init__(
         self,
-        base: Type[DeclarativeBase],
+        base: type[DeclarativeBase],
         session: Callable[[], AsyncGenerator[AsyncSession, None]],
-        admin_db_url: Optional[str] = None,
-        admin_db_path: Optional[str] = None,
-        admin_user: Optional[Type[DeclarativeBase]] = None,
-        admin_session: Optional[Type[DeclarativeBase]] = None,
-        admin_event_log: Optional[Type[DeclarativeBase]] = None,
-        admin_audit_log: Optional[Type[DeclarativeBase]] = None,
-        crud_admin_user: Optional[
-            FastCRUD[
-                DeclarativeBase,
-                "AdminUserCreate",
-                "AdminUserUpdate",
-                "AdminUserUpdateInternal",
-                "_EmptySchema",
-                "AdminUserRead",
-            ]
-        ] = None,
+        admin_db_url: str | None = None,
+        admin_db_path: str | None = None,
+        admin_user: type[DeclarativeBase] | None = None,
+        admin_session: type[DeclarativeBase] | None = None,
+        admin_event_log: type[DeclarativeBase] | None = None,
+        admin_audit_log: type[DeclarativeBase] | None = None,
+        crud_admin_user: FastCRUD[
+            DeclarativeBase,
+            "AdminUserCreate",
+            "AdminUserUpdate",
+            "AdminUserUpdateInternal",
+            "_EmptySchema",
+            "AdminUserRead",
+        ]
+        | None = None,
         crud_admin_session: Any = None,
     ) -> None:
         if admin_session is not None or crud_admin_session is not None:
@@ -148,7 +143,7 @@ class DatabaseConfig:
                 DeprecationWarning,
                 stacklevel=2,
             )
-        self.base: Type[DeclarativeBase] = base
+        self.base: type[DeclarativeBase] = base
         self.session: Callable[[], AsyncGenerator[AsyncSession, None]] = session
 
         if admin_db_url is None:
@@ -181,10 +176,10 @@ class DatabaseConfig:
             from ..admin_user.models import create_admin_user
 
             admin_user = create_admin_user(base)
-        self.AdminUser: Type[DeclarativeBase] = admin_user
+        self.AdminUser: type[DeclarativeBase] = admin_user
 
-        self.AdminEventLog: Optional[Type[DeclarativeBase]] = admin_event_log
-        self.AdminAuditLog: Optional[Type[DeclarativeBase]] = admin_audit_log
+        self.AdminEventLog: type[DeclarativeBase] | None = admin_event_log
+        self.AdminAuditLog: type[DeclarativeBase] | None = admin_audit_log
 
         if crud_admin_user is None:
             CRUDUser = FastCRUD[
@@ -283,15 +278,15 @@ class DatabaseConfig:
         """Get a session dependency for the main application database."""
         return self.session
 
-    def get_primary_key(self, model: Type[DeclarativeBase]) -> Optional[str]:
+    def get_primary_key(self, model: type[DeclarativeBase]) -> str | None:
         """Get the primary key of a SQLAlchemy model."""
         inspector = inspect(model)
         primary_key_columns = inspector.primary_key
         return primary_key_columns[0].name if primary_key_columns else None
 
     def get_primary_key_info(
-        self, model: Type[DeclarativeBase]
-    ) -> Optional[dict[str, Any]]:
+        self, model: type[DeclarativeBase]
+    ) -> dict[str, Any] | None:
         """Get the primary key information of a SQLAlchemy model."""
         inspector = inspect(model)
         primary_key_columns = inspector.primary_key

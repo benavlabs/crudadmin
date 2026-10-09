@@ -1,6 +1,5 @@
 import os
 import tempfile
-from typing import Type
 
 import pytest
 import sqlalchemy.exc
@@ -12,7 +11,7 @@ from crudadmin.admin_user.models import create_admin_user
 from crudadmin.core.db import DatabaseConfig, get_default_db_path
 
 
-def create_admin_base() -> Type[DeclarativeBase]:
+def create_admin_base() -> type[DeclarativeBase]:
     """Create a unique AdminBase class for each test to avoid table conflicts."""
 
     class AdminBase(DeclarativeBase):

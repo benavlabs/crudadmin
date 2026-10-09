@@ -1,5 +1,5 @@
 import warnings
-from typing import Any, Dict, Optional, Union
+from typing import Any
 
 from ..session.configs import MemcachedConfig, RedisConfig
 
@@ -7,7 +7,7 @@ from ..session.configs import MemcachedConfig, RedisConfig
 def resolve_session_backend(
     session_backend: str,
     track_sessions_in_db: bool,
-    memcached_config: Optional[Union[MemcachedConfig, Dict[str, Any]]],
+    memcached_config: MemcachedConfig | dict[str, Any] | None,
 ) -> str:
     """Map the ``session_backend`` setting onto the backends crudadmin supports.
 
@@ -51,7 +51,7 @@ def resolve_session_backend(
 
 
 def build_redis_client(
-    redis_config: Optional[Union[RedisConfig, Dict[str, Any]]],
+    redis_config: RedisConfig | dict[str, Any] | None,
 ) -> Any:
     """An async Redis client for the ``redis`` session backend."""
     try:
@@ -71,7 +71,7 @@ def build_redis_client(
     else:
         raise ValueError("redis_config must be RedisConfig instance or dict")
 
-    options: Dict[str, Any] = {}
+    options: dict[str, Any] = {}
     if config.pool_size is not None:
         options["max_connections"] = config.pool_size
     if config.connect_timeout is not None:

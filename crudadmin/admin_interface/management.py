@@ -2,7 +2,7 @@ import logging
 import time
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Optional, cast
+from typing import Any, cast
 
 from fastapi import Depends, Request
 from fastapi.templating import Jinja2Templates
@@ -25,7 +25,7 @@ logger = logging.getLogger("crudadmin")
 EndpointFunction = Callable[[Request, AsyncSession], Awaitable[RouteResponse]]
 
 
-def _day(value: Optional[str]) -> Optional[datetime]:
+def _day(value: str | None) -> datetime | None:
     """The start of a ``YYYY-MM-DD`` day in UTC, or None when it isn't one."""
     if not value:
         return None
@@ -151,7 +151,7 @@ class ManagementPages:
                 start_date = request.query_params.get("start_date")
                 end_date = request.query_params.get("end_date")
 
-                filter_criteria: Dict[str, Any] = {}
+                filter_criteria: dict[str, Any] = {}
                 if event_type in {kind.value for kind in EventType}:
                     filter_criteria["event_type"] = event_type
                 if status in {state.value for state in EventStatus}:

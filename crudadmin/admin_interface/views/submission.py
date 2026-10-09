@@ -7,7 +7,7 @@ form is shown again with the reason and the values the admin entered.
 import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Type, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from fastapi import Request
 from fastapi.responses import Response
@@ -37,12 +37,12 @@ class Refusal:
     """Why a submission wasn't written: a message, and the message for each field."""
 
     message: str
-    field_errors: Dict[str, str] = field(default_factory=dict)
+    field_errors: dict[str, str] = field(default_factory=dict)
 
 
 async def attempt_write(
     db: AsyncSession, write: Callable[[], Awaitable[T]]
-) -> Tuple[Optional[T], Optional[Refusal]]:
+) -> tuple[T | None, Refusal | None]:
     """Run ``write``, and say why when it is refused.
 
     - Invalid input refuses it with each field's message.
@@ -72,7 +72,7 @@ async def attempt_write(
 
 
 def internal_object(
-    view: "ModelView", data: Dict[str, Any], admin_schema: Type[BaseModel]
+    view: "ModelView", data: dict[str, Any], admin_schema: type[BaseModel]
 ) -> BaseModel:
     """The object a view with a password transformer writes.
 
@@ -83,7 +83,7 @@ def internal_object(
         return admin_schema(**data)
     if view.update_internal_schema:
         return view.update_internal_schema(**data)
-    schema_taking_the_data_as_it_is: Type[BaseModel] = type(
+    schema_taking_the_data_as_it_is: type[BaseModel] = type(
         "InternalSchema", (BaseModel,), {}
     )
     return schema_taking_the_data_as_it_is(**data)
@@ -95,15 +95,15 @@ async def form_page(
     db: AsyncSession,
     *,
     template: str,
-    form_fields: List[Dict[str, Any]],
-    field_values: Dict[str, Any],
-    refusal: Optional[Refusal],
+    form_fields: list[dict[str, Any]],
+    field_values: dict[str, Any],
+    refusal: Refusal | None,
     refused_status: int,
-    extra_context: Optional[Dict[str, Any]] = None,
+    extra_context: dict[str, Any] | None = None,
 ) -> Response:
     """The form again, with the refusal and the values the admin entered."""
     await view._apply_relationship_form_fields(form_fields, db)
-    context: Dict[str, Any] = {
+    context: dict[str, Any] = {
         "model_name": view.model_key,
         "form_fields": form_fields,
         "error": refusal.message if refusal else None,

@@ -11,7 +11,8 @@ next login).
 import hashlib
 import hmac
 import logging
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any
 from urllib.parse import urlsplit
 
 from crudauth import (
@@ -125,8 +126,8 @@ class AdminAuthentication:
         max_sessions_per_user: int = 5,
         cleanup_interval_minutes: int = 15,
         trusted_proxy_hops: int = 0,
-        lockout: Optional[LockoutConfig] = None,
-        hooks: Optional[AuthHooks] = None,
+        lockout: LockoutConfig | None = None,
+        hooks: AuthHooks | None = None,
     ) -> None:
         if session_backend not in SESSION_BACKENDS:
             raise ValueError(
@@ -136,7 +137,7 @@ class AdminAuthentication:
         self.db_config = database_config
         self.key_prefix = storage_key_prefix(secret_key, mount_prefix)
 
-        self.database_store: Optional[DatabaseStore] = None
+        self.database_store: DatabaseStore | None = None
         if session_backend == "database":
             self.database_store = DatabaseStore(
                 database_config.admin_session_maker,

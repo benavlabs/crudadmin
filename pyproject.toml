@@ -124,7 +124,7 @@ asyncio_default_fixture_loop_scope = "function"
 
 [tool.ruff]
 line-length = 88
-target-version = "py38"
+target-version = "py310"
 
 [tool.ruff.lint]
 select = [

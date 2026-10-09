@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional
+from typing import Any
 
 from crudauth import AuthHooks, HookContext
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -15,7 +15,7 @@ def auth_event_hooks(
     ``session_maker``.
     """
 
-    def details(context: HookContext, **extra: Any) -> Dict[str, Any]:
+    def details(context: HookContext, **extra: Any) -> dict[str, Any]:
         return {
             "auth_details": {
                 "ip_address": context.ip_address or "unknown",
@@ -27,10 +27,10 @@ def auth_event_hooks(
 
     async def record(
         event_type: Any,
-        user_id: Optional[int],
+        user_id: int | None,
         context: HookContext,
         success: bool,
-        event_details: Dict[str, Any],
+        event_details: dict[str, Any],
     ) -> None:
         async with session_maker() as db:
             await integration.log_auth_event(
@@ -64,7 +64,7 @@ def auth_event_hooks(
         )
 
     async def on_login_failed(
-        identifier: str, *, user: Optional[dict], reason: str, context: HookContext
+        identifier: str, *, user: dict | None, reason: str, context: HookContext
     ) -> None:
         event_details = details(context, username=identifier, reason=reason)
         event_details["username"] = identifier

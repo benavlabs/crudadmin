@@ -6,7 +6,6 @@ forgets a model's count when the admin creates or deletes one of its records.
 """
 
 import re
-from typing import Optional
 
 import pytest
 from fastapi import FastAPI
@@ -45,7 +44,7 @@ class ArticleCreate(BaseModel):
 
 
 class ArticleUpdate(BaseModel):
-    title: Optional[str] = None
+    title: str | None = None
 
 
 class CommentCreate(BaseModel):
@@ -53,7 +52,7 @@ class CommentCreate(BaseModel):
 
 
 class CommentUpdate(BaseModel):
-    body: Optional[str] = None
+    body: str | None = None
 
 
 @pytest.fixture

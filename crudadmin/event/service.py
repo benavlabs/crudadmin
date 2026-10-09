@@ -3,7 +3,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from enum import Enum
-from typing import Any, Optional, cast
+from typing import Any, cast
 from uuid import UUID
 
 from fastapi import Request
@@ -77,7 +77,7 @@ class EventService:
         )
         self.json_encoder = CustomJSONEncoder()
 
-    def _serialize_dict(self, data: Optional[dict]) -> dict:
+    def _serialize_dict(self, data: dict | None) -> dict:
         if not data:
             return {}
         return cast(dict, json.loads(self.json_encoder.encode(data)))
@@ -90,9 +90,9 @@ class EventService:
         user_id: int,
         session_id: str,
         request: Request,
-        resource_type: Optional[str] = None,
-        resource_id: Optional[str] = None,
-        details: Optional[dict] = None,
+        resource_type: str | None = None,
+        resource_id: str | None = None,
+        details: dict | None = None,
         commit: bool = True,
     ) -> AdminEventLogRead:
         ip_address = request.client.host if request.client else "unknown"
@@ -125,9 +125,9 @@ class EventService:
         resource_type: str,
         resource_id: str,
         action: str,
-        previous_state: Optional[dict] = None,
-        new_state: Optional[dict] = None,
-        metadata: Optional[dict] = None,
+        previous_state: dict | None = None,
+        new_state: dict | None = None,
+        metadata: dict | None = None,
         commit: bool = True,
     ) -> AdminAuditLogRead:
         audit_data = AdminAuditLogCreate(
@@ -155,8 +155,8 @@ class EventService:
 
     def _compute_changes(
         self,
-        previous_state: Optional[dict],
-        new_state: Optional[dict],
+        previous_state: dict | None,
+        new_state: dict | None,
     ) -> dict:
         """Compute changes between previous and new states."""
         changes: dict = {}
@@ -179,8 +179,8 @@ class EventService:
         self,
         db: AsyncSession,
         user_id: int,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> dict:

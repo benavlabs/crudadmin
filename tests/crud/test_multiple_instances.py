@@ -6,8 +6,6 @@ sessions and models. Instances that share one session store keep their keys
 apart by secret key and mount path.
 """
 
-from typing import Optional
-
 import pytest
 from crudauth.ratelimit import DatabaseRateLimiterBackend
 from fastapi import FastAPI
@@ -44,7 +42,7 @@ class ArticleCreate(BaseModel):
 
 
 class ArticleUpdate(BaseModel):
-    title: Optional[str] = None
+    title: str | None = None
 
 
 class TicketCreate(BaseModel):
@@ -52,7 +50,7 @@ class TicketCreate(BaseModel):
 
 
 class TicketUpdate(BaseModel):
-    subject: Optional[str] = None
+    subject: str | None = None
 
 
 @pytest.fixture

@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from fastapi import Request, Response
 from fastapi.responses import RedirectResponse
@@ -110,7 +110,7 @@ class AdminAuthMiddleware:
         submitted_by_fetch = bool(request.headers.get(FORM_SUBMITTED_BY_FETCH_HEADER))
         await self.app(scope, receive, AdminResponseHeaders(send, submitted_by_fetch))
 
-    async def _resolve_principal(self, request: Request) -> Optional[Any]:
+    async def _resolve_principal(self, request: Request) -> Any | None:
         """The logged-in admin's principal, or None when the session is missing or invalid.
 
         A session store that can't be reached raises: the admin sees an error

@@ -1,5 +1,5 @@
 import logging
-from typing import TYPE_CHECKING, Any, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from crudauth import get_password_hash_async
 from fastapi import Request
@@ -22,7 +22,7 @@ logger = logging.getLogger("crudadmin")
 
 
 async def create_initial_admin(
-    db_config: DatabaseConfig, admin_data: Union[dict, BaseModel]
+    db_config: DatabaseConfig, admin_data: dict | BaseModel
 ) -> None:
     """Create the initial admin, as a superuser, if no admin exists yet.
 
@@ -63,7 +63,7 @@ async def create_initial_admin(
 
 async def last_superuser_guard(
     crud: FastCRUD, db: AsyncSession, user_id: Any, change: AdminUserUpdateInternal
-) -> Optional[str]:
+) -> str | None:
     """Refuse a change that would leave no active superuser to manage admins.
 
     Returns the reason to show the admin, or None when the change is allowed.

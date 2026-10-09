@@ -1,5 +1,4 @@
 from datetime import datetime, timezone
-from typing import Optional, Type
 
 from sqlalchemy import Boolean, DateTime, Integer, String, false, true
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -7,7 +6,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 UTC = timezone.utc
 
 
-def create_admin_user(base: Type[DeclarativeBase]) -> Type[DeclarativeBase]:
+def create_admin_user(base: type[DeclarativeBase]) -> type[DeclarativeBase]:
     class AdminUser(base):  # type: ignore
         """An admin account, read by crudauth.
 
@@ -27,7 +26,7 @@ def create_admin_user(base: Type[DeclarativeBase]) -> Type[DeclarativeBase]:
             DateTime(timezone=True),
             default=lambda: datetime.now(UTC),
         )
-        updated_at: Mapped[Optional[datetime]] = mapped_column(
+        updated_at: Mapped[datetime | None] = mapped_column(
             DateTime(timezone=True),
             onupdate=lambda: datetime.now(UTC),
             default=None,

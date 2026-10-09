@@ -3,7 +3,7 @@
 import datetime
 import logging
 from datetime import datetime as dt
-from typing import TYPE_CHECKING, Any, Dict, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from fastapi import Depends, Request
 from fastapi.responses import JSONResponse, RedirectResponse, Response
@@ -42,7 +42,7 @@ def update_endpoint(view: "ModelView") -> EndpointCallable:
         request: Request,
         db: AsyncSession = Depends(view.session),
         admin_db: AsyncSession = Depends(view.db_config.get_admin_db),
-        id: Optional[Union[int, str]] = None,
+        id: int | str | None = None,
     ) -> Response:
         """Handle POST form submission to update an existing record."""
         assert view.admin_site is not None
@@ -78,8 +78,8 @@ def update_endpoint(view: "ModelView") -> EndpointCallable:
         before = await view._snapshot(db, converted_id)
 
         form_fields = _get_form_fields_from_schema(view.update_schema)
-        field_values: Dict[str, Any] = {}
-        refusal: Optional[Refusal] = None
+        field_values: dict[str, Any] = {}
+        refusal: Refusal | None = None
         submitted = read_update_form(
             await request.form(), form_fields, clearable_column_names(view.model)
         )
@@ -126,7 +126,7 @@ def update_endpoint(view: "ModelView") -> EndpointCallable:
     return cast(EndpointCallable, form_update_endpoint_inner)
 
 
-def _stamp_updated_at(view: "ModelView", update_data: Dict[str, Any]) -> None:
+def _stamp_updated_at(view: "ModelView", update_data: dict[str, Any]) -> None:
     """Set ``updated_at`` to now when the internal update schema has the field."""
     internal_schema = view.update_internal_schema
     if internal_schema is not None and "updated_at" in internal_schema.model_fields:
@@ -138,7 +138,7 @@ async def _update_record(
     db: AsyncSession,
     request: Request,
     record_id: Any,
-    update_data: Dict[str, Any],
+    update_data: dict[str, Any],
 ) -> None:
     """Validate the changes with the update schema, write them and commit.
 
@@ -203,7 +203,7 @@ def update_page(view: "ModelView", template: str) -> EndpointCallable:
 
     async def get_model_update_page_inner(
         request: Request,
-        id: Union[int, str],
+        id: int | str,
         db: AsyncSession = Depends(view.session),
     ) -> Response:
         """Show a form to update an existing record by `id`."""
@@ -221,7 +221,7 @@ def update_page(view: "ModelView", template: str) -> EndpointCallable:
 
         form_fields = _get_form_fields_from_schema(view.update_schema)
         await view._apply_relationship_form_fields(form_fields, db)
-        field_values: Dict[str, Any] = {}
+        field_values: dict[str, Any] = {}
         for field in form_fields:
             field_name = field["name"]
             if field_name in item:

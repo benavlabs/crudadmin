@@ -1,7 +1,7 @@
 """Deleting records in bulk from the list."""
 
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Union, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from fastapi import Depends, Request
 from fastapi.responses import JSONResponse, Response
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 class BulkDeleteRequest(BaseModel):
     """Request model for bulk delete operations containing IDs to delete."""
 
-    ids: List[Union[int, str]] = Field(default_factory=list)
+    ids: list[int | str] = Field(default_factory=list)
 
 
 def bulk_delete_endpoint(view: "ModelView") -> EndpointCallable:
@@ -93,14 +93,14 @@ def bulk_delete_endpoint(view: "ModelView") -> EndpointCallable:
 
         pk_name = view.primary_key_name
 
-        valid_ids: List[Any] = []
+        valid_ids: list[Any] = []
         for id_value in delete_request.ids:
             try:
                 valid_ids.append(view._convert_id_to_pk_type(id_value))
             except (ValueError, TypeError):
                 return await refuse(422, f"Invalid ID value: {id_value}")
 
-        filter_criteria: Dict[str, List[Any]] = {f"{pk_name}__in": valid_ids}
+        filter_criteria: dict[str, list[Any]] = {f"{pk_name}__in": valid_ids}
         records_to_delete = await view.crud.get_multi(
             db=db,
             limit=len(valid_ids),
@@ -139,7 +139,7 @@ def bulk_delete_endpoint(view: "ModelView") -> EndpointCallable:
             schema_to_select=view.select_schema,
         )
 
-        context: Dict[str, Any] = {
+        context: dict[str, Any] = {
             "model_items": items_result.get("data", []),
             "model_name": view.model_key,
             "table_columns": table_columns(view.model, view.select_schema),

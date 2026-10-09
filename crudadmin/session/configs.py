@@ -5,7 +5,7 @@ This module provides Pydantic models for configuring different session backends
 in a type-safe and validated manner.
 """
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -13,14 +13,14 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 class RedisConfig(BaseModel):
     """Configuration for Redis session backend."""
 
-    url: Optional[str] = None
+    url: str | None = None
     host: str = "localhost"
     port: int = Field(default=6379, ge=1, le=65535)
     db: int = Field(default=0, ge=0)
-    username: Optional[str] = None
-    password: Optional[str] = None
-    pool_size: Optional[int] = Field(default=None, ge=1)
-    connect_timeout: Optional[int] = Field(default=None, ge=1)
+    username: str | None = None
+    password: str | None = None
+    pool_size: int | None = Field(default=None, ge=1)
+    connect_timeout: int | None = Field(default=None, ge=1)
 
     model_config = ConfigDict(extra="forbid")
 
@@ -31,7 +31,7 @@ class RedisConfig(BaseModel):
             return None
         return v
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary, excluding None values and handling URL parsing."""
         result = {}
 
@@ -80,10 +80,10 @@ class MemcachedConfig(BaseModel):
     ``ValueError`` that names the replacements (``redis`` or ``database``).
     """
 
-    servers: Optional[List[str]] = None
+    servers: list[str] | None = None
     host: str = "localhost"
     port: int = Field(default=11211, ge=1, le=65535)
-    pool_size: Optional[int] = Field(default=None, ge=1)
+    pool_size: int | None = Field(default=None, ge=1)
 
     model_config = ConfigDict(extra="forbid")
 
@@ -110,7 +110,7 @@ class MemcachedConfig(BaseModel):
                         ) from None
         return v
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary, using servers or individual host/port."""
         result = {}
 
@@ -138,4 +138,4 @@ class MemcachedConfig(BaseModel):
         return result
 
 
-SessionBackendConfig = Union[RedisConfig, MemcachedConfig, Dict[str, Any]]
+SessionBackendConfig = RedisConfig | MemcachedConfig | dict[str, Any]

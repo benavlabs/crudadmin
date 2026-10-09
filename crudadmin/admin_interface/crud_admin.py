@@ -1,15 +1,9 @@
 import os
-from collections.abc import Callable
+from collections.abc import AsyncGenerator, Callable
 from typing import (
     Any,
-    AsyncGenerator,
-    Dict,
-    List,
     NamedTuple,
-    Optional,
-    Type,
     TypedDict,
-    Union,
     cast,
 )
 
@@ -56,13 +50,13 @@ class ProtectedRouter(NamedTuple):
 
 
 class ModelConfig(TypedDict):
-    model: Type[DeclarativeBase]
-    create_schema: Type[BaseModel]
-    update_schema: Type[BaseModel]
-    update_internal_schema: Optional[Type[BaseModel]]
-    delete_schema: Optional[Type[BaseModel]]
+    model: type[DeclarativeBase]
+    create_schema: type[BaseModel]
+    update_schema: type[BaseModel]
+    update_internal_schema: type[BaseModel] | None
+    delete_schema: type[BaseModel] | None
     crud: FastCRUD
-    display_field: Optional[str]
+    display_field: str | None
 
 
 class CRUDAdmin:
@@ -154,30 +148,30 @@ class CRUDAdmin:
         self,
         session: Callable[[], AsyncGenerator[AsyncSession, None]],
         SECRET_KEY: str,
-        mount_path: Optional[str] = "/admin",
-        theme: Optional[str] = "dark-theme",
-        admin_db_url: Optional[str] = None,
-        admin_db_path: Optional[str] = None,
-        db_config: Optional[DatabaseConfig] = None,
+        mount_path: str | None = "/admin",
+        theme: str | None = "dark-theme",
+        admin_db_url: str | None = None,
+        admin_db_path: str | None = None,
+        db_config: DatabaseConfig | None = None,
         setup_on_initialization: bool = True,
-        initial_admin: Optional[Union[dict, BaseModel]] = None,
+        initial_admin: dict | BaseModel | None = None,
         track_events: bool = False,
-        sessions: Optional[SessionConfig] = None,
-        access: Optional[AccessConfig] = None,
-        allowed_ips: Optional[List[str]] = None,
-        allowed_networks: Optional[List[str]] = None,
-        max_sessions_per_user: Optional[int] = None,
-        session_timeout_minutes: Optional[int] = None,
-        cleanup_interval_minutes: Optional[int] = None,
-        secure_cookies: Optional[bool] = None,
-        enforce_https: Optional[bool] = None,
-        https_port: Optional[int] = None,
+        sessions: SessionConfig | None = None,
+        access: AccessConfig | None = None,
+        allowed_ips: list[str] | None = None,
+        allowed_networks: list[str] | None = None,
+        max_sessions_per_user: int | None = None,
+        session_timeout_minutes: int | None = None,
+        cleanup_interval_minutes: int | None = None,
+        secure_cookies: bool | None = None,
+        enforce_https: bool | None = None,
+        https_port: int | None = None,
         track_sessions_in_db: bool = False,
-        session_backend: Optional[str] = None,
-        redis_config: Optional[Union[RedisConfig, Dict[str, Any]]] = None,
-        memcached_config: Optional[Union[MemcachedConfig, Dict[str, Any]]] = None,
-        trusted_proxy_hops: Optional[int] = None,
-        lockout: Optional[LockoutConfig] = None,
+        session_backend: str | None = None,
+        redis_config: RedisConfig | dict[str, Any] | None = None,
+        memcached_config: MemcachedConfig | dict[str, Any] | None = None,
+        trusted_proxy_hops: int | None = None,
+        lockout: LockoutConfig | None = None,
     ) -> None:
         if not SECRET_KEY:
             raise ValueError("SECRET_KEY is required")
@@ -240,8 +234,8 @@ class CRUDAdmin:
         from ..event import create_admin_audit_log, create_admin_event_log
 
         admin_base = new_admin_base()
-        event_log_model: Optional[Type[DeclarativeBase]] = None
-        audit_log_model: Optional[Type[DeclarativeBase]] = None
+        event_log_model: type[DeclarativeBase] | None = None
+        audit_log_model: type[DeclarativeBase] | None = None
 
         if self.track_events and db_config is None:
             event_log_model = create_admin_event_log(admin_base)
@@ -272,7 +266,7 @@ class CRUDAdmin:
 
         self.SECRET_KEY = SECRET_KEY
         self.initial_admin = initial_admin
-        self.models: Dict[str, ModelConfig] = {}
+        self.models: dict[str, ModelConfig] = {}
         self.router = APIRouter(tags=["admin"])
         self.protected_routers: list[ProtectedRouter] = []
         self._is_set_up = False
@@ -461,14 +455,14 @@ class CRUDAdmin:
                 "AdminUser": {"view", "create", "update"},
             }.get(model_name, {"view"})
 
-            model = cast(Type[DeclarativeBase], data["model"])
-            create_schema = cast(Type[BaseModel], data["create_schema"])
-            update_schema = cast(Type[BaseModel], data["update_schema"])
+            model = cast(type[DeclarativeBase], data["model"])
+            create_schema = cast(type[BaseModel], data["create_schema"])
+            update_schema = cast(type[BaseModel], data["update_schema"])
             update_internal_schema = cast(
-                Optional[Type[BaseModel]], data["update_internal_schema"]
+                type[BaseModel] | None, data["update_internal_schema"]
             )
-            delete_schema = cast(Optional[Type[BaseModel]], data["delete_schema"])
-            select_schema = cast(Optional[Type[BaseModel]], data.get("select_schema"))
+            delete_schema = cast(type[BaseModel] | None, data["delete_schema"])
+            select_schema = cast(type[BaseModel] | None, data.get("select_schema"))
 
             self.add_view(
                 model=model,
@@ -530,16 +524,16 @@ class CRUDAdmin:
 
     def add_view(
         self,
-        model: Type[DeclarativeBase],
-        create_schema: Type[BaseModel],
-        update_schema: Type[BaseModel],
-        update_internal_schema: Optional[Type[BaseModel]] = None,
-        delete_schema: Optional[Type[BaseModel]] = None,
-        select_schema: Optional[Type[BaseModel]] = None,
+        model: type[DeclarativeBase],
+        create_schema: type[BaseModel],
+        update_schema: type[BaseModel],
+        update_internal_schema: type[BaseModel] | None = None,
+        delete_schema: type[BaseModel] | None = None,
+        select_schema: type[BaseModel] | None = None,
         include_in_models: bool = True,
-        allowed_actions: Optional[set[str]] = None,
-        password_transformer: Optional[Any] = None,
-        display_field: Optional[str] = None,
+        allowed_actions: set[str] | None = None,
+        password_transformer: Any | None = None,
+        display_field: str | None = None,
     ) -> None:
         """
         Add CRUD view for a database model.
