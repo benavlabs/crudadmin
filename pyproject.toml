@@ -170,7 +170,7 @@ concurrency = ["greenlet", "thread"]
 [tool.coverage.report]
 show_missing = true
 skip_covered = true
-fail_under = 88
+fail_under = 94
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",

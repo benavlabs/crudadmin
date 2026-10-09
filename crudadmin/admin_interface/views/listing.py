@@ -5,7 +5,7 @@ from collections.abc import AsyncGenerator, Callable
 from typing import TYPE_CHECKING, Any, cast
 
 from fastapi import Depends, Request
-from fastapi.responses import RedirectResponse, Response
+from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..typing import EndpointCallable
@@ -54,12 +54,6 @@ def list_page(
             db = admin_db
         else:
             db = app_db
-
-        if template == "admin/model/list.html" and not request.url.path.endswith("/"):
-            redirect_url = request.url.path + "/"
-            if request.url.query:
-                redirect_url += "?" + request.url.query
-            return RedirectResponse(redirect_url, status_code=307)
 
         query = ListQuery.from_request(request, view.model)
         filter_criteria = query.filters(view.model)

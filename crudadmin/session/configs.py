@@ -87,55 +87,5 @@ class MemcachedConfig(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    @field_validator("servers")
-    @classmethod
-    def validate_servers(cls, v):
-        if v is not None:
-            for server in v:
-                if not isinstance(server, str) or not server.strip():
-                    raise ValueError("Server addresses must be non-empty strings")
-                if ":" in server:
-                    host, port_str = server.split(":", 1)
-                    try:
-                        port = int(port_str)
-                        if not (1 <= port <= 65535):
-                            raise ValueError(
-                                f"Port must be between 1 and 65535, got {port}"
-                            )
-                    except ValueError as e:
-                        if "Port must be between" in str(e):
-                            raise e
-                        raise ValueError(
-                            f"Invalid port in server address '{server}'"
-                        ) from None
-        return v
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary, using servers or individual host/port."""
-        result = {}
-
-        if self.servers is not None:
-            if self.servers:
-                server = self.servers[0]
-                if ":" in server:
-                    host, port_str = server.split(":", 1)
-                    try:
-                        port = int(port_str)
-                    except ValueError:
-                        port = 11211
-                else:
-                    host = server
-                    port = 11211
-                result.update({"host": host, "port": port})
-            else:
-                result.update({"host": "localhost", "port": 11211})
-        else:
-            result.update({"host": self.host, "port": self.port})
-
-        if self.pool_size is not None:
-            result["pool_size"] = self.pool_size
-
-        return result
-
 
 SessionBackendConfig = RedisConfig | MemcachedConfig | dict[str, Any]
