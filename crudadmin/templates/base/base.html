@@ -6,6 +6,7 @@
     <title>{% block title %}FastAPI Admin{% endblock %}</title>
     <link rel="icon" type="image/png" href="{{ url_prefix }}/static/favicon.png?v=1">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <meta name="htmx-config" content='{"allowEval": false, "allowScriptTags": false}'>
     <meta name="csrf-cookie-name" content="{{ csrf_cookie_name|default('crudadmin_csrf', true) }}">
     <script src="{{ url_prefix }}/static/htmx.min.js"></script>
     <script src="{{ url_prefix }}/static/admin.js" defer></script>
@@ -262,6 +263,23 @@
             overflow-x: auto;
         }
 
+        .logout-form {
+            margin: 0;
+        }
+
+        .logout-button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font: inherit;
+            color: white;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .logout-button:hover {
+            color: var(--primary-light);
+        }
     </style>
     {% block extra_head %}{% endblock %}
 </head>
@@ -276,8 +294,8 @@
                     FastAPI Admin
                 </a>
                 <div class="flex items-center gap-4">
-                    <form method="post" action="{{ url_prefix }}/logout" style="margin: 0">
-                        <button type="submit" style="background: none; border: none; cursor: pointer; font: inherit; color: white; font-weight: 500; transition: color 0.2s" onmouseover="this.style.color='var(--primary-light)'" onmouseout="this.style.color='white'">
+                    <form method="post" action="{{ url_prefix }}/logout" class="logout-form">
+                        <button type="submit" class="logout-button">
                             Logout
                         </button>
                     </form>
@@ -288,7 +306,7 @@
                 <nav>
                     <!-- Dashboard Section -->
                     <div class="sidebar-section">
-                        <div class="sidebar-section-header" onclick="this.parentElement.classList.toggle('collapsed')">
+                        <div class="sidebar-section-header" data-action="toggle-sidebar-section">
                             <h3 class="sidebar-section-title">Navigation</h3>
                             <span class="sidebar-section-toggle"></span>
                         </div>
@@ -303,7 +321,7 @@
 
                     <!-- Management Section -->
                     <div class="sidebar-section">
-                        <div class="sidebar-section-header" onclick="this.parentElement.classList.toggle('collapsed')">
+                        <div class="sidebar-section-header" data-action="toggle-sidebar-section">
                             <h3 class="sidebar-section-title">Management</h3>
                             <span class="sidebar-section-toggle"></span>
                         </div>
@@ -327,7 +345,7 @@
 
                     <!-- Authentication Section -->
                     <div class="sidebar-section">
-                        <div class="sidebar-section-header" onclick="this.parentElement.classList.toggle('collapsed')">
+                        <div class="sidebar-section-header" data-action="toggle-sidebar-section">
                             <h3 class="sidebar-section-title">Authentication</h3>
                             <span class="sidebar-section-toggle"></span>
                         </div>
@@ -352,7 +370,7 @@
                     <!-- Models Section -->
                     {% if table_names %}
                     <div class="sidebar-section">
-                        <div class="sidebar-section-header" onclick="this.parentElement.classList.toggle('collapsed')">
+                        <div class="sidebar-section-header" data-action="toggle-sidebar-section">
                             <h3 class="sidebar-section-title">Models</h3>
                             <span class="sidebar-section-toggle"></span>
                         </div>
@@ -376,43 +394,5 @@
         </main>
     </div>
 
-    <script>
-        function initializeSidebar() {
-            const currentPath = window.location.pathname;
-            const sidebarLinks = document.querySelectorAll('.sidebar-link');
-
-            sidebarLinks.forEach(link => {
-                if (link.getAttribute('href') === currentPath) {
-                    link.classList.add('active');
-                } else {
-                    link.classList.remove('active');
-                }
-            });
-        }
-
-        function initializeSidebarState() {
-            document.querySelectorAll('.sidebar-section-header').forEach(header => {
-                const section = header.parentElement;
-                const sectionId = header.querySelector('.sidebar-section-title').textContent;
-
-                // Restore state from localStorage
-                if (localStorage.getItem(`sidebar-${sectionId}`) === 'collapsed') {
-                    section.classList.add('collapsed');
-                }
-
-                // Update localStorage on toggle
-                header.addEventListener('click', () => {
-                    const isCollapsed = section.classList.contains('collapsed');
-                    localStorage.setItem(`sidebar-${sectionId}`, isCollapsed ? '' : 'collapsed');
-                });
-            });
-        }
-
-        // Initialize everything when the document is ready
-        document.addEventListener('DOMContentLoaded', () => {
-            initializeSidebar();
-            initializeSidebarState();
-        });
-    </script>
 </body>
 </html>

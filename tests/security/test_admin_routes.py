@@ -4,6 +4,7 @@ Covers routes that must not exist, and list-page output that must not let
 request or record data reach a JavaScript context.
 """
 
+import re
 from contextlib import asynccontextmanager
 
 import pytest
@@ -201,12 +202,15 @@ def test_valid_sort_still_applies(client):
 
 
 def test_string_primary_key_is_not_written_into_javascript(client):
-    """The row-expand button reads the id from ``data-row-id``, not a JS string."""
+    """The list has no inline script: the row id is only an escaped attribute."""
     response = client.get("/admin/Tag/get_model_list")
 
     assert response.status_code == 200
-    assert "toggleRowExpand(this, this.closest('tr').dataset.rowId)" in response.text
-    assert "toggleRowExpand(this, '" not in response.text
+    assert 'data-action="toggle-row"' in response.text
+    assert re.search(r"\son[a-z]+=", response.text) is None
+    assert "<script" not in response.text
+    assert QUOTED_SLUG not in response.text
+    assert 'data-row-id="it&#39;s-a-trap"' in response.text
 
 
 @pytest.mark.parametrize("rows", ["100000", "0", "-5", "abc"])

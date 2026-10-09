@@ -391,21 +391,9 @@
         <span class="success-banner-icon">✓</span>
         <span class="success-banner-text">{{ success_message }}</span>
         <button type="button" class="success-banner-close"
-                onclick="document.getElementById('successBanner').remove()"
+                data-action="dismiss-banner"
                 aria-label="Dismiss">&times;</button>
     </div>
-    <script>
-        // Auto-dismiss and strip the ?success param so a refresh doesn't re-show it.
-        setTimeout(function () {
-            var b = document.getElementById('successBanner');
-            if (b) b.remove();
-        }, 4000);
-        if (window.history.replaceState) {
-            var url = new URL(window.location);
-            url.searchParams.delete('success');
-            window.history.replaceState({}, '', url);
-        }
-    </script>
     {% endif %}
     <div class="page-header">
         <h1 class="page-title">{{ model_name }} Administration</h1>
@@ -424,7 +412,8 @@
             <a href="#"
                class="update-button action-button hidden"
                id="updateButton"
-               onclick="handleUpdate()">
+               data-action="update-selected"
+               data-url="{{ url_prefix }}/{{ model_name }}/update/">
                 ✎ Update
             </a>
             {% endif %}
@@ -432,7 +421,8 @@
             {% if 'delete' in allowed_actions %}
             <button class="delete-button action-button hidden"
                     id="deleteButton"
-                    onclick="handleDelete()">
+                    data-action="delete-selected"
+                    data-url="{{ url_prefix }}/{{ model_name }}/bulk-delete">
                 🗑 Delete Selected
             </button>
             {% endif %}
@@ -477,193 +467,4 @@
     </div>
 </div>
 
-<script>
-    function updateActionButtons() {
-        const checkedBoxes = document.querySelectorAll('input[name="rowSelect"]:checked');
-        const createButton = document.getElementById('createButton');
-        const updateButton = document.getElementById('updateButton');
-        const deleteButton = document.getElementById('deleteButton');
-
-        if (checkedBoxes.length === 0) {
-            if (createButton) createButton.classList.remove('hidden');
-            if (updateButton) updateButton.classList.add('hidden');
-            if (deleteButton) deleteButton.classList.add('hidden');
-        } else if (checkedBoxes.length === 1) {
-            if (createButton) createButton.classList.add('hidden');
-            if (updateButton) updateButton.classList.remove('hidden');
-            if (deleteButton) deleteButton.classList.remove('hidden');
-        } else {
-            if (createButton) createButton.classList.add('hidden');
-            if (updateButton) updateButton.classList.add('hidden');
-            if (deleteButton) deleteButton.classList.remove('hidden');
-        }
-    }
-
-    function handleSelectAll(checkbox) {
-        const rowCheckboxes = document.querySelectorAll('input[name="rowSelect"]');
-        rowCheckboxes.forEach(box => box.checked = checkbox.checked);
-        updateActionButtons();
-    }
-
-    function handleRowSelect() {
-        updateActionButtons();
-
-        // Update "select all" checkbox
-        const allCheckboxes = document.querySelectorAll('input[name="rowSelect"]');
-        const checkedBoxes = document.querySelectorAll('input[name="rowSelect"]:checked');
-        const selectAllCheckbox = document.querySelector('input[name="select-all"]');
-
-        selectAllCheckbox.checked = allCheckboxes.length === checkedBoxes.length;
-    }
-
-    function convertValue(value, type) {
-        if (!type) {
-            return value;
-        }
-
-        // Normalize the type by removing SQL-specific prefixes/suffixes and converting to lowercase
-        const baseType = type.toString().toLowerCase()
-            .replace(/(sql|types|py|_type|\(.*\))/g, '')
-            .trim();
-
-        switch(baseType) {
-            // Integer types
-            case 'int':
-            case 'integer':
-            case 'bigint':
-            case 'smallint':
-                const intValue = parseInt(value, 10);
-                if (isNaN(intValue)) {
-                    throw new Error(`Invalid integer value: ${value}`);
-                }
-                return intValue;
-
-            // Float types
-            case 'float':
-            case 'real':
-            case 'double':
-            case 'numeric':
-            case 'decimal':
-                const floatValue = parseFloat(value);
-                if (isNaN(floatValue)) {
-                    throw new Error(`Invalid float value: ${value}`);
-                }
-                return floatValue;
-
-            // Boolean types
-            case 'bool':
-            case 'boolean':
-                if (typeof value === 'boolean') return value;
-                const strValue = String(value).toLowerCase();
-                if (!['true', 'false', '0', '1'].includes(strValue)) {
-                    throw new Error(`Invalid boolean value: ${value}`);
-                }
-                return ['true', '1'].includes(strValue);
-
-            // UUID types
-            case 'uuid':
-                const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-                if (!uuidRegex.test(value)) {
-                    throw new Error(`Invalid UUID format: ${value}`);
-                }
-                return value;
-
-            // String types
-            case 'str':
-            case 'string':
-            case 'text':
-            case 'varchar':
-            case 'char':
-                return String(value);
-
-            // Default case for unknown types
-            default:
-                return value;
-        }
-    }
-
-    async function handleDelete() {
-        const checkedBoxes = document.querySelectorAll('input[name="rowSelect"]:checked');
-        if (checkedBoxes.length === 0) {
-            alert('Please select items to delete');
-            return;
-        }
-
-        if (!confirm('Are you sure you want to delete the selected items?')) {
-            return;
-        }
-
-        const modelList = document.getElementById('model-list');
-        const pkType = modelList.dataset.pkType;
-
-        // Get current page and rows per page
-        const paginationInfo = document.querySelector('.pagination-info');
-        const currentPageMatch = paginationInfo?.textContent.match(/Page (\d+) of/);
-        const currentPage = currentPageMatch ? currentPageMatch[1] : '1';
-
-        const rowsPerPageSelect = document.querySelector('[name="rows-per-page-select"]');
-        const rowsPerPage = rowsPerPageSelect ? rowsPerPageSelect.value : '10';
-
-        // Convert and validate IDs
-        const ids = Array.from(checkedBoxes).map(box => {
-            const rawValue = box.value.trim();
-            if (pkType === 'int') {
-                const num = parseInt(rawValue, 10);
-                if (isNaN(num)) {
-                    throw new Error(`Invalid integer value: ${rawValue}`);
-                }
-                return num;
-            }
-            return rawValue;
-        });
-
-        // Log the IDs being sent for debugging
-        console.log('Sending delete request for IDs:', ids);
-
-        try {
-            const response = await fetch(`{{ url_prefix }}/{{ model_name }}/bulk-delete?page=${currentPage}&rows-per-page-select=${rowsPerPage}`, {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    ids: ids,
-                    page: parseInt(currentPage),
-                    rows_per_page: parseInt(rowsPerPage)
-                })
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.detail?.[0]?.msg || 'Error deleting items');
-            }
-
-            const htmlContent = await response.text();
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = htmlContent;
-            htmx.process(tempDiv);
-            modelList.replaceWith(tempDiv.firstElementChild);
-            updateActionButtons();
-
-        } catch (error) {
-            alert(error.message || 'Failed to delete items');
-        }
-    }
-
-    function handleUpdate() {
-        const checkedBox = document.querySelector('input[name="rowSelect"]:checked');
-        const id = checkedBox.value;
-        window.location.href = `{{ url_prefix }}/{{ model_name }}/update/${id}`;
-    }
-
-    // Initialize event listeners when content is loaded or updated
-    document.addEventListener('htmx:afterSwap', function() {
-        updateActionButtons();
-    });
-
-    // Initialize when the page first loads
-    document.addEventListener('DOMContentLoaded', function() {
-        updateActionButtons();
-    });
-</script>
 {% endblock %}
