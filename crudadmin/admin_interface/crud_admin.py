@@ -26,6 +26,7 @@ from sqlalchemy.orm import DeclarativeBase
 from ..admin_interface.auth import AdminAuthentication
 from ..admin_interface.middleware.auth import AdminAuthMiddleware
 from ..admin_interface.middleware.ip_restriction import IPRestrictionMiddleware
+from ..admin_interface.middleware.security_headers import SecurityHeadersMiddleware
 from ..config import (
     ACCESS_ARGUMENTS,
     SESSION_ARGUMENTS,
@@ -318,6 +319,8 @@ class CRUDAdmin:
             self.app.add_middleware(
                 HTTPSRedirectMiddleware, https_port=self.access.https_port
             )
+
+        self.app.add_middleware(SecurityHeadersMiddleware)
 
     def _add_missing_event_models(self) -> None:
         """Give a ``db_config`` passed in without event models its own, on its base."""
