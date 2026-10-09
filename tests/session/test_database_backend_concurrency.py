@@ -6,6 +6,7 @@ and most of them were redirected to the login page.
 """
 
 import asyncio
+from contextlib import nullcontext
 
 import httpx
 import pytest
@@ -22,30 +23,42 @@ async def _get_session():
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "backend_kwargs",
+    "backend_kwargs, deprecated",
     [
-        {"sessions": SessionConfig(backend="database", secure_cookies=False)},
-        {
-            "sessions": SessionConfig(secure_cookies=False),
-            "track_sessions_in_db": True,
-        },
+        ({"sessions": SessionConfig(backend="database", secure_cookies=False)}, False),
+        (
+            {
+                "sessions": SessionConfig(secure_cookies=False),
+                "track_sessions_in_db": True,
+            },
+            True,
+        ),
     ],
+    ids=["database backend", "track_sessions_in_db"],
 )
-async def test_concurrent_requests_keep_their_session(tmp_path, backend_kwargs):
+async def test_concurrent_requests_keep_their_session(
+    tmp_path, backend_kwargs, deprecated
+):
     class AdminBase(DeclarativeBase):
         pass
 
-    admin = CRUDAdmin(
-        session=_get_session,
-        SECRET_KEY="x" * 32,
-        db_config=DatabaseConfig(
-            base=AdminBase,
-            session=_get_session,
-            admin_db_url=f"sqlite+aiosqlite:///{tmp_path}/admin.db",
-        ),
-        initial_admin={"username": "admin", "password": "correct-horse-battery"},
-        **backend_kwargs,
+    expected_warning = (
+        pytest.warns(DeprecationWarning, match="track_sessions_in_db")
+        if deprecated
+        else nullcontext()
     )
+    with expected_warning:
+        admin = CRUDAdmin(
+            session=_get_session,
+            SECRET_KEY="x" * 32,
+            db_config=DatabaseConfig(
+                base=AdminBase,
+                session=_get_session,
+                admin_db_url=f"sqlite+aiosqlite:///{tmp_path}/admin.db",
+            ),
+            initial_admin={"username": "admin", "password": "correct-horse-battery"},
+            **backend_kwargs,
+        )
     await admin.initialize()
 
     app = FastAPI()
