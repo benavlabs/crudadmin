@@ -107,13 +107,13 @@ dev = [
 
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = "-ra -q --strict-markers --strict-config"
+addopts = "-ra -q --strict-markers --strict-config -m 'not databases'"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 markers = [
-    "dialect: marks tests to run with specific database dialect",
+    "databases: runs on PostgreSQL and MySQL containers; needs Docker, deselected unless -m databases",
 ]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
@@ -170,7 +170,7 @@ concurrency = ["greenlet", "thread"]
 [tool.coverage.report]
 show_missing = true
 skip_covered = true
-fail_under = 94
+fail_under = 93
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",

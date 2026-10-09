@@ -8,6 +8,8 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from .schemas import EventStatus, EventType
 
 UTC = timezone.utc
+SESSION_ID_LENGTH = 128
+USER_AGENT_LENGTH = 512
 
 
 def create_admin_event_log(base: type[DeclarativeBase]) -> type[DeclarativeBase]:
@@ -42,9 +44,9 @@ def create_admin_event_log(base: type[DeclarativeBase]) -> type[DeclarativeBase]
             SQLEnum(EventStatus), nullable=False
         )
         user_id: Mapped[int] = mapped_column(index=True)
-        session_id: Mapped[str] = mapped_column(String(36), index=True)
+        session_id: Mapped[str] = mapped_column(String(SESSION_ID_LENGTH), index=True)
         ip_address: Mapped[str] = mapped_column(String(45))
-        user_agent: Mapped[str] = mapped_column(String(512))
+        user_agent: Mapped[str] = mapped_column(String(USER_AGENT_LENGTH))
         resource_type: Mapped[str | None] = mapped_column(String(128))
         resource_id: Mapped[str | None] = mapped_column(String(128))
         details: Mapped[dict[str, Any]] = mapped_column(

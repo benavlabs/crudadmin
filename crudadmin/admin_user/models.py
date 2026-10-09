@@ -20,7 +20,7 @@ def create_admin_user(base: type[DeclarativeBase]) -> type[DeclarativeBase]:
             "id", autoincrement=True, nullable=False, unique=True, primary_key=True
         )
         username: Mapped[str] = mapped_column(String(20), unique=True, index=True)
-        hashed_password: Mapped[str] = mapped_column(String)
+        hashed_password: Mapped[str] = mapped_column(String(255))
 
         created_at: Mapped[datetime] = mapped_column(
             DateTime(timezone=True),

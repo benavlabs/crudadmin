@@ -224,6 +224,7 @@ class DatabaseConfig:
                 await conn.run_sync(table_obj.create, checkfirst=True)
 
         await self._add_missing_admin_user_columns()
+        await self._widen_event_session_ids()
         logger.info("Admin database tables created successfully")
 
     async def _add_missing_admin_user_columns(self) -> None:
@@ -252,6 +253,46 @@ class DatabaseConfig:
                 logger.info(
                     "Column %s.%s was added by another worker", table.name, name
                 )
+
+    async def _widen_event_session_ids(self) -> None:
+        """Widen ``admin_event_log.session_id`` from the 36 characters of 0.6.
+
+        crudauth's session handles are 64 characters, so on a database that
+        enforces lengths every event insert failed. SQLite doesn't enforce them and
+        is left alone. Widening an already wide column changes nothing, so several
+        workers may run it at once.
+        """
+        if self.AdminEventLog is None:
+            return
+        dialect = self.admin_engine.dialect.name
+        if dialect not in ("postgresql", "mysql", "mariadb"):
+            return
+        table = cast(Table, self.AdminEventLog.__table__)
+        wanted: int | None = getattr(table.c.session_id.type, "length", None)
+        current = await self._column_length(table.name, "session_id")
+        if current is None or wanted is None or current >= wanted:
+            return
+        preparer = self.admin_engine.dialect.identifier_preparer
+        column = preparer.quote("session_id")
+        if dialect == "postgresql":
+            change = f"ALTER COLUMN {column} TYPE VARCHAR({wanted})"
+        else:
+            change = f"MODIFY {column} VARCHAR({wanted}) NOT NULL"
+        logger.info("Widening %s.session_id to %s characters", table.name, wanted)
+        async with self.admin_engine.begin() as conn:
+            await conn.execute(
+                text(f"ALTER TABLE {preparer.format_table(table)} {change}")
+            )
+
+    async def _column_length(self, table_name: str, column_name: str) -> int | None:
+        async with self.admin_engine.connect() as conn:
+            columns = await conn.run_sync(
+                lambda sync_conn: inspect(sync_conn).get_columns(table_name)
+            )
+        for column in columns:
+            if column["name"] == column_name:
+                return getattr(column["type"], "length", None)
+        return None
 
     async def _admin_user_column_names(self) -> set[str]:
         table_name = cast(Table, self.AdminUser.__table__).name

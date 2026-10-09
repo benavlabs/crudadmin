@@ -6,7 +6,6 @@ from unittest.mock import Mock
 
 import pytest
 import pytest_asyncio
-from docker.errors import DockerException
 from fastapi.testclient import TestClient
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import (
@@ -18,15 +17,11 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
-    make_url,
 )
 from sqlalchemy.engine import URL
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, relationship
 from sqlalchemy.sql import func
-from testcontainers.core.docker_client import DockerClient
-from testcontainers.mysql import MySqlContainer
-from testcontainers.postgres import PostgresContainer
 
 from crudadmin.admin_interface.crud_admin import CRUDAdmin
 from crudadmin.core.db import DatabaseConfig
@@ -196,14 +191,6 @@ class EmailQueryConfigUpdateInternal(EmailQueryConfigUpdate):
     id: uuid.UUID
 
 
-def is_docker_running() -> bool:
-    try:
-        DockerClient()
-        return True
-    except DockerException:
-        return False
-
-
 @asynccontextmanager
 async def _async_session(url: str | URL) -> AsyncGenerator[AsyncSession]:
     async_engine = create_async_engine(url, echo=False, future=True)
@@ -242,33 +229,9 @@ async def _admin_async_session(url: str) -> AsyncGenerator[AsyncSession]:
 
 
 @pytest_asyncio.fixture(scope="function")
-async def async_session(request: pytest.FixtureRequest) -> AsyncGenerator[AsyncSession]:
-    dialect_marker = request.node.get_closest_marker("dialect")
-    dialect = dialect_marker.args[0] if dialect_marker else "sqlite"
-
-    if dialect == "postgresql":
-        if not is_docker_running():
-            pytest.skip("Docker is required, but not running")
-        with PostgresContainer(driver="psycopg") as pg:
-            async with _async_session(
-                url=pg.get_connection_url(host=pg.get_container_host_ip())
-            ) as session:
-                yield session
-    elif dialect == "sqlite":
-        async with _async_session(url="sqlite+aiosqlite:///:memory:") as session:
-            yield session
-    elif dialect == "mysql":
-        if not is_docker_running():
-            pytest.skip("Docker is required, but not running")
-        with MySqlContainer() as mysql:
-            async with _async_session(
-                url=make_url(name_or_url=mysql.get_connection_url())._replace(
-                    drivername="mysql+aiomysql"
-                )
-            ) as session:
-                yield session
-    else:
-        raise NotImplementedError(f"Unsupported dialect: {dialect}")
+async def async_session() -> AsyncGenerator[AsyncSession]:
+    async with _async_session(url="sqlite+aiosqlite:///:memory:") as session:
+        yield session
 
 
 @pytest_asyncio.fixture(scope="function")

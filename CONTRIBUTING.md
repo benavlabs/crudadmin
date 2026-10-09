@@ -49,6 +49,16 @@ CRUDAdmin uses pytest for testing. Run tests using:
 uv run pytest
 ```
 
+This runs the suite on SQLite. The tests marked `databases` run the main flows on PostgreSQL and MySQL containers instead; they need Docker, are left out of a plain run, and fail rather than skip without Docker:
+```sh
+uv run pytest -m databases
+```
+
+CI runs both, and reports coverage for the SQLite run, which must stay above the `fail_under` set in `pyproject.toml`:
+```sh
+uv run pytest --cov
+```
+
 ### Pre-commit Hooks
 CRUDAdmin uses pre-commit to automatically check code quality before each commit. It helps enforce
 linting, formatting, and type checking.

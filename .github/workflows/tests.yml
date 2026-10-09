@@ -27,3 +27,22 @@ jobs:
   
         - name: Run tests
           run: uv run pytest --cov --cov-report=term
+
+  databases:
+    runs-on: ubuntu-latest
+
+    steps:
+        - uses: actions/checkout@v4
+
+        - name: Install uv and set the python version
+          uses: astral-sh/setup-uv@v5
+          with:
+            python-version: "3.12"
+            enable-cache: true
+            cache-dependency-glob: "uv.lock"
+
+        - name: Install the project
+          run: uv sync --locked --all-extras --dev
+
+        - name: Run the tests on PostgreSQL and MySQL
+          run: uv run pytest -m databases

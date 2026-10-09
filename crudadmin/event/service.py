@@ -10,6 +10,7 @@ from fastapi import Request
 from fastcrud import FastCRUD
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from .models import USER_AGENT_LENGTH
 from .schemas import (
     AdminAuditLogCreate,
     AdminAuditLogRead,
@@ -103,7 +104,7 @@ class EventService:
             user_id=user_id,
             session_id=session_id,
             ip_address=ip_address,
-            user_agent=request.headers.get("user-agent", ""),
+            user_agent=request.headers.get("user-agent", "")[:USER_AGENT_LENGTH],
             resource_type=resource_type,
             resource_id=resource_id,
             details=self._serialize_dict(redact_secrets(details)),
