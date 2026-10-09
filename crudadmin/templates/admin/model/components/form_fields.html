@@ -1,0 +1,114 @@
+{% for field in form_fields %}
+<div class="form-group">
+    <div class="form-label">
+        <span class="label-text">{{ field.title | default(field.name) | capitalize }}</span>
+        {% if field.required %}
+        <span class="required">Required</span>
+        {% endif %}
+    </div>
+
+    {% if field.description or field.examples %}
+    <div class="help-text">
+        {% if field.description %}{{ field.description }}{% endif %}
+        {% if field.examples %}
+            {% if field.description %}<br>{% endif %}
+            Example: {{ field.examples | first }}
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if field.type == "relationship_select" %}
+        <select class="form-control{% if field.name in field_errors %} error{% endif %}"
+            id="{{ field.name }}"
+            name="{{ field.name }}"
+            {% if field.required %}required{% endif %}>
+            <option value="">Select {{ field.related_model_name }}</option>
+            {% for option in field.options %}
+            <option value="{{ option.id }}"
+                {% if field_values and field_values[field.name] is not none and field_values[field.name] | string == option.id | string %}selected{% endif %}>
+                {{ option.display_name }}
+            </option>
+            {% endfor %}
+        </select>
+
+    {% elif field.type == "select" %}
+        <select class="form-control{% if field.name in field_errors %} error{% endif %}"
+            id="{{ field.name }}"
+            name="{{ field.name }}"
+            {% if field.required %}required{% endif %}>
+            <option value="">Select {{ field.title | default(field.name) | capitalize }}</option>
+            {% for option in field.options %}
+            <option value="{{ option.value }}"
+                {% if field_values and field_values[field.name] == option.value %}selected{% endif %}>
+                {{ option.label }}
+            </option>
+            {% endfor %}
+        </select>
+
+    {% elif field.type == "checkbox" %}
+        {% if field.default is not none %}
+            <div class="radio-group">
+                <label class="radio-option">
+                    <input type="radio"
+                        name="{{ field.name }}"
+                        value="true"
+                        {% if field_values and field_values[field.name] == True %}checked{% elif not field_values and field.default == True %}checked{% endif %}>
+                    <span>True</span>
+                </label>
+                <label class="radio-option">
+                    <input type="radio"
+                        name="{{ field.name }}"
+                        value="false"
+                        {% if field_values and field_values[field.name] == False %}checked{% elif not field_values and field.default == False %}checked{% endif %}>
+                    <span>False</span>
+                </label>
+            </div>
+        {% else %}
+            <div class="checkbox-wrapper">
+                <input class="form-control{% if field.name in field_errors %} error{% endif %}"
+                    type="checkbox"
+                    id="{{ field.name }}"
+                    name="{{ field.name }}"
+                    {% if field_values and field_values[field.name] %}checked{% endif %}>
+                {% if field.description %}
+                <span class="checkbox-label">{{ field.description }}</span>
+                {% endif %}
+            </div>
+        {% endif %}
+
+    {% elif field.type == "json" %}
+        <textarea class="form-control{% if field.name in field_errors %} error{% endif %}"
+            id="{{ field.name }}"
+            name="{{ field.name }}"
+            {% if field.required %}required{% endif %}
+            placeholder="Enter JSON data">{{ field_values[field.name] if field_values and field.name in field_values else '' }}</textarea>
+
+    {% else %}
+        <input class="form-control{% if field.name in field_errors %} error{% endif %}"
+            type="{{ field.type }}"
+            id="{{ field.name }}"
+            name="{{ field.name }}"
+            {% if field.required %}required{% endif %}
+            {% if field.min_length %}minlength="{{ field.min_length }}"{% endif %}
+            {% if field.max_length %}maxlength="{{ field.max_length }}"{% endif %}
+            {% if field.pattern %}pattern="{{ field.pattern }}"{% endif %}
+            {% if field.step %}step="{{ field.step }}"{% endif %}
+            {% if field.min %}min="{{ field.min }}"{% endif %}
+            {% if field.max %}max="{{ field.max }}"{% endif %}
+            value="{{ field_values[field.name] if field_values and field.name in field_values else '' }}"
+            placeholder="{{ field.examples | first | default ('Enter ' + field.title | default(field.name) | capitalize) }}">
+    {% endif %}
+
+    {% if field.name in field_errors %}
+    <div class="field-error">
+        {{ field_errors[field.name] }}
+    </div>
+    {% endif %}
+
+    {% if field.format %}
+    <div class="input-help">
+        Format: {{ field.format }}
+    </div>
+    {% endif %}
+</div>
+{% endfor %}
