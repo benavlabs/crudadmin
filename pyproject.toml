@@ -165,8 +165,12 @@ warn_unreachable = true
 [tool.coverage.run]
 source = ["crudadmin"]
 branch = true
+concurrency = ["greenlet", "thread"]
 
 [tool.coverage.report]
+show_missing = true
+skip_covered = true
+fail_under = 88
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",
