@@ -9,21 +9,20 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: 3.11
+      - uses: actions/checkout@v4
 
-    - name: Install uv
-      run: pip install uv
+      - name: Install uv and set the python version
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.11"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
 
-    - name: Create venv
-      run: uv venv
+      - name: Install the locked dependencies
+        run: uv sync --locked --extra dev
 
-    - name: Install package with dev dependencies
-      run: uv pip install -e ".[dev]"
+      - name: Run Ruff
+        run: uv run ruff check crudadmin tests
 
-    - name: Run Ruff
-      run: uv run ruff check crudadmin
+      - name: Check formatting
+        run: uv run ruff format --check crudadmin tests

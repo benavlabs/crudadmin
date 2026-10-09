@@ -1,5 +1,5 @@
 import time
-from typing import Awaitable, Callable
+from collections.abc import Awaitable, Callable
 
 RECORD_COUNT_TTL_SECONDS = 60.0
 

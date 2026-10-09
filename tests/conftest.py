@@ -2,12 +2,10 @@ import uuid
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import timezone
-from typing import Optional, Type, Union
 from unittest.mock import Mock
 
 import pytest
 import pytest_asyncio
-from docker.errors import DockerException
 from fastapi.testclient import TestClient
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import (
@@ -19,15 +17,11 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
-    make_url,
 )
 from sqlalchemy.engine import URL
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, relationship
 from sqlalchemy.sql import func
-from testcontainers.core.docker_client import DockerClient
-from testcontainers.mysql import MySqlContainer
-from testcontainers.postgres import PostgresContainer
 
 from crudadmin.admin_interface.crud_admin import CRUDAdmin
 from crudadmin.core.db import DatabaseConfig
@@ -88,20 +82,20 @@ class ProductCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     name: str
     price: int
-    category_id: Optional[int] = None
+    category_id: int | None = None
 
 
 class ProductRead(BaseModel):
     id: int
     name: str
     price: int
-    category_id: Optional[int]
+    category_id: int | None
 
 
 class ProductUpdate(BaseModel):
-    name: Optional[str] = None
-    price: Optional[int] = None
-    category_id: Optional[int] = None
+    name: str | None = None
+    price: int | None = None
+    category_id: int | None = None
 
 
 class UserCreate(BaseModel):
@@ -119,9 +113,9 @@ class UserRead(BaseModel):
 
 
 class UserUpdate(BaseModel):
-    username: Optional[str] = None
-    email: Optional[str] = None
-    is_active: Optional[bool] = None
+    username: str | None = None
+    email: str | None = None
+    is_active: bool | None = None
 
 
 class UUIDModel(Base):
@@ -162,8 +156,8 @@ class UUIDModelRead(BaseModel):
 
 
 class UUIDModelUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
+    name: str | None = None
+    description: str | None = None
 
 
 class UUIDModelUpdateInternal(UUIDModelUpdate):
@@ -187,26 +181,18 @@ class EmailQueryConfigRead(BaseModel):
 
 
 class EmailQueryConfigUpdate(BaseModel):
-    template_id: Optional[str] = None
-    query_name: Optional[str] = None
-    query_text: Optional[str] = None
-    query_type: Optional[str] = None
+    template_id: str | None = None
+    query_name: str | None = None
+    query_text: str | None = None
+    query_type: str | None = None
 
 
 class EmailQueryConfigUpdateInternal(EmailQueryConfigUpdate):
     id: uuid.UUID
 
 
-def is_docker_running() -> bool:
-    try:
-        DockerClient()
-        return True
-    except DockerException:
-        return False
-
-
 @asynccontextmanager
-async def _async_session(url: Union[str, URL]) -> AsyncGenerator[AsyncSession]:
+async def _async_session(url: str | URL) -> AsyncGenerator[AsyncSession]:
     async_engine = create_async_engine(url, echo=False, future=True)
 
     session = async_sessionmaker(async_engine, expire_on_commit=False)
@@ -243,33 +229,9 @@ async def _admin_async_session(url: str) -> AsyncGenerator[AsyncSession]:
 
 
 @pytest_asyncio.fixture(scope="function")
-async def async_session(request: pytest.FixtureRequest) -> AsyncGenerator[AsyncSession]:
-    dialect_marker = request.node.get_closest_marker("dialect")
-    dialect = dialect_marker.args[0] if dialect_marker else "sqlite"
-
-    if dialect == "postgresql":
-        if not is_docker_running():
-            pytest.skip("Docker is required, but not running")
-        with PostgresContainer(driver="psycopg") as pg:
-            async with _async_session(
-                url=pg.get_connection_url(host=pg.get_container_host_ip())
-            ) as session:
-                yield session
-    elif dialect == "sqlite":
-        async with _async_session(url="sqlite+aiosqlite:///:memory:") as session:
-            yield session
-    elif dialect == "mysql":
-        if not is_docker_running():
-            pytest.skip("Docker is required, but not running")
-        with MySqlContainer() as mysql:
-            async with _async_session(
-                url=make_url(name_or_url=mysql.get_connection_url())._replace(
-                    drivername="mysql+aiomysql"
-                )
-            ) as session:
-                yield session
-    else:
-        raise NotImplementedError(f"Unsupported dialect: {dialect}")
+async def async_session() -> AsyncGenerator[AsyncSession]:
+    async with _async_session(url="sqlite+aiosqlite:///:memory:") as session:
+        yield session
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -525,7 +487,7 @@ def mock_request():
     return request
 
 
-def create_admin_base() -> Type[DeclarativeBase]:
+def create_admin_base() -> type[DeclarativeBase]:
     """Create a unique AdminBase class for each test to avoid table conflicts."""
 
     class AdminBase(DeclarativeBase):

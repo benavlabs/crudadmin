@@ -24,7 +24,7 @@ Relationship types (from the perspective of the model being viewed):
 import logging
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
+from typing import TYPE_CHECKING, Any
 
 from fastcrud import FastCRUD
 from fastcrud.core.field_management import discover_model_relationships
@@ -65,16 +65,16 @@ class RelationshipInfo:
 
     name: str
     relationship_type: RelationshipType
-    related_model: Type[DeclarativeBase]
+    related_model: type[DeclarativeBase]
     related_model_name: str
-    foreign_key: Optional[str] = None
-    back_populates: Optional[str] = None
+    foreign_key: str | None = None
+    back_populates: str | None = None
     uselist: bool = False
     display_field: str = "id"
-    available_options: List[Dict[str, Any]] = field(default_factory=list)
+    available_options: list[dict[str, Any]] = field(default_factory=list)
 
 
-def detect_relationships(model: Type[DeclarativeBase]) -> Dict[str, RelationshipInfo]:
+def detect_relationships(model: type[DeclarativeBase]) -> dict[str, RelationshipInfo]:
     """Detect relationships defined on a SQLAlchemy model.
 
     Discovery is delegated to fastcrud's ``discover_model_relationships``; this
@@ -87,7 +87,7 @@ def detect_relationships(model: Type[DeclarativeBase]) -> Dict[str, Relationship
     Returns:
         Dictionary mapping relationship names to :class:`RelationshipInfo`.
     """
-    relationships: Dict[str, RelationshipInfo] = {}
+    relationships: dict[str, RelationshipInfo] = {}
 
     for name, prop in discover_model_relationships(model):
         rel_info = _analyze_relationship(name, prop)
@@ -103,7 +103,7 @@ def detect_relationships(model: Type[DeclarativeBase]) -> Dict[str, Relationship
     return relationships
 
 
-def _analyze_relationship(name: str, prop: Any) -> Optional[RelationshipInfo]:
+def _analyze_relationship(name: str, prop: Any) -> RelationshipInfo | None:
     """Map a SQLAlchemy relationship property to a :class:`RelationshipInfo`."""
     related_model = prop.mapper.class_
 
@@ -133,21 +133,21 @@ def _analyze_relationship(name: str, prop: Any) -> Optional[RelationshipInfo]:
     )
 
 
-def _local_foreign_key(prop: Any) -> Optional[str]:
+def _local_foreign_key(prop: Any) -> str | None:
     """Foreign key column on this model for a BelongsTo relationship."""
     for local, _remote in prop.local_remote_pairs or []:
         return str(local.name)
     return None
 
 
-def _remote_foreign_key(prop: Any) -> Optional[str]:
+def _remote_foreign_key(prop: Any) -> str | None:
     """Foreign key column on the related model for a HasOne/HasMany relationship."""
     for _local, remote in prop.local_remote_pairs or []:
         return str(remote.name)
     return None
 
 
-def _primary_key_name(model: Type[DeclarativeBase]) -> str:
+def _primary_key_name(model: type[DeclarativeBase]) -> str:
     """Return the name of the model's first primary key column."""
     mapper = sa_inspect(model)
     if mapper.primary_key:
@@ -155,13 +155,13 @@ def _primary_key_name(model: Type[DeclarativeBase]) -> str:
     return "id"
 
 
-def _has_column(model: Type[DeclarativeBase], name: str) -> bool:
+def _has_column(model: type[DeclarativeBase], name: str) -> bool:
     """Whether the model has a (non-relationship) column with the given name."""
     return name in {c.name for c in sa_inspect(model).columns}
 
 
 def resolve_display_field(
-    related_model: Type[DeclarativeBase], configured: Optional[str]
+    related_model: type[DeclarativeBase], configured: str | None
 ) -> str:
     """Resolve the label field to show for a related model.
 
@@ -192,7 +192,7 @@ async def load_relationship_options(
     db: "AsyncSession",
     relationship: RelationshipInfo,
     limit: int = 100,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Load options for a relationship dropdown using fastcrud's ``get_multi``.
 
     Returns:
@@ -205,7 +205,7 @@ async def load_relationship_options(
     crud: FastCRUD[Any, Any, Any, Any, Any, Any] = FastCRUD(related_model)
     result = await crud.get_multi(db=db, limit=limit)
 
-    options: List[Dict[str, Any]] = []
+    options: list[dict[str, Any]] = []
     for record in result.get("data", []):
         pk_value = record.get(pk_name)
         display_value = record.get(relationship.display_field, pk_value)
@@ -220,7 +220,7 @@ async def load_related_data(
     pk_value: Any,
     relationship: RelationshipInfo,
     limit: int = 50,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Load related records for a single parent record.
 
     Uses fastcrud's ``get_joined`` with ``auto_detect_relationships`` scoped to
@@ -257,10 +257,10 @@ async def load_related_data(
 
 
 def get_relationship_summary(
-    record: Dict[str, Any],
+    record: dict[str, Any],
     relationship: RelationshipInfo,
-    related_data: List[Dict[str, Any]],
-) -> Dict[str, Any]:
+    related_data: list[dict[str, Any]],
+) -> dict[str, Any]:
     """Summarize relationship data for display in the list view.
 
     Returns a dict with ``count``, ``display_value`` and ``items`` (plus a

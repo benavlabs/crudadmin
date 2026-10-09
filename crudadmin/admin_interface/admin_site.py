@@ -1,7 +1,7 @@
 import logging
 from collections.abc import AsyncGenerator, Callable
 from functools import partial
-from typing import Any, Dict, Optional, cast
+from typing import Any, cast
 
 from crudauth.exceptions import (
     RateLimitException,
@@ -59,22 +59,22 @@ class AdminSite:
         self,
         database_config: DatabaseConfig,
         templates_directory: str,
-        models: Dict[str, Any],
+        models: dict[str, Any],
         admin_authentication: AdminAuthentication,
         mount_path: str,
         theme: str,
-        event_integration: Optional[Any] = None,
+        event_integration: Any | None = None,
     ) -> None:
         self.db_config: DatabaseConfig = database_config
         self.router: APIRouter = APIRouter()
         self.public_router: APIRouter = APIRouter()
         self.templates: Jinja2Templates = Jinja2Templates(directory=templates_directory)
-        self.models: Dict[str, Any] = models
+        self.models: dict[str, Any] = models
         self.admin_authentication: AdminAuthentication = admin_authentication
         self.mount_path: str = mount_path
         self.paths = AdminPaths.for_mount_segment(mount_path)
         self.theme: str = theme
-        self.event_integration: Optional[Any] = event_integration
+        self.event_integration: Any | None = event_integration
         self.record_counts = RecordCounts()
 
     def get_url_prefix(self) -> str:
@@ -120,7 +120,7 @@ class AdminSite:
                 )
 
     def _login_response(
-        self, request: Request, error: Optional[str], status_code: int = 200
+        self, request: Request, error: str | None, status_code: int = 200
     ) -> Response:
         return self.templates.TemplateResponse(
             name="auth/login.html",
@@ -286,9 +286,9 @@ class AdminSite:
 
         return cast(EndpointCallable, dashboard_content_inner)
 
-    def get_base_context(self, request: Optional[Request] = None) -> Dict[str, Any]:
+    def get_base_context(self, request: Request | None = None) -> dict[str, Any]:
         """Context every admin page template needs: navigation and the user."""
-        user: Optional[Dict[str, Any]] = (
+        user: dict[str, Any] | None = (
             getattr(request.state, "user", None) if request is not None else None
         )
         return {
@@ -304,9 +304,9 @@ class AdminSite:
 
     async def _record_counts(
         self, admin_db: AsyncSession, app_db: AsyncSession, is_superuser: bool
-    ) -> tuple[Dict[str, int], Dict[str, int]]:
+    ) -> tuple[dict[str, int], dict[str, int]]:
         """Counts for the dashboard: every model's, and the admins' for a superuser."""
-        auth_model_counts: Dict[str, int] = {}
+        auth_model_counts: dict[str, int] = {}
         if is_superuser:
             for model_name, model_data in self.admin_authentication.auth_models.items():
                 auth_crud = cast(FastCRUD, model_data["crud"])
@@ -314,7 +314,7 @@ class AdminSite:
                     model_name, partial(auth_crud.count, admin_db)
                 )
 
-        model_counts: Dict[str, int] = {}
+        model_counts: dict[str, int] = {}
         for model_name, model_data in self.models.items():
             model_crud = cast(FastCRUD, model_data["crud"])
             model_counts[model_name] = await self.record_counts.get(
@@ -354,7 +354,7 @@ class AdminSite:
 
     async def _visible_admins(
         self, request: Request, admin_db: AsyncSession
-    ) -> list[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """The admins whose sessions the current admin may see and end."""
         user = request.state.user
         if not user["is_superuser"]:

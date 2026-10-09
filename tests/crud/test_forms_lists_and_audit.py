@@ -1,7 +1,7 @@
 """Form handling, list pages and the audit log, through a real admin app."""
 
 import uuid
-from typing import Any, Optional
+from typing import Any
 
 import pytest
 from fastapi import FastAPI
@@ -28,7 +28,7 @@ class Job(Base):
     __tablename__ = "forms_jobs"
     job_id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(50))
-    note: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    note: Mapped[str | None] = mapped_column(String(100), nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
@@ -40,14 +40,14 @@ class Ticket(Base):
 
 class JobCreate(BaseModel):
     name: str
-    note: Optional[str] = None
+    note: str | None = None
     active: bool = True
 
 
 class JobUpdate(BaseModel):
-    name: Optional[str] = None
-    note: Optional[str] = None
-    active: Optional[bool] = None
+    name: str | None = None
+    note: str | None = None
+    active: bool | None = None
 
 
 class TicketCreate(BaseModel):
@@ -55,7 +55,7 @@ class TicketCreate(BaseModel):
 
 
 class TicketUpdate(BaseModel):
-    title: Optional[str] = None
+    title: str | None = None
 
 
 TICKET_IDS = [uuid.uuid4(), uuid.uuid4(), uuid.uuid4()]
@@ -174,7 +174,7 @@ class TestFormFields:
 
     def test_optional_int_renders_as_a_number(self):
         class WithOptionalNumber(BaseModel):
-            quantity: Optional[int] = None
+            quantity: int | None = None
 
         (field,) = _get_form_fields_from_schema(WithOptionalNumber)
 
@@ -224,9 +224,9 @@ class TestUpdates:
 class TestPasswordTransformer:
     def test_update_keeps_false_and_zero(self):
         class AccountUpdate(BaseModel):
-            password: Optional[str] = None
-            enabled: Optional[bool] = None
-            retries: Optional[int] = None
+            password: str | None = None
+            enabled: bool | None = None
+            retries: int | None = None
 
         transformer = PasswordTransformer(hash_function=lambda value: f"h:{value}")
         form = {"enabled": False, "retries": 0}

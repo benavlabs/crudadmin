@@ -1,7 +1,7 @@
 """Creating a record: the blank form, and the form submission."""
 
 import logging
-from typing import TYPE_CHECKING, Any, Dict, Optional, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from fastapi import Depends, Request
 from fastapi.responses import RedirectResponse, Response
@@ -60,8 +60,8 @@ def create_endpoint(view: "ModelView", template: str) -> EndpointCallable:
         assert view.admin_site is not None
 
         form_fields = _get_form_fields_from_schema(view.create_schema)
-        field_values: Dict[str, Any] = {}
-        refusal: Optional[Refusal] = None
+        field_values: dict[str, Any] = {}
+        refusal: Refusal | None = None
         submitted = read_create_form(await request.form(), form_fields)
         field_values = submitted.field_values
         result, refusal = await attempt_write(
@@ -98,7 +98,7 @@ def create_endpoint(view: "ModelView", template: str) -> EndpointCallable:
 
 
 async def _create_record(
-    view: "ModelView", db: AsyncSession, form_data: Dict[str, Any]
+    view: "ModelView", db: AsyncSession, form_data: dict[str, Any]
 ) -> Any:
     """Validate the form data with the create schema, write the record and commit.
 

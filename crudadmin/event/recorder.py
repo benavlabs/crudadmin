@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, List, Optional, Type
+from typing import Any
 
 from fastapi import Request
 from sqlalchemy.exc import NoInspectionAvailable
@@ -14,8 +14,8 @@ logger = logging.getLogger(__name__)
 
 
 def changed_fields(
-    before: Optional[Dict[str, Any]], after: Optional[Dict[str, Any]]
-) -> Dict[str, Dict[str, Any]]:
+    before: dict[str, Any] | None, after: dict[str, Any] | None
+) -> dict[str, dict[str, Any]]:
     """The fields whose value differs, each as ``{"old": ..., "new": ...}``."""
     if not before or not after:
         return {}
@@ -26,7 +26,7 @@ def changed_fields(
     }
 
 
-def _primary_key_name_or_id(model: Type[DeclarativeBase]) -> str:
+def _primary_key_name_or_id(model: type[DeclarativeBase]) -> str:
     try:
         return get_primary_key_name(model)
     except NoInspectionAvailable:
@@ -59,7 +59,7 @@ class AdminEvents:
         ```
     """
 
-    def __init__(self, integration: Optional[EventSystemIntegration]) -> None:
+    def __init__(self, integration: EventSystemIntegration | None) -> None:
         self.integration = integration
 
     @property
@@ -71,12 +71,12 @@ class AdminEvents:
         request: Request,
         admin_db: AsyncSession,
         event_type: EventType,
-        model: Type[DeclarativeBase],
+        model: type[DeclarativeBase],
         *,
         record_id: Any = None,
-        before: Optional[Dict[str, Any]] = None,
-        after: Optional[Dict[str, Any]] = None,
-        deleted: Optional[List[Dict[str, Any]]] = None,
+        before: dict[str, Any] | None = None,
+        after: dict[str, Any] | None = None,
+        deleted: list[dict[str, Any]] | None = None,
         succeeded: bool = True,
     ) -> None:
         """Record one create, update or delete of ``model`` by the logged-in admin.
@@ -125,12 +125,12 @@ class AdminEvents:
     def _details(
         request: Request,
         event_type: EventType,
-        model: Type[DeclarativeBase],
+        model: type[DeclarativeBase],
         record_id: Any,
-        before: Optional[Dict[str, Any]],
-        after: Optional[Dict[str, Any]],
-        deleted: Optional[List[Dict[str, Any]]],
-    ) -> Dict[str, Any]:
+        before: dict[str, Any] | None,
+        after: dict[str, Any] | None,
+        deleted: list[dict[str, Any]] | None,
+    ) -> dict[str, Any]:
         """What the event log page shows: the record's changes, and the request."""
         changes: Any
         if event_type == EventType.UPDATE:

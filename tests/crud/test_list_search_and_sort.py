@@ -154,3 +154,10 @@ def test_a_page_past_the_end_shows_the_last_page(client):
 
     assert response.status_code == 200
     assert "Showing 1 to 4 of 4 entries" in response.text
+
+
+def test_a_list_url_without_its_slash_is_redirected_with_the_query(client):
+    response = client.get("/admin/Gadget?page=2&sort_by=name")
+
+    assert response.status_code == 307
+    assert response.headers["location"].endswith("/admin/Gadget/?page=2&sort_by=name")

@@ -1,6 +1,5 @@
 import logging
 from ipaddress import IPv4Network, IPv6Network, ip_address, ip_network
-from typing import Optional, Union
 
 from fastapi.responses import JSONResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
@@ -26,12 +25,12 @@ class IPRestrictionMiddleware:
     def __init__(
         self,
         app: ASGIApp,
-        allowed_ips: Optional[list[str]] = None,
-        allowed_networks: Optional[list[str]] = None,
+        allowed_ips: list[str] | None = None,
+        allowed_networks: list[str] | None = None,
     ) -> None:
         self.app = app
         self.allowed_ips: set[str] = set()
-        self.allowed_networks: set[Union[IPv4Network, IPv6Network]] = set()
+        self.allowed_networks: set[IPv4Network | IPv6Network] = set()
 
         for ip in allowed_ips or []:
             try:
@@ -56,7 +55,7 @@ class IPRestrictionMiddleware:
             return
         await self.app(scope, receive, send)
 
-    def _refusal(self, client: Optional[tuple[str, int]]) -> Optional[JSONResponse]:
+    def _refusal(self, client: tuple[str, int] | None) -> JSONResponse | None:
         """The response refusing this client, or None when it is allowed in."""
         if client is None:
             logger.warning("Request client is None. Unable to determine client IP.")

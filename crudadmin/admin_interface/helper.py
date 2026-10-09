@@ -2,16 +2,16 @@ import types
 from datetime import date, datetime, time
 from decimal import Decimal
 from enum import Enum
-from typing import Any, Dict, List, Type, TypeVar, Union, cast, get_args, get_origin
+from typing import Any, TypeVar, Union, cast, get_args, get_origin
 
 from pydantic import AnyHttpUrl, BaseModel, EmailStr, HttpUrl
 
 T = TypeVar("T")
-HTMLInputType = tuple[str, Dict[str, Any]]
-FormField = Dict[str, Any]
+HTMLInputType = tuple[str, dict[str, Any]]
+FormField = dict[str, Any]
 
 
-def _get_html_input_type(py_type: Type[T]) -> HTMLInputType:
+def _get_html_input_type(py_type: type[T]) -> HTMLInputType:
     """
     Convert Python/Pydantic type to HTML input type with extra attributes.
 
@@ -32,7 +32,7 @@ def _get_html_input_type(py_type: Type[T]) -> HTMLInputType:
         - BaseModel -> json input
         - Unknown types default to text input
     """
-    extra: Dict[str, Any] = {}
+    extra: dict[str, Any] = {}
 
     if py_type in [int, float]:
         return "number", extra
@@ -72,7 +72,7 @@ def _without_none(annotation: Any) -> Any:
     return non_none[0] if len(non_none) == 1 else annotation
 
 
-def _get_form_fields_from_schema(schema: Type[BaseModel]) -> List[FormField]:
+def _get_form_fields_from_schema(schema: type[BaseModel]) -> list[FormField]:
     """
     Generate HTML form field configurations from a Pydantic model schema.
 
@@ -96,9 +96,9 @@ def _get_form_fields_from_schema(schema: Type[BaseModel]) -> List[FormField]:
             - default: Default value
             - Any extra type-specific attributes
     """
-    form_fields: List[FormField] = []
+    form_fields: list[FormField] = []
 
-    fields_dict = cast(Dict[str, Any], schema.model_fields)
+    fields_dict = cast(dict[str, Any], schema.model_fields)
 
     for field_name, field_info in fields_dict.items():
         field_type = _without_none(field_info.annotation)
@@ -106,7 +106,7 @@ def _get_form_fields_from_schema(schema: Type[BaseModel]) -> List[FormField]:
 
         if origin_type:
             input_type = "text"
-            extra: Dict[str, Any] = {}
+            extra: dict[str, Any] = {}
         else:
             input_type, extra = _get_html_input_type(field_type)
 

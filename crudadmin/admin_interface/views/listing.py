@@ -2,10 +2,10 @@
 
 import logging
 from collections.abc import AsyncGenerator, Callable
-from typing import TYPE_CHECKING, Any, Dict, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from fastapi import Depends, Request
-from fastapi.responses import RedirectResponse, Response
+from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..typing import EndpointCallable
@@ -55,12 +55,6 @@ def list_page(
         else:
             db = app_db
 
-        if template == "admin/model/list.html" and not request.url.path.endswith("/"):
-            redirect_url = request.url.path + "/"
-            if request.url.query:
-                redirect_url += "?" + request.url.query
-            return RedirectResponse(redirect_url, status_code=307)
-
         query = ListQuery.from_request(request, view.model)
         filter_criteria = query.filters(view.model)
         total_items = await view.crud.count(db=db, **cast(Any, filter_criteria))
@@ -75,7 +69,7 @@ def list_page(
             **cast(Any, filter_criteria),
         )
 
-        items: Dict[str, Any] = {
+        items: dict[str, Any] = {
             "data": items_result.get("data", []),
             "total_count": items_result.get("total_count", 0),
         }
@@ -89,7 +83,7 @@ def list_page(
         }
         success_message = success_messages.get(request.query_params.get("success", ""))
 
-        context: Dict[str, Any] = {
+        context: dict[str, Any] = {
             "model_items": items["data"],
             "model_name": view.model_key,
             "table_columns": table_columns(view.model, view.select_schema),

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Type
+from typing import Any
 from uuid import UUID
 
 from fastapi import Request
@@ -12,7 +12,7 @@ TRUE_WORDS = ("true", "yes", "1", "t", "y")
 FALSE_WORDS = ("false", "no", "0", "f", "n")
 
 
-def rows_per_page(value: Optional[str]) -> int:
+def rows_per_page(value: str | None) -> int:
     """Parse the rows-per-page query value, falling back to the default.
 
     Only the page sizes the list page offers are accepted, so a request cannot
@@ -26,8 +26,8 @@ def rows_per_page(value: Optional[str]) -> int:
 
 
 def search_filters(
-    model: Type[DeclarativeBase], column_name: Optional[str], value: str
-) -> Dict[str, Any]:
+    model: type[DeclarativeBase], column_name: str | None, value: str
+) -> dict[str, Any]:
     """FastCRUD filters for a search of one column, matched by the column's type.
 
     Text matches anywhere, case-insensitively; numbers, booleans and UUIDs match
@@ -62,8 +62,8 @@ def search_filters(
 
 
 def table_columns(
-    model: Type[DeclarativeBase], select_schema: Optional[Type[BaseModel]]
-) -> List[str]:
+    model: type[DeclarativeBase], select_schema: type[BaseModel] | None
+) -> list[str]:
     """The columns the list shows: the select schema's fields, or every column."""
     if select_schema:
         return list(select_schema.model_fields.keys())
@@ -80,14 +80,14 @@ class ListQuery:
 
     page: int
     rows_per_page: int
-    sort_column: Optional[str]
+    sort_column: str | None
     sort_order: str
-    search_column: Optional[str]
+    search_column: str | None
     search_value: str
 
     @classmethod
     def from_request(
-        cls, request: Request, model: Type[DeclarativeBase]
+        cls, request: Request, model: type[DeclarativeBase]
     ) -> "ListQuery":
         params = request.query_params
         try:
@@ -111,10 +111,10 @@ class ListQuery:
             search_value=params.get("search-input", "").strip(),
         )
 
-    def filters(self, model: Type[DeclarativeBase]) -> Dict[str, Any]:
+    def filters(self, model: type[DeclarativeBase]) -> dict[str, Any]:
         return search_filters(model, self.search_column, self.search_value)
 
-    def sorting(self) -> Dict[str, Optional[List[str]]]:
+    def sorting(self) -> dict[str, list[str] | None]:
         """The ``sort_columns`` and ``sort_orders`` arguments for FastCRUD."""
         if not self.sort_column:
             return {"sort_columns": None, "sort_orders": None}

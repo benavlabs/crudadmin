@@ -5,7 +5,7 @@ still work, with a ``DeprecationWarning``, and are mapped onto these objects.
 """
 
 import warnings
-from typing import Any, Dict, List, Optional, Type, TypeVar
+from typing import Any, TypeVar
 
 from crudauth.ratelimit import LockoutConfig
 from pydantic import BaseModel, ConfigDict, Field
@@ -38,7 +38,7 @@ class SessionConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     backend: str = "memory"
-    redis: Optional[RedisConfig] = None
+    redis: RedisConfig | None = None
     timeout_minutes: int = Field(default=30, ge=1)
     max_per_admin: int = Field(default=5, ge=1)
     cleanup_interval_minutes: int = Field(default=15, ge=1)
@@ -69,12 +69,12 @@ class AccessConfig(BaseModel):
 
     model_config = ConfigDict(extra="forbid", arbitrary_types_allowed=True)
 
-    allowed_ips: List[str] = Field(default_factory=list)
-    allowed_networks: List[str] = Field(default_factory=list)
+    allowed_ips: list[str] = Field(default_factory=list)
+    allowed_networks: list[str] = Field(default_factory=list)
     enforce_https: bool = False
     https_port: int = Field(default=443, ge=1, le=65535)
     trusted_proxy_hops: int = Field(default=0, ge=0)
-    lockout: Optional[LockoutConfig] = None
+    lockout: LockoutConfig | None = None
 
 
 SESSION_ARGUMENTS = {
@@ -99,11 +99,11 @@ ConfigType = TypeVar("ConfigType", SessionConfig, AccessConfig)
 
 
 def config_from_arguments(
-    config_class: Type[ConfigType],
+    config_class: type[ConfigType],
     argument: str,
-    config: Optional[ConfigType],
-    deprecated_arguments: Dict[str, Any],
-    field_names: Dict[str, str],
+    config: ConfigType | None,
+    deprecated_arguments: dict[str, Any],
+    field_names: dict[str, str],
 ) -> ConfigType:
     """The config object for ``argument``, built from deprecated arguments if any were passed.
 

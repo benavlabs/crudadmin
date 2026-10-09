@@ -1,7 +1,7 @@
 """Related records of a row, and the options of a relationship dropdown."""
 
 import logging
-from typing import TYPE_CHECKING, Union, cast
+from typing import TYPE_CHECKING, cast
 
 from fastapi import Depends, Request
 from fastapi.responses import JSONResponse, Response
@@ -38,7 +38,7 @@ def related_data_endpoint(view: "ModelView") -> EndpointCallable:
 
     async def get_related_data_inner(
         request: Request,
-        id: Union[int, str],
+        id: int | str,
         relationship_name: str,
         db: AsyncSession = Depends(view.session),
     ) -> Response:

@@ -78,7 +78,7 @@ mysql = [
 dev = [
     "pytest>=8.3.4",
     "pytest-asyncio>=0.25.3",
-    "testcontainers[postgresql]>=4.9.1",
+    "testcontainers[postgres,mysql]>=4.9.1",
     "ruff>=0.9.3",
     "mypy>=1.9.0",
     "httptools>=0.6.4",
@@ -95,11 +95,7 @@ docs = [
 ]
 
 all = [
-    "crudadmin[standard,dev,docs]"
-]
-
-test = [
-    "redis>=6.2.0",
+    "crudadmin[standard,redis,postgres,mysql]"
 ]
 
 [dependency-groups]
@@ -111,20 +107,20 @@ dev = [
 
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = "-ra -q --strict-markers --strict-config"
+addopts = "-ra -q --strict-markers --strict-config -m 'not databases'"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 markers = [
-    "dialect: marks tests to run with specific database dialect",
+    "databases: runs on PostgreSQL and MySQL containers; needs Docker, deselected unless -m databases",
 ]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 
 [tool.ruff]
 line-length = 88
-target-version = "py38"
+target-version = "py310"
 
 [tool.ruff.lint]
 select = [
@@ -169,8 +165,12 @@ warn_unreachable = true
 [tool.coverage.run]
 source = ["crudadmin"]
 branch = true
+concurrency = ["greenlet", "thread"]
 
 [tool.coverage.report]
+show_missing = true
+skip_covered = true
+fail_under = 93
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",

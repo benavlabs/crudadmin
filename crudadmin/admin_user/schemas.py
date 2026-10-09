@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated, Optional
+from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -54,7 +54,7 @@ class AdminUserUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     username: Annotated[
-        Optional[str],
+        str | None,
         Field(
             min_length=2,
             max_length=20,
@@ -63,17 +63,17 @@ class AdminUserUpdate(BaseModel):
         ),
     ] = None
     password: Annotated[
-        Optional[str],
+        str | None,
         Field(
             min_length=PASSWORD_MIN_LENGTH,
             max_length=PASSWORD_MAX_LENGTH,
             examples=["NewStr1ngst!"],
         ),
     ] = None
-    is_superuser: Optional[bool] = None
-    is_active: Optional[bool] = None
+    is_superuser: bool | None = None
+    is_active: bool | None = None
 
 
 class AdminUserUpdateInternal(AdminUserUpdate):
     updated_at: datetime
-    hashed_password: Optional[str] = None
+    hashed_password: str | None = None

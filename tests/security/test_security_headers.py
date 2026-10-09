@@ -6,7 +6,6 @@ through a stored value can't run.
 """
 
 import re
-from typing import Optional
 
 import pytest
 from fastapi import FastAPI
@@ -40,7 +39,7 @@ class NoteSchema(BaseModel):
 
 
 class NoteUpdate(BaseModel):
-    text: Optional[str] = None
+    text: str | None = None
 
 
 @pytest.fixture

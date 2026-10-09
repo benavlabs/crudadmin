@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 
 from sqlalchemy import JSON, DateTime, String
 from sqlalchemy import Enum as SQLEnum
@@ -8,6 +8,8 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from .schemas import EventStatus, EventType
 
 UTC = timezone.utc
+SESSION_ID_LENGTH = 128
+USER_AGENT_LENGTH = 512
 
 
 def create_admin_event_log(base: type[DeclarativeBase]) -> type[DeclarativeBase]:
@@ -42,11 +44,11 @@ def create_admin_event_log(base: type[DeclarativeBase]) -> type[DeclarativeBase]
             SQLEnum(EventStatus), nullable=False
         )
         user_id: Mapped[int] = mapped_column(index=True)
-        session_id: Mapped[str] = mapped_column(String(36), index=True)
+        session_id: Mapped[str] = mapped_column(String(SESSION_ID_LENGTH), index=True)
         ip_address: Mapped[str] = mapped_column(String(45))
-        user_agent: Mapped[str] = mapped_column(String(512))
-        resource_type: Mapped[Optional[str]] = mapped_column(String(128))
-        resource_id: Mapped[Optional[str]] = mapped_column(String(128))
+        user_agent: Mapped[str] = mapped_column(String(USER_AGENT_LENGTH))
+        resource_type: Mapped[str | None] = mapped_column(String(128))
+        resource_id: Mapped[str | None] = mapped_column(String(128))
         details: Mapped[dict[str, Any]] = mapped_column(
             JSON, default=dict, nullable=False
         )
@@ -86,10 +88,10 @@ def create_admin_audit_log(base: type[DeclarativeBase]) -> type[DeclarativeBase]
         resource_type: Mapped[str] = mapped_column(String(128))
         resource_id: Mapped[str] = mapped_column(String(128))
         action: Mapped[str] = mapped_column(String(64))
-        previous_state: Mapped[Optional[dict[str, Any]]] = mapped_column(
+        previous_state: Mapped[dict[str, Any] | None] = mapped_column(
             JSON, nullable=True
         )
-        new_state: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON, nullable=True)
+        new_state: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
         changes: Mapped[dict[str, Any]] = mapped_column(
             JSON, default=dict, nullable=False
         )

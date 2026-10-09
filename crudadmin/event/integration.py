@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, List, Optional, Tuple, Type
+from typing import Any
 
 from fastapi import Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,16 +19,16 @@ class EventSystemIntegration:
         self,
         db: AsyncSession,
         event_type: EventType,
-        model: Type[DeclarativeBase],
+        model: type[DeclarativeBase],
         user_id: int,
         session_id: str,
         request: Request,
-        resource_id: Optional[str] = None,
-        previous_state: Optional[Dict[str, Any]] = None,
-        new_state: Optional[Dict[str, Any]] = None,
-        details: Optional[Dict[str, Any]] = None,
+        resource_id: str | None = None,
+        previous_state: dict[str, Any] | None = None,
+        new_state: dict[str, Any] | None = None,
+        details: dict[str, Any] | None = None,
         succeeded: bool = True,
-        deleted_records: Optional[List[Dict[str, Any]]] = None,
+        deleted_records: list[dict[str, Any]] | None = None,
         primary_key_name: str = "id",
     ):
         """Record a model change: one event, and its audit rows if the change happened.
@@ -83,12 +83,12 @@ class EventSystemIntegration:
     @staticmethod
     def _audit_entries(
         event_type: EventType,
-        resource_id: Optional[str],
-        previous_state: Optional[Dict[str, Any]],
-        new_state: Optional[Dict[str, Any]],
-        deleted_records: Optional[List[Dict[str, Any]]],
+        resource_id: str | None,
+        previous_state: dict[str, Any] | None,
+        new_state: dict[str, Any] | None,
+        deleted_records: list[dict[str, Any]] | None,
         primary_key_name: str,
-    ) -> List[Tuple[str, Optional[Dict[str, Any]], Optional[Dict[str, Any]]]]:
+    ) -> list[tuple[str, dict[str, Any] | None, dict[str, Any] | None]]:
         """``(resource_id, previous_state, new_state)`` for each audit row to write."""
         if event_type == EventType.DELETE:
             return [
@@ -108,7 +108,7 @@ class EventSystemIntegration:
         session_id: str,
         request: Request,
         success: bool,
-        details: Optional[Dict[str, Any]] = None,
+        details: dict[str, Any] | None = None,
     ):
         """Record an authentication event; a failure is logged, never raised.
 
@@ -139,7 +139,7 @@ class EventSystemIntegration:
         user_id: int,
         session_id: str,
         request: Request,
-        details: Dict[str, Any],
+        details: dict[str, Any],
     ):
         """Log security-related events with high priority."""
         event = await self.event_service.log_event(

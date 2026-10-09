@@ -2,7 +2,7 @@ import datetime
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime as dt
-from typing import Any, Dict, List, Optional, Type
+from typing import Any
 
 from fastapi import UploadFile
 from pydantic import BaseModel, ValidationError
@@ -22,8 +22,8 @@ class PasswordTransformer:
         self,
         password_field: str = "password",
         hashed_field: str = "hashed_password",
-        hash_function: Optional[Callable[[str], str]] = None,
-        required_fields: Optional[List[str]] = None,
+        hash_function: Callable[[str], str] | None = None,
+        required_fields: list[str] | None = None,
     ):
         """
         Initialize password transformer.
@@ -49,8 +49,8 @@ class PasswordTransformer:
         self.required_fields = required_fields or []
 
     def transform_create_data(
-        self, form_data: Dict[str, Any], item_data: BaseModel
-    ) -> Dict[str, Any]:
+        self, form_data: dict[str, Any], item_data: BaseModel
+    ) -> dict[str, Any]:
         """
         Transform form data for create operations.
 
@@ -74,8 +74,8 @@ class PasswordTransformer:
         return transformed_data
 
     def transform_update_data(
-        self, form_data: Dict[str, Any], item_data: BaseModel
-    ) -> Dict[str, Any]:
+        self, form_data: dict[str, Any], item_data: BaseModel
+    ) -> dict[str, Any]:
         """
         Transform form data for update operations.
 
@@ -107,15 +107,15 @@ class SubmittedForm:
     shows again if the submission is refused.
     """
 
-    data: Dict[str, Any] = field(default_factory=dict)
-    field_values: Dict[str, Any] = field(default_factory=dict)
+    data: dict[str, Any] = field(default_factory=dict)
+    field_values: dict[str, Any] = field(default_factory=dict)
 
     def set(self, key: str, value: Any) -> None:
         self.data[key] = value
         self.field_values[key] = value
 
 
-def checkbox_value(raw_values: List[Any], default: Any) -> Optional[bool]:
+def checkbox_value(raw_values: list[Any], default: Any) -> bool | None:
     """A checkbox's submitted value, or None to leave the field out.
 
     One submitted value is read as a boolean: ``"true"`` and ``"false"`` as such,
@@ -135,7 +135,7 @@ def checkbox_value(raw_values: List[Any], default: Any) -> Optional[bool]:
 
 
 def read_create_form(
-    form: FormData, form_fields: List[Dict[str, Any]]
+    form: FormData, form_fields: list[dict[str, Any]]
 ) -> SubmittedForm:
     """The create form's fields, each falling back to its default when left empty."""
     submitted = SubmittedForm()
@@ -158,7 +158,7 @@ def read_create_form(
 
 
 def read_update_form(
-    form: FormData, form_fields: List[Dict[str, Any]], clearable_columns: set[str]
+    form: FormData, form_fields: list[dict[str, Any]], clearable_columns: set[str]
 ) -> SubmittedForm:
     """The update form's changes.
 
@@ -187,7 +187,7 @@ def read_update_form(
     return submitted
 
 
-def clearable_column_names(model: Type[DeclarativeBase]) -> set[str]:
+def clearable_column_names(model: type[DeclarativeBase]) -> set[str]:
     """Columns an empty form input sets to NULL: nullable ones that aren't keys.
 
     Whether a field may be cleared comes from the database column, not the
@@ -200,7 +200,7 @@ def clearable_column_names(model: Type[DeclarativeBase]) -> set[str]:
     }
 
 
-def schema_input(schema: Type[BaseModel], data: Dict[str, Any]) -> Dict[str, Any]:
+def schema_input(schema: type[BaseModel], data: dict[str, Any]) -> dict[str, Any]:
     """``data`` limited to the fields ``schema`` declares.
 
     The update form adds ``updated_at`` for the internal schema; an update
@@ -209,6 +209,6 @@ def schema_input(schema: Type[BaseModel], data: Dict[str, Any]) -> Dict[str, Any
     return {key: value for key, value in data.items() if key in schema.model_fields}
 
 
-def field_errors(error: ValidationError) -> Dict[str, str]:
+def field_errors(error: ValidationError) -> dict[str, str]:
     """The message for each invalid field, keyed by the field name."""
     return {str(detail["loc"][0]): detail["msg"] for detail in error.errors()}
