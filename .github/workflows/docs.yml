@@ -28,7 +28,7 @@ jobs:
           cache-dependency-glob: "uv.lock"
 
       - name: Install docs dependencies
-        run: uv sync --extra docs
+        run: uv sync --locked --extra docs
 
       - name: Build docs
         run: uv run zensical build

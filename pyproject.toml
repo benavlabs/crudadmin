@@ -78,7 +78,7 @@ mysql = [
 dev = [
     "pytest>=8.3.4",
     "pytest-asyncio>=0.25.3",
-    "testcontainers[postgresql]>=4.9.1",
+    "testcontainers[postgres,mysql]>=4.9.1",
     "ruff>=0.9.3",
     "mypy>=1.9.0",
     "httptools>=0.6.4",
@@ -95,11 +95,7 @@ docs = [
 ]
 
 all = [
-    "crudadmin[standard,dev,docs]"
-]
-
-test = [
-    "redis>=6.2.0",
+    "crudadmin[standard,redis,postgres,mysql]"
 ]
 
 [dependency-groups]
