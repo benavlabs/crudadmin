@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import DeclarativeBase
 
-from crudadmin import CRUDAdmin
+from crudadmin import AccessConfig, CRUDAdmin, SessionConfig
 from crudadmin.core.db import DatabaseConfig
 
 ALLOWED_IP = "10.9.9.9"
@@ -40,7 +40,7 @@ def _build_app(tmp_path, mount_path, mount_at, **admin_kwargs):
             session=_get_session,
             admin_db_url=f"sqlite+aiosqlite:///{tmp_path}/admin.db",
         ),
-        secure_cookies=False,
+        sessions=SessionConfig(secure_cookies=False),
         **admin_kwargs,
     )
     app = FastAPI()
@@ -53,7 +53,9 @@ def _build_app(tmp_path, mount_path, mount_at, **admin_kwargs):
 def test_allowlist_rejects_a_foreign_ip_on_every_mount(
     tmp_path, mount_path, mount_at, login_url, method
 ):
-    app = _build_app(tmp_path, mount_path, mount_at, allowed_ips=[ALLOWED_IP])
+    app = _build_app(
+        tmp_path, mount_path, mount_at, access=AccessConfig(allowed_ips=[ALLOWED_IP])
+    )
     client = TestClient(app, follow_redirects=False, client=(FOREIGN_IP, 50000))
 
     response = client.request(
@@ -66,7 +68,9 @@ def test_allowlist_rejects_a_foreign_ip_on_every_mount(
 
 @pytest.mark.parametrize("mount_path, mount_at, login_url", MOUNTS)
 def test_allowlist_admits_an_allowed_ip(tmp_path, mount_path, mount_at, login_url):
-    app = _build_app(tmp_path, mount_path, mount_at, allowed_ips=[ALLOWED_IP])
+    app = _build_app(
+        tmp_path, mount_path, mount_at, access=AccessConfig(allowed_ips=[ALLOWED_IP])
+    )
     client = TestClient(app, follow_redirects=False, client=(ALLOWED_IP, 50000))
 
     response = client.get(login_url)
@@ -76,7 +80,12 @@ def test_allowlist_admits_an_allowed_ip(tmp_path, mount_path, mount_at, login_ur
 
 @pytest.mark.parametrize("mount_path, mount_at, login_url", MOUNTS)
 def test_allowlist_admits_an_allowed_network(tmp_path, mount_path, mount_at, login_url):
-    app = _build_app(tmp_path, mount_path, mount_at, allowed_networks=["10.9.0.0/16"])
+    app = _build_app(
+        tmp_path,
+        mount_path,
+        mount_at,
+        access=AccessConfig(allowed_networks=["10.9.0.0/16"]),
+    )
     client = TestClient(app, follow_redirects=False, client=(ALLOWED_IP, 50000))
 
     assert client.get(login_url).status_code == 200
@@ -86,7 +95,9 @@ def test_allowlist_admits_an_allowed_network(tmp_path, mount_path, mount_at, log
 def test_https_redirect_applies_on_every_mount(
     tmp_path, mount_path, mount_at, login_url
 ):
-    app = _build_app(tmp_path, mount_path, mount_at, enforce_https=True)
+    app = _build_app(
+        tmp_path, mount_path, mount_at, access=AccessConfig(enforce_https=True)
+    )
     client = TestClient(app, base_url="http://example.com", follow_redirects=False)
 
     response = client.get(login_url, params={"next": "1"})
@@ -98,7 +109,10 @@ def test_https_redirect_applies_on_every_mount(
 @pytest.mark.parametrize("https_port", [8443, 9000])
 def test_https_redirect_uses_the_configured_port(tmp_path, https_port):
     app = _build_app(
-        tmp_path, "/admin", "/admin", enforce_https=True, https_port=https_port
+        tmp_path,
+        "/admin",
+        "/admin",
+        access=AccessConfig(enforce_https=True, https_port=https_port),
     )
     client = TestClient(app, base_url="http://example.com:8000", follow_redirects=False)
 
@@ -111,7 +125,9 @@ def test_https_redirect_uses_the_configured_port(tmp_path, https_port):
 
 
 def test_https_redirect_drops_the_http_port_for_443(tmp_path):
-    app = _build_app(tmp_path, "/admin", "/admin", enforce_https=True)
+    app = _build_app(
+        tmp_path, "/admin", "/admin", access=AccessConfig(enforce_https=True)
+    )
     client = TestClient(app, base_url="http://example.com:8000", follow_redirects=False)
 
     response = client.get("/admin/login")
@@ -120,7 +136,9 @@ def test_https_redirect_drops_the_http_port_for_443(tmp_path):
 
 
 def test_https_requests_are_not_redirected(tmp_path):
-    app = _build_app(tmp_path, "/admin", "/admin", enforce_https=True)
+    app = _build_app(
+        tmp_path, "/admin", "/admin", access=AccessConfig(enforce_https=True)
+    )
     client = TestClient(app, base_url="https://example.com", follow_redirects=False)
 
     assert client.get("/admin/login").status_code == 200

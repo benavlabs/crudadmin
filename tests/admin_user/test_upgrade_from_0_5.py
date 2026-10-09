@@ -14,7 +14,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import DeclarativeBase
 
-from crudadmin import CRUDAdmin
+from crudadmin import CRUDAdmin, SessionConfig
 from crudadmin.core.db import DatabaseConfig
 
 OLD_SCHEMA = """
@@ -58,7 +58,7 @@ def test_a_0_5_admin_database_is_upgraded_in_place(tmp_path):
             session=_get_session,
             admin_db_url=f"sqlite+aiosqlite:///{path}",
         ),
-        secure_cookies=False,
+        sessions=SessionConfig(secure_cookies=False),
     )
     app = FastAPI()
     app.mount("/admin", admin.app)

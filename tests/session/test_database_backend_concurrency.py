@@ -12,7 +12,7 @@ import pytest
 from fastapi import FastAPI
 from sqlalchemy.orm import DeclarativeBase
 
-from crudadmin import CRUDAdmin
+from crudadmin import CRUDAdmin, SessionConfig
 from crudadmin.core.db import DatabaseConfig
 
 
@@ -24,8 +24,11 @@ async def _get_session():
 @pytest.mark.parametrize(
     "backend_kwargs",
     [
-        {"session_backend": "database"},
-        {"track_sessions_in_db": True},
+        {"sessions": SessionConfig(backend="database", secure_cookies=False)},
+        {
+            "sessions": SessionConfig(secure_cookies=False),
+            "track_sessions_in_db": True,
+        },
     ],
 )
 async def test_concurrent_requests_keep_their_session(tmp_path, backend_kwargs):
@@ -40,7 +43,6 @@ async def test_concurrent_requests_keep_their_session(tmp_path, backend_kwargs):
             session=_get_session,
             admin_db_url=f"sqlite+aiosqlite:///{tmp_path}/admin.db",
         ),
-        secure_cookies=False,
         initial_admin={"username": "admin", "password": "correct-horse-battery"},
         **backend_kwargs,
     )

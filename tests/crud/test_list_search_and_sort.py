@@ -16,7 +16,7 @@ from sqlalchemy import Boolean, Float, Integer, String, Uuid
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from crudadmin import CRUDAdmin
+from crudadmin import CRUDAdmin, SessionConfig
 
 CREDENTIALS = {"username": "admin", "password": "correct-horse-battery"}
 TOKENS = [uuid.UUID(int=n) for n in range(1, 5)]
@@ -64,7 +64,7 @@ def client(tmp_path):
         session=get_session,
         SECRET_KEY="x" * 32,
         admin_db_url=f"sqlite+aiosqlite:///{tmp_path}/admin.db",
-        secure_cookies=False,
+        sessions=SessionConfig(secure_cookies=False),
         initial_admin=CREDENTIALS,
     )
     admin.add_view(model=Gadget, create_schema=GadgetSchema, update_schema=GadgetSchema)

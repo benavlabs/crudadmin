@@ -11,7 +11,7 @@ from typing import Any
 import pytest
 from sqlalchemy.orm import DeclarativeBase
 
-from crudadmin import CRUDAdmin, MemcachedConfig, RedisConfig
+from crudadmin import CRUDAdmin, MemcachedConfig, RedisConfig, SessionConfig
 from crudadmin.core.db import DatabaseConfig
 
 SECRET = "x" * 32
@@ -39,7 +39,7 @@ def _admin(tmp_path, **kwargs) -> CRUDAdmin:
 
 @pytest.mark.parametrize("backend", ["memory", "redis", "database"])
 def test_supported_backends_are_used_as_given(tmp_path, backend):
-    admin = _admin(tmp_path, session_backend=backend)
+    admin = _admin(tmp_path, sessions=SessionConfig(backend=backend))
 
     assert admin.admin_authentication.session_transport._backend == backend
 
@@ -47,7 +47,7 @@ def test_supported_backends_are_used_as_given(tmp_path, backend):
 def test_database_backend_keeps_lockout_counters_in_the_database_too(tmp_path):
     from crudauth.ratelimit import DatabaseRateLimiterBackend
 
-    admin = _admin(tmp_path, session_backend="database")
+    admin = _admin(tmp_path, sessions=SessionConfig(backend="database"))
 
     limiter = admin.admin_authentication.auth.runtime.rate_limiter
     assert isinstance(limiter, DatabaseRateLimiterBackend)
@@ -57,13 +57,13 @@ def test_database_backend_keeps_lockout_counters_in_the_database_too(tmp_path):
 @pytest.mark.parametrize("backend", ["memcached", "MEMCACHED"])
 def test_memcached_fails_with_the_replacements_named(tmp_path, backend):
     with pytest.raises(ValueError, match="'redis'.*'database'"):
-        _admin(tmp_path, session_backend=backend)
+        _admin(tmp_path, sessions=SessionConfig(backend=backend))
 
 
 def test_hybrid_warns_and_runs_on_redis(tmp_path):
     """Hybrid was Redis plus a copy of each session in the database."""
     with pytest.warns(DeprecationWarning, match="hybrid"):
-        admin = _admin(tmp_path, session_backend="hybrid")
+        admin = _admin(tmp_path, sessions=SessionConfig(backend="hybrid"))
 
     assert admin._session_backend == "redis"
     assert admin.admin_authentication.session_transport._backend == "redis"
@@ -76,7 +76,7 @@ def test_memcached_config_fails_too(tmp_path):
 
 def test_unknown_backend_fails(tmp_path):
     with pytest.raises(ValueError, match="Unknown session_backend"):
-        _admin(tmp_path, session_backend="postgres")
+        _admin(tmp_path, sessions=SessionConfig(backend="postgres"))
 
 
 def test_track_sessions_in_db_warns_and_keeps_memory_users_on_a_shared_store(tmp_path):
@@ -90,7 +90,11 @@ def test_track_sessions_in_db_warns_and_keeps_memory_users_on_a_shared_store(tmp
 def test_track_sessions_in_db_with_redis_stays_on_redis(tmp_path):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", DeprecationWarning)
-        admin = _admin(tmp_path, session_backend="redis", track_sessions_in_db=True)
+        admin = _admin(
+            tmp_path,
+            sessions=SessionConfig(backend="redis"),
+            track_sessions_in_db=True,
+        )
 
     assert admin._session_backend == "redis"
 
@@ -104,7 +108,7 @@ class TestRedisClient:
     """The client is built lazily (no connection here), so no Redis server is needed."""
 
     def test_defaults(self, tmp_path):
-        admin = _admin(tmp_path, session_backend="redis")
+        admin = _admin(tmp_path, sessions=SessionConfig(backend="redis"))
 
         kwargs = _redis(admin).connection_pool.connection_kwargs
         assert (kwargs["host"], kwargs["port"], kwargs["db"]) == ("localhost", 6379, 0)
@@ -119,7 +123,7 @@ class TestRedisClient:
             pool_size=7,
             connect_timeout=3,
         )
-        admin = _admin(tmp_path, session_backend="redis", redis_config=config)
+        admin = _admin(tmp_path, sessions=SessionConfig(backend="redis", redis=config))
 
         pool = _redis(admin).connection_pool
         kwargs = pool.connection_kwargs
@@ -134,7 +138,7 @@ class TestRedisClient:
     def test_url_keeps_tls(self, tmp_path):
         """A rediss:// URL is passed through whole, so TLS isn't silently dropped."""
         config = RedisConfig(url="rediss://user:pw@redis.example.com:6390/4")
-        admin = _admin(tmp_path, session_backend="redis", redis_config=config)
+        admin = _admin(tmp_path, sessions=SessionConfig(backend="redis", redis=config))
 
         pool = _redis(admin).connection_pool
         assert pool.connection_class.__name__ == "SSLConnection"
@@ -143,13 +147,16 @@ class TestRedisClient:
 
     def test_dict_config(self, tmp_path):
         admin = _admin(
-            tmp_path, session_backend="redis", redis_config={"host": "h", "db": 5}
+            tmp_path,
+            sessions=SessionConfig(backend="redis", redis=RedisConfig(host="h", db=5)),
         )
 
         kwargs = _redis(admin).connection_pool.connection_kwargs
         assert (kwargs["host"], kwargs["db"]) == ("h", 5)
 
     def test_other_backends_build_no_client(self, tmp_path):
-        admin = _admin(tmp_path, session_backend="memory", redis_config=RedisConfig())
+        admin = _admin(
+            tmp_path, sessions=SessionConfig(backend="memory", redis=RedisConfig())
+        )
 
         assert admin._redis_client is None

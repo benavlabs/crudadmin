@@ -16,7 +16,7 @@ from sqlalchemy import ForeignKey, Integer, String, event
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from crudadmin import CRUDAdmin
+from crudadmin import CRUDAdmin, SessionConfig
 from crudadmin.admin_interface.model_view import PasswordTransformer
 
 CREDENTIALS = {"username": "admin", "password": "correct-horse-battery"}
@@ -95,7 +95,7 @@ def started(tmp_path):
         session=get_session,
         SECRET_KEY="x" * 32,
         admin_db_url=f"sqlite+aiosqlite:///{tmp_path}/admin.db",
-        secure_cookies=False,
+        sessions=SessionConfig(secure_cookies=False),
         initial_admin=CREDENTIALS,
     )
     admin.add_view(model=Tag, create_schema=NameSchema, update_schema=NameUpdate)

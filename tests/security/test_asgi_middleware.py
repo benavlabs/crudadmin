@@ -16,7 +16,7 @@ from fastapi.testclient import TestClient
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import Message, Receive, Scope, Send
 
-from crudadmin import CRUDAdmin
+from crudadmin import AccessConfig, CRUDAdmin, SessionConfig
 from crudadmin.admin_interface.middleware import (
     AdminAuthMiddleware,
     HTTPSRedirectMiddleware,
@@ -36,7 +36,7 @@ def _admin(tmp_path, **kwargs) -> CRUDAdmin:
         session=_no_session,
         SECRET_KEY="x" * 32,
         admin_db_url=f"sqlite+aiosqlite:///{tmp_path}/admin.db",
-        secure_cookies=False,
+        sessions=SessionConfig(secure_cookies=False),
         initial_admin=CREDENTIALS,
         **kwargs,
     )
@@ -73,7 +73,10 @@ def logged_in(tmp_path):
 
 def test_no_admin_middleware_is_a_base_http_middleware(tmp_path):
     admin = _admin(
-        tmp_path, allowed_ips=["127.0.0.1"], enforce_https=True, https_port=8443
+        tmp_path,
+        access=AccessConfig(
+            allowed_ips=["127.0.0.1"], enforce_https=True, https_port=8443
+        ),
     )
 
     classes = [middleware.cls for middleware in admin.app.user_middleware]

@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from crudadmin import CRUDAdmin
+from crudadmin import CRUDAdmin, SessionConfig
 from crudadmin.event import EventStatus, EventType
 
 CREDENTIALS = {"username": "root", "password": "correct-horse-battery"}
@@ -24,7 +24,7 @@ def admin_and_client(tmp_path):
         session=get_session,
         SECRET_KEY="x" * 32,
         admin_db_url=f"sqlite+aiosqlite:///{tmp_path}/admin.db",
-        secure_cookies=False,
+        sessions=SessionConfig(secure_cookies=False),
         track_events=True,
         initial_admin=CREDENTIALS,
     )

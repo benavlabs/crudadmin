@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import DeclarativeBase
 
-from crudadmin import CRUDAdmin
+from crudadmin import CRUDAdmin, SessionConfig
 from crudadmin.core.db import DatabaseConfig
 from crudadmin.event import create_admin_audit_log, create_admin_event_log
 
@@ -35,7 +35,7 @@ def admin(tmp_path):
             admin_event_log=create_admin_event_log(AdminBase),
             admin_audit_log=create_admin_audit_log(AdminBase),
         ),
-        secure_cookies=False,
+        sessions=SessionConfig(secure_cookies=False),
         track_events=True,
         initial_admin=ROOT,
     )

@@ -19,7 +19,7 @@ from sqlalchemy import Column, ForeignKey, Integer, String
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, relationship
 
-from crudadmin import CRUDAdmin
+from crudadmin import CRUDAdmin, SessionConfig
 
 
 class Base(DeclarativeBase):
@@ -86,7 +86,7 @@ def admin_client(tmp_path_factory):
         session=get_session,
         SECRET_KEY="x" * 32,
         admin_db_url=f"sqlite+aiosqlite:///{tmp_path}/admin.db",
-        secure_cookies=False,
+        sessions=SessionConfig(secure_cookies=False),
     )
     admin.add_view(
         model=Article, create_schema=ArticleCreate, update_schema=ArticleUpdate
