@@ -347,3 +347,53 @@ class TestConfirmationErrors:
                 _confirm(root, ROOT["password"])
         finally:
             sudo.elevate = original_elevate
+
+
+def test_no_password_hash_reaches_the_event_log(started, admin):
+    new_client, first = started
+    root = _login(new_client(), ROOT)
+    _confirm(root, ROOT["password"])
+    created = root.post(
+        "/admin/AdminUser/form_create",
+        data={"username": "newbie", "password": "newbie-password-1"},
+        headers=_csrf(root),
+    )
+    assert created.status_code == 303
+    user_model = admin.db_config.AdminUser
+
+    async def newbie() -> tuple[int, str]:
+        async with admin.db_config.admin_session_maker() as db:
+            row = (
+                await db.execute(
+                    select(user_model.id, user_model.hashed_password).where(
+                        user_model.username == "newbie"
+                    )
+                )
+            ).one()
+            return row.id, row.hashed_password
+
+    newbie_id, first_hash = first.portal.call(newbie)
+    updated = root.post(
+        f"/admin/AdminUser/form_update/{newbie_id}",
+        data={"password": "changed-password-2"},
+        headers=_csrf(root),
+    )
+    assert updated.status_code == 303
+    _, second_hash = first.portal.call(newbie)
+
+    async def stored_events() -> str:
+        async with admin.db_config.admin_session_maker() as db:
+            events = (await db.execute(select(admin.db_config.AdminEventLog))).scalars()
+            audits = (await db.execute(select(admin.db_config.AdminAuditLog))).scalars()
+            return repr(
+                [event.details for event in events]
+                + [
+                    (a.previous_state, a.new_state, a.changes, a.audit_metadata)
+                    for a in audits
+                ]
+            )
+
+    stored = first.portal.call(stored_events)
+    assert "newbie" in stored
+    assert first_hash not in stored
+    assert second_hash not in stored

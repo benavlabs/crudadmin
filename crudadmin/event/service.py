@@ -38,7 +38,8 @@ def redact_secrets(value: Any, sensitive: bool = False) -> Any:
 
     Applies at any depth, so ``{"hashed_password": {"old": ..., "new": ...}}`` in
     a change set keeps its shape and shows that the field changed, without the
-    values. Audit snapshots are readable by every admin.
+    values. Every event's details and every audit row pass through it before
+    they are stored.
     """
     if isinstance(value, dict):
         return {
@@ -105,7 +106,7 @@ class EventService:
             user_agent=request.headers.get("user-agent", ""),
             resource_type=resource_type,
             resource_id=resource_id,
-            details=self._serialize_dict(details),
+            details=self._serialize_dict(redact_secrets(details)),
         )
 
         result = await self.crud_events.create(
@@ -139,7 +140,7 @@ class EventService:
             changes=self._serialize_dict(
                 redact_secrets(self._compute_changes(previous_state, new_state))
             ),
-            audit_metadata=self._serialize_dict(metadata),
+            audit_metadata=self._serialize_dict(redact_secrets(metadata)),
         )
 
         result = await self.crud_audits.create(
