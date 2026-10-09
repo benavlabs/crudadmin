@@ -22,7 +22,7 @@ from sqlalchemy import Integer, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from starlette.routing import Mount
 
-from crudadmin import CRUDAdmin
+from crudadmin import CRUDAdmin, SessionConfig
 from crudadmin.admin_interface.middleware.auth import AdminAuthMiddleware
 from crudadmin.core.db import DatabaseConfig
 
@@ -63,7 +63,7 @@ def _admin(tmp_path, **kwargs) -> CRUDAdmin:
             session=_get_session,
             admin_db_url=f"sqlite+aiosqlite:///{tmp_path}/admin.db",
         ),
-        secure_cookies=False,
+        sessions=SessionConfig(secure_cookies=False),
         track_events=True,
         **kwargs,
     )

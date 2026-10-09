@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...admin_user.schemas import AdminUserCreateInternal
-from ...event import EventType, log_admin_action
+from ...event import EventType
 from ..helper import _get_form_fields_from_schema
 from ..typing import EndpointCallable
 from .forms import read_create_form
@@ -40,7 +40,7 @@ def create_endpoint(view: "ModelView", template: str) -> EndpointCallable:
         - HTMX support for dynamic updates
 
     Notes:
-        - Uses @log_admin_action decorator for event tracking
+        - Records the create, or its refusal, in the event log
         - Handles both single and multi-value form fields
         - Supports password hashing for AdminUser model
 
@@ -51,15 +51,10 @@ def create_endpoint(view: "ModelView", template: str) -> EndpointCallable:
         ```
     """
 
-    @log_admin_action(EventType.CREATE, model=view.model, db_config=view.db_config)
     async def form_create_endpoint_inner(
         request: Request,
         db: AsyncSession = Depends(view.session),
         admin_db: AsyncSession = Depends(view.db_config.get_admin_db),
-        current_user: dict = Depends(
-            cast(Any, view.admin_site).admin_authentication.get_current_user()
-        ),
-        event_integration=Depends(lambda: view.event_integration),
     ) -> Response:
         """Handle POST form submission to create a model record."""
         assert view.admin_site is not None
@@ -67,18 +62,26 @@ def create_endpoint(view: "ModelView", template: str) -> EndpointCallable:
         form_fields = _get_form_fields_from_schema(view.create_schema)
         field_values: Dict[str, Any] = {}
         refusal: Optional[Refusal] = None
-        try:
-            submitted = read_create_form(await request.form(), form_fields)
-            field_values = submitted.field_values
-            result, refusal = await attempt_write(
-                db, lambda: _create_record(view, db, submitted.data)
+        submitted = read_create_form(await request.form(), form_fields)
+        field_values = submitted.field_values
+        result, refusal = await attempt_write(
+            db, lambda: _create_record(view, db, submitted.data)
+        )
+        if result:
+            view._forget_record_count()
+            await view.events.record(
+                request,
+                admin_db,
+                EventType.CREATE,
+                view.model,
+                record_id=result.get(view.primary_key_name),
+                after=result,
             )
-            if result:
-                view._forget_record_count()
-                request.state.crud_result = result
-                return _redirect_to_list(view, request)
-        except Exception as error:
-            refusal = Refusal(str(error))
+            return _redirect_to_list(view, request)
+        if refusal is not None:
+            await view.events.record(
+                request, admin_db, EventType.CREATE, view.model, succeeded=False
+            )
 
         return await form_page(
             view,

@@ -6,7 +6,7 @@ Since 0.6, CRUDAdmin keeps admin sessions with [crudauth](https://benavlabs.gith
 
 ### RedisConfig
 
-Connection settings for `session_backend="redis"`. Pass an instance, or a dict with the same keys, as `redis_config`.
+Connection settings for the `redis` backend. Pass an instance, or a dict with the same keys, as `SessionConfig(redis=...)`.
 
 ::: crudadmin.session.configs.RedisConfig
     rendering:
@@ -24,19 +24,21 @@ Connection settings for `session_backend="redis"`. Pass an instance, or a dict w
 | `connect_timeout` | `None` | Connection timeout in seconds |
 
 ```python
-from crudadmin import CRUDAdmin, RedisConfig
+from crudadmin import CRUDAdmin, RedisConfig, SessionConfig
 
 admin = CRUDAdmin(
     session=get_session,
     SECRET_KEY=SECRET_KEY,
-    session_backend="redis",
-    redis_config=RedisConfig(url="redis://localhost:6379/0", pool_size=10),
+    sessions=SessionConfig(
+        backend="redis",
+        redis=RedisConfig(url="redis://localhost:6379/0", pool_size=10),
+    ),
 )
 ```
 
 ### MemcachedConfig
 
-The Memcached backend was removed in 0.6. The class is kept so existing imports keep working, but passing it to `CRUDAdmin` (or using `session_backend="memcached"`) raises a `ValueError` that names the replacements, `redis` and `database`.
+The Memcached backend was removed in 0.6. The class is kept so existing imports keep working, but passing it to `CRUDAdmin` (or using `SessionConfig(backend="memcached")`) raises a `ValueError` that names the replacements, `redis` and `database`.
 
 ::: crudadmin.session.configs.MemcachedConfig
     rendering:
@@ -77,19 +79,20 @@ For the rest of the session manager's API, see [crudauth's documentation](https:
 
 ## Session settings on CRUDAdmin
 
-These `CRUDAdmin` arguments configure sessions and logins. The [Session Backends](../usage/session-backends.md) guide explains each one.
+Sessions are configured with `sessions=SessionConfig(...)`, and the login lockout and proxies with `access=AccessConfig(...)`. The [Session Backends](../usage/session-backends.md) guide explains each field.
 
-| Argument | Default | Meaning |
+| Field | Default | Meaning |
 |----------|---------|---------|
-| `session_backend` | `"memory"` | `"memory"`, `"redis"` or `"database"` |
-| `redis_config` | `None` | `RedisConfig` or dict, for the `redis` backend |
-| `session_timeout_minutes` | `30` | Idle time after which a session ends |
-| `max_sessions_per_user` | `5` | Sessions one admin may hold at once |
-| `cleanup_interval_minutes` | `15` | Minimum time between sweeps of idle sessions |
-| `secure_cookies` | `True` | Send the session cookies over HTTPS only |
-| `trusted_proxy_hops` | `0` | Reverse proxies in front of the app; `0` ignores `X-Forwarded-For` |
-| `lockout` | 5 failures, 1 to 5 minutes | A crudauth `LockoutConfig` for the login lockout |
-| `track_sessions_in_db` | `False` | Deprecated; see below |
+| `SessionConfig.backend` | `"memory"` | `"memory"`, `"redis"` or `"database"` |
+| `SessionConfig.redis` | `None` | `RedisConfig` or dict, for the `redis` backend |
+| `SessionConfig.timeout_minutes` | `30` | Idle time after which a session ends |
+| `SessionConfig.max_per_admin` | `5` | Sessions one admin may hold at once |
+| `SessionConfig.cleanup_interval_minutes` | `15` | Minimum time between sweeps of idle sessions |
+| `SessionConfig.secure_cookies` | `True` | Send the session cookies over HTTPS only |
+| `AccessConfig.trusted_proxy_hops` | `0` | Reverse proxies in front of the app; `0` ignores `X-Forwarded-For` |
+| `AccessConfig.lockout` | 5 failures, 1 to 5 minutes | A crudauth `LockoutConfig` for the login lockout |
+
+Both classes are documented in the [CRUDAdmin API reference](crud_admin.md#configuration-objects).
 
 ## Names CRUDAdmin uses
 
@@ -105,8 +108,9 @@ These `CRUDAdmin` arguments configure sessions and logins. The [Session Backends
 
 ## Deprecated and removed
 
-- `session_backend="hybrid"` runs on `redis` with a `DeprecationWarning`, and will be removed.
+- The flat `CRUDAdmin` arguments `session_backend`, `redis_config`, `session_timeout_minutes`, `max_sessions_per_user`, `cleanup_interval_minutes`, `secure_cookies`, `trusted_proxy_hops` and `lockout` still work in 0.7, with a `DeprecationWarning`; use the fields above.
+- `backend="hybrid"` runs on `redis` with a `DeprecationWarning`, and will be removed.
 - `track_sessions_in_db=True` emits a `DeprecationWarning`. With the `memory` backend it switches to `database`; with `redis` it changes nothing.
-- `session_backend="memcached"` and `memcached_config` raise a `ValueError` at startup.
+- `backend="memcached"` and `memcached_config` raise a `ValueError` at startup.
 - The `crudadmin.session.manager`, `crudadmin.session.storage` and `crudadmin.session.backends` modules were removed; `crudadmin.session` now only holds `RedisConfig` and `MemcachedConfig`.
 - Sessions are no longer stored in an `admin_session` table. After upgrading, you can drop that table.

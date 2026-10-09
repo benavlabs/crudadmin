@@ -76,8 +76,7 @@ class EventSystemIntegration:
             await db.commit()
             return event
 
-        except Exception as e:
-            logger.error(f"Error in event logging: {str(e)}")
+        except Exception:
             await db.rollback()
             raise
 
@@ -111,7 +110,11 @@ class EventSystemIntegration:
         success: bool,
         details: Optional[Dict[str, Any]] = None,
     ):
-        """Log authentication-related events."""
+        """Record an authentication event; a failure is logged, never raised.
+
+        It runs inside login and logout, which must not fail because the event
+        log can't be written.
+        """
         try:
             status = EventStatus.SUCCESS if success else EventStatus.FAILURE
 
@@ -125,8 +128,8 @@ class EventSystemIntegration:
                 details=details,
             )
 
-        except Exception as e:
-            logger.error(f"Error logging auth event: {str(e)}", exc_info=True)
+        except Exception:
+            logger.exception("Could not record the %s event", event_type.value)
             await db.rollback()
 
     async def log_security_event(
@@ -139,19 +142,14 @@ class EventSystemIntegration:
         details: Dict[str, Any],
     ):
         """Log security-related events with high priority."""
-        try:
-            event = await self.event_service.log_event(
-                db=db,
-                event_type=event_type,
-                status=EventStatus.WARNING,
-                user_id=user_id,
-                session_id=session_id,
-                request=request,
-                details={**details, "priority": "high", "requires_attention": True},
-            )
+        event = await self.event_service.log_event(
+            db=db,
+            event_type=event_type,
+            status=EventStatus.WARNING,
+            user_id=user_id,
+            session_id=session_id,
+            request=request,
+            details={**details, "priority": "high", "requires_attention": True},
+        )
 
-            return event
-
-        except Exception as e:
-            logger.error(f"Error logging security event: {str(e)}", exc_info=True)
-            raise
+        return event

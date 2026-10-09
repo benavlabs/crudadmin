@@ -1,4 +1,3 @@
-import logging
 from typing import TYPE_CHECKING, Any, Optional
 
 from fastapi import Request, Response
@@ -8,8 +7,6 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 if TYPE_CHECKING:
     from crudadmin import CRUDAdmin
-
-logger = logging.getLogger(__name__)
 
 FORM_SUBMITTED_BY_FETCH_HEADER = "X-CRUDAdmin-Fetch"
 REDIRECT_TARGET_HEADER = "X-CRUDAdmin-Location"
@@ -114,12 +111,12 @@ class AdminAuthMiddleware:
         await self.app(scope, receive, AdminResponseHeaders(send, submitted_by_fetch))
 
     async def _resolve_principal(self, request: Request) -> Optional[Any]:
-        """The logged-in admin's principal, or None when the session is missing or invalid."""
+        """The logged-in admin's principal, or None when the session is missing or invalid.
+
+        A session store that can't be reached raises: the admin sees an error
+        rather than a login page that can't log them in.
+        """
         authentication = self.admin_instance.admin_authentication
-        try:
-            return await authentication.auth.resolve_principal(
-                request, update_activity=True
-            )
-        except Exception:
-            logger.exception("Could not resolve the admin session")
-            return None
+        return await authentication.auth.resolve_principal(
+            request, update_activity=True
+        )

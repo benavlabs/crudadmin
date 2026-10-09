@@ -2,15 +2,18 @@ import logging
 import time
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, cast
+from typing import Any, Dict, Optional, cast
 
 from fastapi import Depends, Request
 from fastapi.templating import Jinja2Templates
 from fastcrud import FastCRUD
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.db import DatabaseConfig
+from ..event import EventStatus, EventType
+from ..event.service import redact_secrets
 from .admin_site import AdminSite
 from .auth import AdminAuthentication
 from .typing import RouteResponse
@@ -20,6 +23,16 @@ UTC = timezone.utc
 logger = logging.getLogger("crudadmin")
 
 EndpointFunction = Callable[[Request, AsyncSession], Awaitable[RouteResponse]]
+
+
+def _day(value: Optional[str]) -> Optional[datetime]:
+    """The start of a ``YYYY-MM-DD`` day in UTC, or None when it isn't one."""
+    if not value:
+        return None
+    try:
+        return datetime.strptime(value, "%Y-%m-%d").replace(tzinfo=UTC)
+    except ValueError:
+        return None
 
 
 class ManagementPages:
@@ -69,8 +82,6 @@ class ManagementPages:
             request: Request,
             admin_db: AsyncSession = Depends(admin_db_db_dependency),
         ) -> RouteResponse:
-            from ..event import EventStatus, EventType
-
             users = await self.db_config.crud_users.get_multi(db=admin_db)
 
             context = self.admin_site.get_base_context(request)
@@ -141,9 +152,9 @@ class ManagementPages:
                 end_date = request.query_params.get("end_date")
 
                 filter_criteria: Dict[str, Any] = {}
-                if event_type:
+                if event_type in {kind.value for kind in EventType}:
                     filter_criteria["event_type"] = event_type
-                if status:
+                if status in {state.value for state in EventStatus}:
                     filter_criteria["status"] = status
 
                 if username:
@@ -153,17 +164,12 @@ class ManagementPages:
                     if user and isinstance(user, dict):
                         filter_criteria["user_id"] = user.get("id")
 
-                if start_date:
-                    start = datetime.strptime(start_date, "%Y-%m-%d").replace(
-                        tzinfo=UTC
-                    )
-                    filter_criteria["timestamp__gte"] = start
-
-                if end_date:
-                    end = (
-                        datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
-                    ).replace(tzinfo=UTC)
-                    filter_criteria["timestamp__lt"] = end
+                first_day = _day(start_date)
+                if first_day is not None:
+                    filter_criteria["timestamp__gte"] = first_day
+                last_day = _day(end_date)
+                if last_day is not None:
+                    filter_criteria["timestamp__lt"] = last_day + timedelta(days=1)
 
                 events = await crud_events.get_multi(
                     db=admin_db,
@@ -184,25 +190,9 @@ class ManagementPages:
                             )
                             if isinstance(user, dict):
                                 event_data["username"] = user.get("username", "Unknown")
-
-                            if event.get("resource_type") and event.get("resource_id"):
-                                if not self.db_config.AdminAuditLog:
-                                    raise ValueError("AdminAuditLog is not configured")
-
-                                crud_audits: FastCRUD = FastCRUD(
-                                    self.db_config.AdminAuditLog
-                                )
-                                audit = await crud_audits.get(
-                                    db=admin_db, event_id=event.get("id")
-                                )
-                                if audit and isinstance(audit, dict):
-                                    event_data["details"] = {
-                                        "resource_details": {
-                                            "model": event.get("resource_type"),
-                                            "id": event.get("resource_id"),
-                                            "changes": audit.get("new_state"),
-                                        }
-                                    }
+                            event_data["details"] = redact_secrets(
+                                event.get("details") or {}
+                            )
 
                             enriched_events.append(event_data)
 
@@ -229,8 +219,8 @@ class ManagementPages:
                     },
                 )
 
-            except Exception as e:
-                logger.error(f"Error retrieving events: {str(e)}")
+            except SQLAlchemyError:
+                logger.exception("Could not read the event log")
                 return self.templates.TemplateResponse(
                     name="admin/management/events_content.html",
                     request=request,

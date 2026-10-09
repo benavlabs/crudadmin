@@ -17,7 +17,7 @@ from sqlalchemy import Integer, String
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from crudadmin import CRUDAdmin
+from crudadmin import CRUDAdmin, SessionConfig
 from crudadmin.admin_interface.auth import storage_key_prefix
 
 SESSION_COOKIE = "crudadmin_session"
@@ -81,7 +81,7 @@ def _admin(tmp_path, name: str, track_events: bool = True, session=_no_session):
         SECRET_KEY=name * 32,
         mount_path=f"/{name}",
         admin_db_url=f"sqlite+aiosqlite:///{tmp_path}/{name}.db",
-        secure_cookies=False,
+        sessions=SessionConfig(secure_cookies=False),
         track_events=track_events,
         initial_admin={"username": name, "password": f"{name}-password-123"},
     )
@@ -171,8 +171,7 @@ def _admin_on_shared_store(tmp_path, mount_path: str) -> CRUDAdmin:
         SECRET_KEY="s" * 32,
         mount_path=mount_path,
         admin_db_url=f"sqlite+aiosqlite:///{tmp_path}/shared.db",
-        session_backend="database",
-        secure_cookies=False,
+        sessions=SessionConfig(backend="database", secure_cookies=False),
         initial_admin={"username": "admin", "password": "admin-password-123"},
     )
 
@@ -221,7 +220,7 @@ def test_every_store_uses_the_admin_key_prefix(tmp_path):
         SECRET_KEY="k" * 32,
         mount_path="/backoffice",
         admin_db_url=f"sqlite+aiosqlite:///{tmp_path}/admin.db",
-        session_backend="database",
+        sessions=SessionConfig(backend="database"),
     )
     authentication = admin.admin_authentication
     expected = storage_key_prefix("k" * 32, "/backoffice")

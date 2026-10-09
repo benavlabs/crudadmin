@@ -10,8 +10,7 @@
                         <div class="checkbox-wrapper">
                             <input type="checkbox"
                                    class="custom-checkbox"
-                                   name="select-all"
-                                   onchange="handleSelectAll(this)">
+                                   name="select-all">
                         </div>
                     </th>
                     {% for header in table_columns %}
@@ -54,7 +53,7 @@
                         {% if relationships %}
                             <td class="expand-cell">
                                 <button class="expand-btn"
-                                        onclick="toggleRowExpand(this, this.closest('tr').dataset.rowId)"
+                                        data-action="toggle-row"
                                         title="Expand/Collapse">
                                     <svg class="expand-icon" viewBox="0 0 24 24" width="16" height="16">
                                         <path fill="currentColor" d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>
@@ -67,8 +66,7 @@
                                 <input type="checkbox"
                                        class="custom-checkbox"
                                        name="rowSelect"
-                                       value="{{ row_id }}"
-                                       onchange="handleRowSelect()">
+                                       value="{{ row_id }}">
                             </div>
                         </td>
                         {% for attribute in row.values() %}
@@ -244,32 +242,3 @@
         to { transform: rotate(360deg); }
     }
 </style>
-
-<script>
-    function toggleRowExpand(button, rowId) {
-        const expandedRow = document.getElementById('expanded-' + rowId);
-        const dataRow = button.closest('.data-row');
-
-        if (expandedRow.style.display === 'none') {
-            // Close other expanded rows
-            document.querySelectorAll('.expanded-row').forEach(row => {
-                if (row.id !== 'expanded-' + rowId) {
-                    row.style.display = 'none';
-                    const otherBtn = row.previousElementSibling.querySelector('.expand-btn');
-                    if (otherBtn) otherBtn.classList.remove('expanded');
-                }
-            });
-
-            expandedRow.style.display = 'table-row';
-            button.classList.add('expanded');
-
-            // Trigger HTMX to load content
-            htmx.trigger(expandedRow.querySelector('.relationship-section'), 'intersect');
-        } else {
-            expandedRow.style.display = 'none';
-            button.classList.remove('expanded');
-        }
-
-        event.stopPropagation();
-    }
-</script>

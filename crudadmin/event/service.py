@@ -38,7 +38,8 @@ def redact_secrets(value: Any, sensitive: bool = False) -> Any:
 
     Applies at any depth, so ``{"hashed_password": {"old": ..., "new": ...}}`` in
     a change set keeps its shape and shows that the field changed, without the
-    values. Audit snapshots are readable by every admin.
+    values. Every event's details and every audit row pass through it before
+    they are stored.
     """
     if isinstance(value, dict):
         return {
@@ -94,33 +95,28 @@ class EventService:
         details: Optional[dict] = None,
         commit: bool = True,
     ) -> AdminEventLogRead:
-        try:
-            ip_address = request.client.host if request.client else "unknown"
+        ip_address = request.client.host if request.client else "unknown"
 
-            event_data = AdminEventLogCreate(
-                event_type=event_type,
-                status=status,
-                user_id=user_id,
-                session_id=session_id,
-                ip_address=ip_address,
-                user_agent=request.headers.get("user-agent", ""),
-                resource_type=resource_type,
-                resource_id=resource_id,
-                details=self._serialize_dict(details),
-            )
+        event_data = AdminEventLogCreate(
+            event_type=event_type,
+            status=status,
+            user_id=user_id,
+            session_id=session_id,
+            ip_address=ip_address,
+            user_agent=request.headers.get("user-agent", ""),
+            resource_type=resource_type,
+            resource_id=resource_id,
+            details=self._serialize_dict(redact_secrets(details)),
+        )
 
-            result = await self.crud_events.create(
-                db=db,
-                object=event_data,
-                schema_to_select=AdminEventLogRead,
-                return_as_model=False,
-                commit=commit,
-            )
-            return AdminEventLogRead(**cast(dict, result))
-
-        except Exception as e:
-            logger.error(f"Error logging event: {str(e)}", exc_info=True)
-            raise
+        result = await self.crud_events.create(
+            db=db,
+            object=event_data,
+            schema_to_select=AdminEventLogRead,
+            return_as_model=False,
+            commit=commit,
+        )
+        return AdminEventLogRead(**cast(dict, result))
 
     async def create_audit_log(
         self,
@@ -134,33 +130,28 @@ class EventService:
         metadata: Optional[dict] = None,
         commit: bool = True,
     ) -> AdminAuditLogRead:
-        try:
-            audit_data = AdminAuditLogCreate(
-                event_id=event_id,
-                resource_type=resource_type,
-                resource_id=resource_id,
-                action=action,
-                previous_state=self._serialize_dict(redact_secrets(previous_state)),
-                new_state=self._serialize_dict(redact_secrets(new_state)),
-                changes=self._serialize_dict(
-                    redact_secrets(self._compute_changes(previous_state, new_state))
-                ),
-                audit_metadata=self._serialize_dict(metadata),
-            )
+        audit_data = AdminAuditLogCreate(
+            event_id=event_id,
+            resource_type=resource_type,
+            resource_id=resource_id,
+            action=action,
+            previous_state=self._serialize_dict(redact_secrets(previous_state)),
+            new_state=self._serialize_dict(redact_secrets(new_state)),
+            changes=self._serialize_dict(
+                redact_secrets(self._compute_changes(previous_state, new_state))
+            ),
+            audit_metadata=self._serialize_dict(redact_secrets(metadata)),
+        )
 
-            result = await self.crud_audits.create(
-                db=db,
-                object=audit_data,
-                schema_to_select=AdminAuditLogRead,
-                return_as_model=False,
-                commit=commit,
-            )
+        result = await self.crud_audits.create(
+            db=db,
+            object=audit_data,
+            schema_to_select=AdminAuditLogRead,
+            return_as_model=False,
+            commit=commit,
+        )
 
-            return AdminAuditLogRead(**cast(dict, result))
-
-        except Exception as e:
-            logger.error(f"Error creating audit log: {str(e)}", exc_info=True)
-            raise
+        return AdminAuditLogRead(**cast(dict, result))
 
     def _compute_changes(
         self,
@@ -276,17 +267,12 @@ class EventService:
         self, db: AsyncSession, retention_days: int = 90
     ) -> None:
         """Clean up old logs based on retention policy."""
-        try:
-            cutoff_date = datetime.now(UTC) - timedelta(days=retention_days)
+        cutoff_date = datetime.now(UTC) - timedelta(days=retention_days)
 
-            await self.crud_events.delete(
-                db, allow_multiple=True, timestamp__lt=cutoff_date
-            )
+        await self.crud_events.delete(
+            db, allow_multiple=True, timestamp__lt=cutoff_date
+        )
 
-            await self.crud_audits.delete(
-                db, allow_multiple=True, timestamp__lt=cutoff_date
-            )
-
-        except Exception as e:
-            logger.error(f"Error cleaning up old logs: {str(e)}", exc_info=True)
-            raise
+        await self.crud_audits.delete(
+            db, allow_multiple=True, timestamp__lt=cutoff_date
+        )

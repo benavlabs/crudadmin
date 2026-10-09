@@ -217,7 +217,7 @@ A common pattern is managing content with related models (users, posts, comments
 #### Registration Pattern
 
 ```python
-from crudadmin import CRUDAdmin
+from crudadmin import CRUDAdmin, SessionConfig
 from models import User, Category, Tag, Post, Comment
 from schemas import (
     UserCreate, UserUpdate, UserRead,
@@ -230,8 +230,8 @@ from schemas import (
 # Initialize CRUDAdmin
 crud_admin = CRUDAdmin(
     session=get_session,
-    session_backend="database",
     SECRET_KEY="your-secret-key-here",
+    sessions=SessionConfig(backend="database"),
 )
 
 # Register models in logical order
@@ -505,14 +505,14 @@ from ecommerce_schemas import (
 )
 
 # Configure for e-commerce scale
-from crudadmin import CRUDAdmin, RedisConfig
+from crudadmin import CRUDAdmin, RedisConfig, SessionConfig
 
-redis_config = RedisConfig(url="redis://localhost:6379")
 crud_admin = CRUDAdmin(
     session=get_session,
-    session_backend="redis",  # Better for high traffic
-    redis_config=redis_config,
     SECRET_KEY="your-ecommerce-secret-key",
+    sessions=SessionConfig(
+        backend="redis", redis=RedisConfig(url="redis://localhost:6379")
+    ),
 )
 
 # Register in business workflow order
@@ -702,9 +702,8 @@ Optimizing CRUDAdmin for applications with millions of records.
 # Configure for large datasets
 crud_admin = CRUDAdmin(
     session=get_session,
-    session_backend="redis",
     SECRET_KEY="your-key",
-    session_timeout_minutes=30,
+    sessions=SessionConfig(backend="redis", timeout_minutes=30),
 )
 
 # Enable database indexes in your models
@@ -794,7 +793,7 @@ async def startup():
 
 ```python
 # admin/setup.py - Separate admin configuration
-from crudadmin import CRUDAdmin
+from crudadmin import CRUDAdmin, SessionConfig
 from your_app.models import User, Product, Order
 from admin.schemas import AdminUserRead, AdminProductRead, AdminOrderRead
 
@@ -802,7 +801,7 @@ def setup_admin():
     """Configure and return admin application"""
     crud_admin = CRUDAdmin(
         session=get_session,
-        session_backend="database",
+        sessions=SessionConfig(backend="database"),
         admin_db_url="sqlite+aiosqlite:///./admin.db",
         SECRET_KEY="admin-secret-key",
     )
@@ -849,7 +848,7 @@ class AdminConfig:
 
 # Use in setup
 def setup_admin():
-    from crudadmin import CRUDAdmin, RedisConfig
+    from crudadmin import CRUDAdmin, RedisConfig, SessionConfig
     
     config = AdminConfig()
     
@@ -860,8 +859,7 @@ def setup_admin():
     
     crud_admin = CRUDAdmin(
         session=get_session,
-        session_backend=config.SESSION_BACKEND,
-        redis_config=redis_config,
+        sessions=SessionConfig(backend=config.SESSION_BACKEND, redis=redis_config),
         admin_db_url=config.DATABASE_URL,
         SECRET_KEY=config.SECRET_KEY,
     )
@@ -887,21 +885,25 @@ import os
 
 from crudauth.ratelimit import LockoutConfig
 
-from crudadmin import CRUDAdmin, RedisConfig
+from crudadmin import AccessConfig, CRUDAdmin, RedisConfig, SessionConfig
 
 crud_admin = CRUDAdmin(
     session=get_session,
     SECRET_KEY=os.environ["ADMIN_SECRET_KEY"],
-    session_backend="redis",
-    redis_config=RedisConfig(url=os.environ["REDIS_URL"]),
-    session_timeout_minutes=60,
-    max_sessions_per_user=5,
-    allowed_ips=["127.0.0.1", "192.168.1.100"],
-    allowed_networks=["192.168.1.0/24", "10.0.0.0/8"],
-    trusted_proxy_hops=1,
-    lockout=LockoutConfig(max_attempts=5, lockout_max_seconds=5 * 60),
-    secure_cookies=True,
-    enforce_https=True,
+    sessions=SessionConfig(
+        backend="redis",
+        redis=RedisConfig(url=os.environ["REDIS_URL"]),
+        timeout_minutes=60,
+        max_per_admin=5,
+        secure_cookies=True,
+    ),
+    access=AccessConfig(
+        allowed_ips=["127.0.0.1", "192.168.1.100"],
+        allowed_networks=["192.168.1.0/24", "10.0.0.0/8"],
+        trusted_proxy_hops=1,
+        lockout=LockoutConfig(max_attempts=5, lockout_max_seconds=5 * 60),
+        enforce_https=True,
+    ),
     track_events=True,
 )
 ```

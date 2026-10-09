@@ -407,12 +407,7 @@ class TestLogModelEvent:
                     request=mock_request,
                 )
 
-            # Verify error was logged
-            mock_logger.error.assert_called_once_with(
-                "Error in event logging: Database error"
-            )
-
-            # Verify rollback was called
+            mock_logger.error.assert_not_called()
             mock_db.rollback.assert_called_once()
 
     @pytest.mark.asyncio
@@ -438,12 +433,7 @@ class TestLogModelEvent:
                     resource_id="123",
                 )
 
-            # Verify error was logged
-            mock_logger.error.assert_called_once_with(
-                "Error in event logging: Audit error"
-            )
-
-            # Verify rollback was called
+            mock_logger.error.assert_not_called()
             mock_db.rollback.assert_called_once()
 
 
@@ -542,7 +532,6 @@ class TestLogAuthEvent:
         )
 
         with patch("crudadmin.event.integration.logger") as mock_logger:
-            # Should not raise exception, just log it
             await event_integration.log_auth_event(
                 db=mock_db,
                 event_type=EventType.LOGIN,
@@ -552,10 +541,10 @@ class TestLogAuthEvent:
                 success=True,
             )
 
-            # Verify error was logged with exc_info=True
-            mock_logger.error.assert_called_once_with(
-                "Error logging auth event: Auth logging error", exc_info=True
+            mock_logger.exception.assert_called_once_with(
+                "Could not record the %s event", "login"
             )
+            mock_db.rollback.assert_called_once()
 
 
 class TestLogSecurityEvent:
@@ -693,10 +682,7 @@ class TestLogSecurityEvent:
                     details=details,
                 )
 
-            # Verify error was logged with exc_info=True
-            mock_logger.error.assert_called_once_with(
-                "Error logging security event: Security logging error", exc_info=True
-            )
+            mock_logger.error.assert_not_called()
 
 
 class TestEventSystemIntegrationEdgeCases:

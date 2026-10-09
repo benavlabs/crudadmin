@@ -26,7 +26,16 @@ from sqlalchemy.orm import DeclarativeBase
 from ..admin_interface.auth import AdminAuthentication
 from ..admin_interface.middleware.auth import AdminAuthMiddleware
 from ..admin_interface.middleware.ip_restriction import IPRestrictionMiddleware
+from ..admin_interface.middleware.security_headers import SecurityHeadersMiddleware
+from ..config import (
+    ACCESS_ARGUMENTS,
+    SESSION_ARGUMENTS,
+    AccessConfig,
+    SessionConfig,
+    config_from_arguments,
+)
 from ..core.db import DatabaseConfig, new_admin_base
+from ..event.recorder import AdminEvents
 from ..session.configs import MemcachedConfig, RedisConfig
 from .admin_accounts import create_initial_admin
 from .admin_site import AdminSite
@@ -58,287 +67,87 @@ class ModelConfig(TypedDict):
 
 class CRUDAdmin:
     """
-    FastAPI-based admin interface for managing database models and authentication.
+    A FastAPI admin interface for your SQLAlchemy models.
 
-    Features:
-        - Selective CRUD for added models
-        - Event logging and audit trails
-        - Health monitoring and dashboard
-        - IP restriction and HTTPS enforcement
-        - Session management
-        - Token-based authentication
+    It mounts as a sub-application, keeps its admins, sessions and event log in
+    an admin database of its own, and protects every page with a login.
 
     Args:
-        session: Async SQLAlchemy session dependency function that yields sessions
-        SECRET_KEY: Secret key for session management and cookie signing. Generate securely using:
-            **Python one-liner (recommended)**
-            python -c "import secrets; print(secrets.token_urlsafe(32))"
-
-            **OpenSSL**
-            openssl rand -base64 32
-
-            **/dev/urandom (Unix/Linux)**
-            head -c 32 /dev/urandom | base64
-
-            **The secret key must be:**
-            - At least 32 bytes (256 bits) long
-            - Stored securely (e.g., in environment variables)
-            - Different for each environment
-            - Not committed to version control
-
-        mount_path: URL path where admin interface is mounted, default "/admin"
-        theme: UI theme ('dark-theme' or 'light-theme'), default "dark-theme"
-        admin_db_url: SQLite/PostgreSQL database URL for admin data
-        admin_db_path: File path for SQLite admin database
-        db_config: Optional pre-configured DatabaseConfig
-        setup_on_initialization: Whether to run setup on init, default True
-        initial_admin: Initial admin user credentials
-        allowed_ips: List of allowed IP addresses
-        allowed_networks: List of allowed IP networks in CIDR notation
-        max_sessions_per_user: Limit concurrent sessions, default 5
-        session_timeout_minutes: Session inactivity timeout, default 30 minutes
-        cleanup_interval_minutes: How often to remove expired sessions, default 15 minutes
-        secure_cookies: Enable secure cookie flag, default True
-        enforce_https: Redirect HTTP to HTTPS, default False
-        https_port: HTTPS port for redirects, default 443
-        track_events: Enable event logging, default False
-        track_sessions_in_db: Enable session tracking in database, default False
-        session_backend: Backend type ("memory", "redis", "memcached", "database")
-        redis_config: Redis configuration (RedisConfig instance, dict, or None)
-        memcached_config: Memcached configuration (MemcachedConfig instance, dict, or None)
+        session: Your app's async session dependency; the admin reads and writes
+            your models through it.
+        SECRET_KEY: Keys the stored session ids and CSRF tokens. Use at least 32
+            random bytes, kept out of version control, for example from
+            ``python -c "import secrets; print(secrets.token_urlsafe(32))"``.
+            Changing it signs every admin out.
+        mount_path: Where the admin is mounted, ``"/admin"`` by default; ``"/"``
+            for the root.
+        theme: ``"dark-theme"`` or ``"light-theme"``.
+        admin_db_url: The admin database's URL. Defaults to SQLite in
+            ``./crudadmin_data/admin.db``.
+        admin_db_path: A path for a SQLite admin database, instead of a URL.
+        db_config: A ``DatabaseConfig`` to use instead of the two above.
+        setup_on_initialization: Mount the routes now; with False, call
+            ``setup()`` yourself.
+        initial_admin: Credentials of a superuser created by ``initialize()`` when
+            no admin exists yet.
+        track_events: Record logins, logouts and every create, update and delete
+            in the event log.
+        sessions: How sessions are kept: a [SessionConfig][crudadmin.config.SessionConfig].
+        access: Who may reach the admin: an [AccessConfig][crudadmin.config.AccessConfig].
+        allowed_ips: Deprecated; use ``access=AccessConfig(allowed_ips=...)``.
+        allowed_networks: Deprecated; use ``access=AccessConfig(allowed_networks=...)``.
+        max_sessions_per_user: Deprecated; use ``sessions=SessionConfig(max_per_admin=...)``.
+        session_timeout_minutes: Deprecated; use ``sessions=SessionConfig(timeout_minutes=...)``.
+        cleanup_interval_minutes: Deprecated; use
+            ``sessions=SessionConfig(cleanup_interval_minutes=...)``.
+        secure_cookies: Deprecated; use ``sessions=SessionConfig(secure_cookies=...)``.
+        enforce_https: Deprecated; use ``access=AccessConfig(enforce_https=...)``.
+        https_port: Deprecated; use ``access=AccessConfig(https_port=...)``.
+        track_sessions_in_db: Deprecated; use ``sessions=SessionConfig(backend="database")``.
+        session_backend: Deprecated; use ``sessions=SessionConfig(backend=...)``.
+        redis_config: Deprecated; use ``sessions=SessionConfig(redis=...)``.
+        memcached_config: No longer supported; passing it raises.
+        trusted_proxy_hops: Deprecated; use ``access=AccessConfig(trusted_proxy_hops=...)``.
+        lockout: Deprecated; use ``access=AccessConfig(lockout=...)``.
 
     Raises:
-        ValueError: If mount_path is invalid or theme is unsupported
-        ImportError: If required dependencies are missing
-        RuntimeError: If database connection fails
-
-    Notes:
-        - Database Configuration uses SQLite by default in ./crudadmin_data/admin.db
-        - Database is auto-initialized unless setup_on_initialization=False
+        ValueError: If ``SECRET_KEY`` is empty, the session backend is unknown or
+            Memcached, or a deprecated argument is passed together with the
+            config object that replaces it.
 
     Example:
-        Basic setup with SQLite:
-        ```python
-        from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-        from sqlalchemy.orm import declarative_base
-        from sqlalchemy import Column, Integer, String
-        import os
-
-        # Generate secret key
-        SECRET_KEY = os.environ.get("ADMIN_SECRET_KEY") or os.urandom(32).hex()
-
-        # Define models
-        Base = declarative_base()
-
-        class User(Base):
-            __tablename__ = "users"
-            id = Column(Integer, primary_key=True)
-            username = Column(String, unique=True)
-            email = Column(String)
-            role = Column(String)
-
-        # Setup database
-        engine = create_async_engine("sqlite+aiosqlite:///app.db")
-
-        # Create database session dependency
-        async def get_session():
-            async with AsyncSession(engine) as session:
-                yield session
-
-        # Create admin interface
-        admin = CRUDAdmin(
-            session=get_session,
-            SECRET_KEY=SECRET_KEY,
-            initial_admin={
-                "username": "admin",
-                "password": "secure_pass123"
-            }
-        )
-        ```
-
-        Production setup with security features:
         ```python
         admin = CRUDAdmin(
             session=get_session,
-            SECRET_KEY=SECRET_KEY,
-            # Security features
-            allowed_ips=["10.0.0.1", "10.0.0.2"],
-            allowed_networks=["192.168.1.0/24"],
-            secure_cookies=True,
-            enforce_https=True,
-            # Custom PostgreSQL admin database
-            admin_db_url="postgresql+asyncpg://user:pass@localhost/admin",
-            # Session configuration
-            max_sessions_per_user=3,
-            session_timeout_minutes=15,
-            # Enable audit logging
-            track_events=True
+            SECRET_KEY=os.environ["ADMIN_SECRET_KEY"],
+            initial_admin={"username": "admin", "password": os.environ["ADMIN_PASSWORD"]},
         )
+        admin.add_view(model=Product, create_schema=ProductCreate, update_schema=ProductUpdate)
+        app.mount("/admin", admin.app)
         ```
 
-        Session management configuration:
+        In production, with sessions shared between workers:
         ```python
         admin = CRUDAdmin(
             session=get_session,
-            SECRET_KEY=SECRET_KEY,
-            # Session management settings
-            max_sessions_per_user=5,
-            session_timeout_minutes=30,
-            cleanup_interval_minutes=15,
-            # Secure cookie settings
-            secure_cookies=True,
-            # Initial admin user
-            initial_admin={
-                "username": "admin",
-                "password": "very_secure_password_123",
-                "is_superuser": True
-            }
+            SECRET_KEY=os.environ["ADMIN_SECRET_KEY"],
+            admin_db_url="postgresql+asyncpg://user:pass@db/admin",
+            track_events=True,
+            sessions=SessionConfig(
+                backend="redis",
+                redis=RedisConfig(url=os.environ["REDIS_URL"]),
+                timeout_minutes=15,
+            ),
+            access=AccessConfig(
+                allowed_networks=["10.0.0.0/8"],
+                enforce_https=True,
+                trusted_proxy_hops=1,
+            ),
         )
         ```
 
-        Session configuration with Redis and Memcached:
-        ```python
-        from crudadmin.session.configs import RedisConfig, MemcachedConfig
-
-        # Redis backend configuration
-        redis_config = RedisConfig(
-            host="redis.example.com",
-            port=6379,
-            db=1,
-            username="redis_user",
-            password="redis_password",
-            pool_size=10,
-            connect_timeout=5
-        )
-
-        admin = CRUDAdmin(
-            session=get_session,
-            SECRET_KEY=SECRET_KEY,
-            session_backend="redis",
-            redis_config=redis_config,
-            # Session management settings
-            max_sessions_per_user=3,
-            session_timeout_minutes=15,
-            cleanup_interval_minutes=5
-        )
-
-        # Or using a Redis URL
-        redis_config = RedisConfig(url="redis://user:pass@redis.example.com:6379/1")
-        admin = CRUDAdmin(
-            session=get_session,
-            SECRET_KEY=SECRET_KEY,
-            session_backend="redis",
-            redis_config=redis_config
-        )
-
-        # Memcached configuration
-        memcached_config = MemcachedConfig(
-            host="memcached.example.com",
-            port=11211,
-            pool_size=5
-        )
-
-        admin = CRUDAdmin(
-            session=get_session,
-            SECRET_KEY=SECRET_KEY,
-            session_backend="memcached",
-            memcached_config=memcached_config
-        )
-
-        # Or using dictionaries (still validated)
-        admin = CRUDAdmin(
-            session=get_session,
-            SECRET_KEY=SECRET_KEY,
-            session_backend="redis",
-            max_sessions_per_user=3,
-            session_timeout_minutes=15,
-            redis_config={
-                "host": "redis.example.com",
-                "port": 6379,
-                "db": 1,
-                "password": "redis_password"
-            }
-        )
-        ```
-
-        Setup with multiple models and custom schemas:
-        ```python
-        from pydantic import BaseModel, EmailStr
-        from decimal import Decimal
-        from datetime import datetime
-
-        # Models
-        class Product(Base):
-            __tablename__ = "products"
-            id = Column(Integer, primary_key=True)
-            name = Column(String)
-            price = Column(Decimal)
-            created_at = Column(DateTime)
-
-        class Order(Base):
-            __tablename__ = "orders"
-            id = Column(Integer, primary_key=True)
-            user_id = Column(Integer, ForeignKey("users.id"))
-            total = Column(Decimal)
-            status = Column(String)
-            order_date = Column(DateTime)
-
-        # Schemas
-        class ProductCreate(BaseModel):
-            name: str
-            price: Decimal
-            created_at: datetime = Field(default_factory=datetime.utcnow)
-
-        class ProductUpdate(BaseModel):
-            name: Optional[str] = None
-            price: Optional[Decimal] = None
-
-        class OrderCreate(BaseModel):
-            user_id: int
-            total: Decimal
-            status: str = "pending"
-            order_date: datetime = Field(default_factory=datetime.utcnow)
-
-        class OrderUpdate(BaseModel):
-            status: Optional[str] = None
-            total: Optional[Decimal] = None
-
-        # Add views
-        admin.add_view(
-            model=Product,
-            create_schema=ProductCreate,
-            update_schema=ProductUpdate,
-            update_internal_schema=None,
-            delete_schema=None,
-            allowed_actions={"view", "create", "update"}  # No deletion
-        )
-
-        admin.add_view(
-            model=Order,
-            create_schema=OrderCreate,
-            update_schema=OrderUpdate,
-            update_internal_schema=None,
-            delete_schema=None,
-            allowed_actions={"view", "update"}  # View and update only
-        )
-        ```
-
-        Event tracking and audit logs:
-        ```python
-        admin = CRUDAdmin(
-            session=get_session,
-            SECRET_KEY=SECRET_KEY,
-            track_events=True,  # Enable event tracking
-            # Custom admin database for logs
-            admin_db_url="postgresql+asyncpg://user:pass@localhost/admin_logs",
-        )
-
-        # Events tracked automatically:
-        # - User logins/logouts
-        # - Model creates/updates/deletes
-        # - Failed authentication attempts
-        # - System health status
-        ```
+        Call ``await admin.initialize()`` when your app starts and
+        ``await admin.shutdown()`` when it stops, from its lifespan.
     """
 
     def __init__(
@@ -352,20 +161,22 @@ class CRUDAdmin:
         db_config: Optional[DatabaseConfig] = None,
         setup_on_initialization: bool = True,
         initial_admin: Optional[Union[dict, BaseModel]] = None,
+        track_events: bool = False,
+        sessions: Optional[SessionConfig] = None,
+        access: Optional[AccessConfig] = None,
         allowed_ips: Optional[List[str]] = None,
         allowed_networks: Optional[List[str]] = None,
-        max_sessions_per_user: int = 5,
-        session_timeout_minutes: int = 30,
-        cleanup_interval_minutes: int = 15,
-        secure_cookies: bool = True,
-        enforce_https: bool = False,
-        https_port: int = 443,
-        track_events: bool = False,
+        max_sessions_per_user: Optional[int] = None,
+        session_timeout_minutes: Optional[int] = None,
+        cleanup_interval_minutes: Optional[int] = None,
+        secure_cookies: Optional[bool] = None,
+        enforce_https: Optional[bool] = None,
+        https_port: Optional[int] = None,
         track_sessions_in_db: bool = False,
-        session_backend: str = "memory",
+        session_backend: Optional[str] = None,
         redis_config: Optional[Union[RedisConfig, Dict[str, Any]]] = None,
         memcached_config: Optional[Union[MemcachedConfig, Dict[str, Any]]] = None,
-        trusted_proxy_hops: int = 0,
+        trusted_proxy_hops: Optional[int] = None,
         lockout: Optional[LockoutConfig] = None,
     ) -> None:
         if not SECRET_KEY:
@@ -379,8 +190,36 @@ class CRUDAdmin:
         self.paths = AdminPaths.for_mount_segment(self.mount_path)
         self.theme = theme or "dark-theme"
         self.track_events = track_events
+        self.sessions = config_from_arguments(
+            SessionConfig,
+            "sessions",
+            sessions,
+            {
+                "session_backend": session_backend,
+                "redis_config": redis_config,
+                "session_timeout_minutes": session_timeout_minutes,
+                "max_sessions_per_user": max_sessions_per_user,
+                "cleanup_interval_minutes": cleanup_interval_minutes,
+                "secure_cookies": secure_cookies,
+            },
+            SESSION_ARGUMENTS,
+        )
+        self.access = config_from_arguments(
+            AccessConfig,
+            "access",
+            access,
+            {
+                "allowed_ips": allowed_ips,
+                "allowed_networks": allowed_networks,
+                "enforce_https": enforce_https,
+                "https_port": https_port,
+                "trusted_proxy_hops": trusted_proxy_hops,
+                "lockout": lockout,
+            },
+            ACCESS_ARGUMENTS,
+        )
         self._session_backend = resolve_session_backend(
-            session_backend, track_sessions_in_db, memcached_config
+            self.sessions.backend, track_sessions_in_db, memcached_config
         )
 
         self.templates_directory = os.path.join(
@@ -429,6 +268,7 @@ class CRUDAdmin:
         else:
             self.event_service = None
             self.event_integration = None
+        self.events = AdminEvents(self.event_integration)
 
         self.SECRET_KEY = SECRET_KEY
         self.initial_admin = initial_admin
@@ -436,10 +276,10 @@ class CRUDAdmin:
         self.router = APIRouter(tags=["admin"])
         self.protected_routers: list[ProtectedRouter] = []
         self._is_set_up = False
-        self.secure_cookies = secure_cookies
+        self.secure_cookies = self.sessions.secure_cookies
 
         self._redis_client = (
-            build_redis_client(redis_config)
+            build_redis_client(self.sessions.redis)
             if self._session_backend == "redis"
             else None
         )
@@ -449,14 +289,14 @@ class CRUDAdmin:
             secret_key=SECRET_KEY,
             mount_prefix=self.paths.prefix,
             cookie_path=self.paths.cookie_path,
-            secure_cookies=secure_cookies,
+            secure_cookies=self.sessions.secure_cookies,
             session_backend=self._session_backend,
             redis_client=self._redis_client,
-            session_timeout_minutes=session_timeout_minutes,
-            max_sessions_per_user=max_sessions_per_user,
-            cleanup_interval_minutes=cleanup_interval_minutes,
-            trusted_proxy_hops=trusted_proxy_hops,
-            lockout=lockout,
+            session_timeout_minutes=self.sessions.timeout_minutes,
+            max_sessions_per_user=self.sessions.max_per_admin,
+            cleanup_interval_minutes=self.sessions.cleanup_interval_minutes,
+            trusted_proxy_hops=self.access.trusted_proxy_hops,
+            lockout=self.access.lockout,
             hooks=self._auth_hooks(),
         )
 
@@ -466,17 +306,21 @@ class CRUDAdmin:
         if setup_on_initialization:
             self.setup()
 
-        if allowed_ips or allowed_networks:
+        if self.access.allowed_ips or self.access.allowed_networks:
             self.app.add_middleware(
                 IPRestrictionMiddleware,
-                allowed_ips=allowed_ips,
-                allowed_networks=allowed_networks,
+                allowed_ips=self.access.allowed_ips,
+                allowed_networks=self.access.allowed_networks,
             )
 
-        if enforce_https:
+        if self.access.enforce_https:
             from .middleware.https import HTTPSRedirectMiddleware
 
-            self.app.add_middleware(HTTPSRedirectMiddleware, https_port=https_port)
+            self.app.add_middleware(
+                HTTPSRedirectMiddleware, https_port=self.access.https_port
+            )
+
+        self.app.add_middleware(SecurityHeadersMiddleware)
 
     def _add_missing_event_models(self) -> None:
         """Give a ``db_config`` passed in without event models its own, on its base."""
@@ -962,9 +806,6 @@ class CRUDAdmin:
             password_transformer=password_transformer,
             write_dependencies=write_dependencies,
         )
-
-        if self.track_events and self.event_integration:
-            admin_view.event_integration = self.event_integration
 
         self._mount_protected(
             admin_view.router, prefix=f"/{model_key}", superuser=is_admin_user

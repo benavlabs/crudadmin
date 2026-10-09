@@ -7,6 +7,7 @@ import pytest
 from fastapi import APIRouter, FastAPI
 from sqlalchemy.orm import DeclarativeBase
 
+from crudadmin import AccessConfig, SessionConfig
 from crudadmin.admin_interface.crud_admin import CRUDAdmin
 from crudadmin.core.db import DatabaseConfig
 
@@ -79,12 +80,13 @@ async def test_crud_admin_with_custom_settings(async_session):
         SECRET_KEY=secret_key,
         mount_path="/custom-admin",
         theme="light-theme",
-        max_sessions_per_user=10,
-        session_timeout_minutes=60,
-        cleanup_interval_minutes=30,
-        secure_cookies=False,
-        enforce_https=True,
-        https_port=8443,
+        sessions=SessionConfig(
+            max_per_admin=10,
+            timeout_minutes=60,
+            cleanup_interval_minutes=30,
+            secure_cookies=False,
+        ),
+        access=AccessConfig(enforce_https=True, https_port=8443),
         track_events=True,
         db_config=db_config,
         setup_on_initialization=False,
@@ -135,8 +137,7 @@ async def test_crud_admin_with_allowed_ips(async_session):
     admin = CRUDAdmin(
         session=async_session,
         SECRET_KEY=secret_key,
-        allowed_ips=allowed_ips,
-        allowed_networks=allowed_networks,
+        access=AccessConfig(allowed_ips=allowed_ips, allowed_networks=allowed_networks),
         db_config=db_config,
         setup_on_initialization=False,
     )
@@ -406,9 +407,9 @@ async def test_crud_admin_session_manager_integration(async_session):
     admin = CRUDAdmin(
         session=async_session,
         SECRET_KEY=secret_key,
-        max_sessions_per_user=3,
-        session_timeout_minutes=45,
-        cleanup_interval_minutes=20,
+        sessions=SessionConfig(
+            max_per_admin=3, timeout_minutes=45, cleanup_interval_minutes=20
+        ),
         db_config=db_config,
         setup_on_initialization=False,
     )
@@ -482,7 +483,7 @@ async def test_crud_admin_session_backend_configuration(async_session):
         SECRET_KEY=secret_key,
         db_config=db_config,
         setup_on_initialization=False,
-        session_backend="database",
+        sessions=SessionConfig(backend="database"),
     )
     assert "DatabaseSessionStorage" in str(type(admin_db.session_manager.storage))
 
@@ -518,8 +519,7 @@ async def test_crud_admin_session_backend_configuration(async_session):
             SECRET_KEY=secret_key,
             db_config=db_config,
             setup_on_initialization=False,
-            session_backend="redis",
-            redis_config=redis_config,
+            sessions=SessionConfig(backend="redis", redis=redis_config),
         )
         storage_type_name = type(admin_redis.session_manager.storage).__name__
         assert storage_type_name == "RedisSessionStorage"
@@ -545,8 +545,7 @@ async def test_crud_admin_backend_parameter_validation(async_session):
             SECRET_KEY=secret_key,
             db_config=db_config,
             setup_on_initialization=False,
-            session_backend="redis",
-            redis_config=redis_config,
+            sessions=SessionConfig(backend="redis", redis=redis_config),
         )
         storage_type_name = type(
             admin_redis_individual.session_manager.storage
@@ -559,7 +558,7 @@ async def test_crud_admin_backend_parameter_validation(async_session):
             SECRET_KEY=secret_key,
             db_config=db_config,
             setup_on_initialization=False,
-            session_backend="redis",
+            sessions=SessionConfig(backend="redis"),
         )
         assert (
             type(admin_redis_defaults.session_manager.storage).__name__
@@ -582,7 +581,7 @@ async def test_crud_admin_backend_parameter_validation(async_session):
             SECRET_KEY=secret_key,
             db_config=db_config,
             setup_on_initialization=False,
-            session_backend="memcached",
+            sessions=SessionConfig(backend="memcached"),
             memcached_config=MemcachedConfig(host="localhost", port=11211),
         )
 

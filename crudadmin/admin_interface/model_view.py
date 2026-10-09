@@ -24,6 +24,7 @@ from ..core.db import (
     convert_id_to_pk_type,
     get_primary_key_name,
 )
+from ..event.recorder import AdminEvents
 from .paths import AdminPaths
 from .relationships import (
     RelationshipInfo,
@@ -34,23 +35,19 @@ from .relationships import (
 )
 from .typing import EndpointCallable
 from .views.create import create_endpoint, create_page
-from .views.delete import bulk_delete_endpoint
+from .views.delete import BulkDeleteRequest, bulk_delete_endpoint
 from .views.forms import PasswordTransformer
 from .views.listing import list_page
 from .views.related_records import related_data_endpoint, relationship_options_endpoint
 from .views.update import update_endpoint, update_page
+
+__all__ = ["BulkDeleteRequest", "ModelView", "PasswordTransformer"]
 
 CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
 UpdateSchemaType = TypeVar("UpdateSchemaType", bound=BaseModel)
 UpdateSchemaInternalType = TypeVar("UpdateSchemaInternalType", bound=BaseModel)
 DeleteSchemaType = TypeVar("DeleteSchemaType", bound=BaseModel)
 SelectSchemaType = TypeVar("SelectSchemaType", bound=BaseModel)
-
-
-class BulkDeleteRequest(BaseModel):
-    """Request model for bulk delete operations containing IDs to delete."""
-
-    ids: List[Union[int, str]]
 
 
 class ModelView:
@@ -302,6 +299,7 @@ class ModelView:
         self.admin_site = admin_site
         self.allowed_actions = allowed_actions
         self.event_integration = event_integration
+        self.events = AdminEvents(event_integration)
         self.password_transformer = password_transformer
 
         get_session: Callable[[], AsyncGenerator[AsyncSession, None]]
@@ -347,6 +345,19 @@ class ModelView:
 
     def _model_list_url(self) -> str:
         return self._paths.model(self.model_key)
+
+    async def _snapshot(
+        self, db: AsyncSession, record_id: Any
+    ) -> Optional[Dict[str, Any]]:
+        """The whole record for the event log, or None when events aren't recorded.
+
+        Every column is read, so a changed password still shows as a change; the
+        event log redacts its value.
+        """
+        if not self.events.enabled:
+            return None
+        record = await self.crud.get(db=db, **self._pk_filter(record_id))
+        return dict(record) if record else None
 
     def _forget_record_count(self) -> None:
         """Make the dashboard recount this model after the admin added or deleted records."""

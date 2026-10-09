@@ -1,4 +1,3 @@
-from .decorators import log_admin_action
 from .integration import EventSystemIntegration
 from .models import (
     EventStatus,
@@ -6,6 +5,7 @@ from .models import (
     create_admin_audit_log,
     create_admin_event_log,
 )
+from .recorder import AdminEvents
 from .schemas import (
     AdminAuditLogCreate,
     AdminAuditLogRead,
@@ -25,7 +25,7 @@ __all__ = [
     "AdminAuditLogRead",
     "EventService",
     "EventSystemIntegration",
-    "log_admin_action",
+    "AdminEvents",
 ]
 
 

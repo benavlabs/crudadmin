@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select, update
 from sqlalchemy.orm import DeclarativeBase
 
-from crudadmin import CRUDAdmin
+from crudadmin import AccessConfig, CRUDAdmin, SessionConfig
 from crudadmin.core.db import DatabaseConfig
 
 CREDENTIALS = {"username": "admin", "password": "correct-horse-battery"}
@@ -33,8 +33,7 @@ def _build(tmp_path, **kwargs):
             session=_get_session,
             admin_db_url=f"sqlite+aiosqlite:///{tmp_path}/admin.db",
         ),
-        secure_cookies=False,
-        session_timeout_minutes=480,
+        sessions=SessionConfig(secure_cookies=False, timeout_minutes=480),
         initial_admin=CREDENTIALS,
         **kwargs,
     )
@@ -364,7 +363,7 @@ class TestLockoutDefaults:
         from crudauth.ratelimit import LockoutConfig
 
         custom = LockoutConfig(max_attempts=3, lockout_max_seconds=900)
-        admin, _ = _build(tmp_path, lockout=custom)
+        admin, _ = _build(tmp_path, access=AccessConfig(lockout=custom))
         policy = admin.admin_authentication.auth.runtime.lockout
 
         assert policy.max_attempts == 3

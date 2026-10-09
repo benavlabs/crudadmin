@@ -124,3 +124,42 @@ def test_redaction_applies_at_any_depth_and_keeps_other_values():
         "items": [{"csrf_token": REDACTED, "ok": True}],
         "password": None,
     }
+
+
+@pytest.mark.asyncio
+async def test_event_details_and_audit_metadata_are_redacted(audit_env):
+    service, audit_log, session_factory = audit_env
+    password_hash = "$2b$12$" + "d" * 53
+    details = {
+        "resource_details": {
+            "changes": {"username": "root", "hashed_password": password_hash}
+        }
+    }
+
+    async with session_factory() as db:
+        event = await service.log_event(
+            db=db,
+            event_type=EventType.UPDATE,
+            status=EventStatus.SUCCESS,
+            user_id=1,
+            session_id="handle",
+            request=SimpleNamespace(client=None, headers={}),
+            details=details,
+        )
+        await service.create_audit_log(
+            db=db,
+            event_id=event.id,
+            resource_type="AdminUser",
+            resource_id="1",
+            action="update",
+            metadata=details,
+        )
+        await db.commit()
+        audit = (await db.execute(audit_log.__table__.select())).mappings().one()
+
+    assert password_hash not in str(event.details)
+    assert password_hash not in str(dict(audit))
+    assert event.details["resource_details"]["changes"] == {
+        "username": "root",
+        "hashed_password": REDACTED,
+    }
