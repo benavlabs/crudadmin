@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...event import EventType, log_admin_action
+from ...event import EventType
 from ..typing import EndpointCallable
 from .list_query import rows_per_page as parse_rows_per_page
 from .list_query import table_columns
@@ -63,35 +63,33 @@ def bulk_delete_endpoint(view: "ModelView") -> EndpointCallable:
             - 400: Database error during deletion
     """
 
-    @log_admin_action(EventType.DELETE, model=view.model, db_config=view.db_config)
     async def bulk_delete_endpoint_inner(
         request: Request,
         db: AsyncSession = Depends(view.session),
         admin_db: AsyncSession = Depends(view.db_config.get_admin_db),
-        current_user: dict = Depends(
-            cast(Any, view.admin_site).admin_authentication.get_current_user()
-        ),
-        event_integration=Depends(lambda: view.event_integration),
     ) -> Response:
         """Handle bulk deletion of model instances using JSON list of IDs."""
         assert view.admin_site is not None
+
+        async def refuse(status_code: int, message: str) -> Response:
+            await view.events.record(
+                request, admin_db, EventType.DELETE, view.model, succeeded=False
+            )
+            return JSONResponse(
+                status_code=status_code, content={"detail": [{"message": message}]}
+            )
+
         try:
             delete_request = BulkDeleteRequest.model_validate(await request.json())
             page = int(request.query_params.get("page", "1"))
         except ValueError:
-            return JSONResponse(
-                status_code=422,
-                content={"detail": [{"message": "Invalid request."}]},
-            )
+            return await refuse(422, "Invalid request.")
         rows_per_page = parse_rows_per_page(
             request.query_params.get("rows-per-page-select")
         )
 
         if not delete_request.ids:
-            return JSONResponse(
-                status_code=400,
-                content={"detail": [{"message": "No IDs provided for deletion"}]},
-            )
+            return await refuse(400, "No IDs provided for deletion")
 
         pk_name = view.primary_key_name
 
@@ -100,10 +98,7 @@ def bulk_delete_endpoint(view: "ModelView") -> EndpointCallable:
             try:
                 valid_ids.append(view._convert_id_to_pk_type(id_value))
             except (ValueError, TypeError):
-                return JSONResponse(
-                    status_code=422,
-                    content={"detail": [{"message": f"Invalid ID value: {id_value}"}]},
-                )
+                return await refuse(422, f"Invalid ID value: {id_value}")
 
         filter_criteria: Dict[str, List[Any]] = {f"{pk_name}__in": valid_ids}
         records_to_delete = await view.crud.get_multi(
@@ -112,8 +107,7 @@ def bulk_delete_endpoint(view: "ModelView") -> EndpointCallable:
             schema_to_select=view.select_schema,
             **cast(Any, filter_criteria),
         )
-
-        request.state.deleted_records = records_to_delete.get("data", [])
+        deleted_records = records_to_delete.get("data", [])
 
         try:
             for id_value in valid_ids:
@@ -128,11 +122,11 @@ def bulk_delete_endpoint(view: "ModelView") -> EndpointCallable:
         except SQLAlchemyError:
             logger.exception("Could not delete %s records", view.model_key)
             await db.rollback()
-            return JSONResponse(
-                status_code=400,
-                content={"detail": [{"message": "Error during deletion."}]},
-            )
+            return await refuse(400, "Error during deletion.")
         view._forget_record_count()
+        await view.events.record(
+            request, admin_db, EventType.DELETE, view.model, deleted=deleted_records
+        )
 
         total_count = await view.crud.count(db=db)
         max_page = (total_count + rows_per_page - 1) // rows_per_page

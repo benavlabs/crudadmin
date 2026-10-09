@@ -322,6 +322,44 @@ class TestAuditLog:
         delete_audits = [audit for audit in audits if audit.event_id == deleted.id]
         assert sorted(audit.resource_id for audit in delete_audits) == ["3", "5"]
 
+    def test_an_update_is_audited_with_the_record_before_after_and_the_diff(
+        self, client, app_and_admin
+    ):
+        _, admin, _, _ = app_and_admin
+
+        response = client.post(
+            "/admin/Job/form_update/2",
+            data={"name": "renamed", "active": "true"},
+            headers=_csrf(client),
+        )
+
+        assert response.status_code == 303
+        events, audits = _events_and_audits(client, admin)
+        updated = _model_events(events)[-1]
+        assert (updated.event_type.value, updated.status.value) == ("update", "success")
+        assert updated.resource_id == "2"
+        assert updated.details["resource_details"]["changes"] == {
+            "name": {"old": "beta-02", "new": "renamed"}
+        }
+        audit = audits[-1]
+        assert audit.event_id == updated.id
+        assert audit.previous_state["name"] == "beta-02"
+        assert audit.new_state["name"] == "renamed"
+        assert audit.changes == {"name": {"old": "beta-02", "new": "renamed"}}
+
+    def test_a_delete_lists_the_deleted_records_in_the_event(
+        self, client, app_and_admin
+    ):
+        _, admin, _, _ = app_and_admin
+
+        client.request(
+            "DELETE", "/admin/Job/bulk-delete", json={"ids": [4]}, headers=_csrf(client)
+        )
+
+        events, _ = _events_and_audits(client, admin)
+        deleted = _model_events(events)[-1].details["resource_details"]["changes"]
+        assert [record["job_id"] for record in deleted["deleted_records"]] == [4]
+
     def test_a_failed_action_is_recorded_as_a_failure_without_audit_rows(
         self, client, app_and_admin
     ):

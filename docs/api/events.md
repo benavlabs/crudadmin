@@ -15,18 +15,19 @@ With `track_events=True`, CRUDAdmin records what admins do: logins, logouts, ref
 
 The username tried is stored under `details.username`, which is what `EventService.get_security_alerts` groups failed logins by. A hook that fails is logged and doesn't affect the login.
 
-**Model events** are written by the `log_admin_action` decorator on the create, update and bulk-delete routes:
+**Model events** are recorded by the create, update and bulk-delete routes through `admin.events`, once they know the outcome:
 
-- The status comes from the response: `SUCCESS` for a status below 400, `FAILURE` otherwise. A failed action writes no audit rows, since nothing changed.
-- A create or update writes one audit row for the record, keyed by the model's primary key, whatever its name.
+- `SUCCESS` once the change is committed; `FAILURE` when it is refused (invalid input, a record that doesn't exist, a constraint the database enforces). A refused change writes no audit rows, since nothing changed.
+- A create writes one audit row with the new record; an update, one with the record before and after and the fields that changed. Both are keyed by the model's primary key, whatever its name.
 - A delete writes one audit row per deleted record, holding the record as it was.
-- The event and its audit rows are written in one transaction. If any write fails, they're rolled back together, logged, and the admin's action itself still succeeds.
+- The event and its audit rows are written in one transaction. If any write fails, they're rolled back together, logged, and the admin's change itself still stands.
 
 **Stored values**:
 
 - `session_id` holds the session's public handle, never the session id itself.
-- In audit snapshots and change sets, values under credential-like keys (any key containing `password`, `secret`, `token`, `session_id` or `api_key`) are stored as `[redacted]`. A changed password still shows up as a change.
-- Request details are stored in the audit row's `audit_metadata`.
+- Values under credential-like keys (any key containing `password`, `secret`, `token`, `session_id` or `api_key`) are stored as `[redacted]`, in event details, audit snapshots, change sets and audit metadata alike. A changed password still shows up as a change.
+- Request details are stored in the event's `details` and in the audit row's `audit_metadata`.
+- Before 0.7, event details and audit metadata weren't redacted. The Event Logs page redacts the details of those older events when it shows them; the rows themselves are unchanged.
 
 ## Core Components
 
@@ -66,9 +67,9 @@ Writes an event together with its audit rows.
     rendering:
       show_if_no_docstring: true
 
-## Decorators
+## Recording Changes
 
-::: crudadmin.event.decorators.log_admin_action
+::: crudadmin.event.recorder.AdminEvents
     rendering:
       show_if_no_docstring: true
 
@@ -156,26 +157,42 @@ await admin.event_integration.log_model_event(
 
 For a delete, pass the deleted records and the primary key's name instead of `resource_id`: `deleted_records=[...]`, `primary_key_name="sku"`. Pass `succeeded=False` to record a failed action without audit rows.
 
-### Decorating Your Own Endpoint
+### Recording Changes from Your Own Routes
+
+A route of your own can record the changes it makes the way the admin's routes do. `admin.events.record` reads the admin and the session from the request, which the admin's login dependency sets:
 
 ```python
-from crudadmin.event import EventType, log_admin_action
+from fastapi import Depends, Request
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from crudadmin.event import EventType
 
 
-@log_admin_action(EventType.CREATE, model=Product)
-async def create_product_endpoint(
+@router.post(
+    "/products/{sku}/restock",
+    dependencies=[Depends(admin.admin_authentication.get_current_user())],
+)
+async def restock(
+    sku: str,
     request: Request,
-    db: AsyncSession,
-    admin_db: AsyncSession,
-    current_user: dict,
-    event_integration=None,
+    db: AsyncSession = Depends(get_session),
+    admin_db: AsyncSession = Depends(admin.db_config.get_admin_db),
 ):
-    product = await create_product(db, request)
-    request.state.crud_result = product
-    return RedirectResponse("/admin/Product/", status_code=303)
+    before = await product_as_dict(db, sku)
+    await add_stock(db, sku, 10)
+    await db.commit()
+    await admin.events.record(
+        request,
+        admin_db,
+        EventType.UPDATE,
+        Product,
+        record_id=sku,
+        before=before,
+        after=await product_as_dict(db, sku),
+    )
 ```
 
-The decorator reads the created record from `request.state.crud_result`, and for deletes the removed records from `request.state.deleted_records`.
+Pass `after=` for a create, `before=` and `after=` for an update, and `deleted=[...]` with the removed records for a delete; `succeeded=False` records a refused change. With `track_events=False`, `record` does nothing.
 
 ### Querying Event History
 

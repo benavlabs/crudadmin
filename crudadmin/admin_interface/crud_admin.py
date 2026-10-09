@@ -27,6 +27,7 @@ from ..admin_interface.auth import AdminAuthentication
 from ..admin_interface.middleware.auth import AdminAuthMiddleware
 from ..admin_interface.middleware.ip_restriction import IPRestrictionMiddleware
 from ..core.db import DatabaseConfig, new_admin_base
+from ..event.recorder import AdminEvents
 from ..session.configs import MemcachedConfig, RedisConfig
 from .admin_accounts import create_initial_admin
 from .admin_site import AdminSite
@@ -429,6 +430,7 @@ class CRUDAdmin:
         else:
             self.event_service = None
             self.event_integration = None
+        self.events = AdminEvents(self.event_integration)
 
         self.SECRET_KEY = SECRET_KEY
         self.initial_admin = initial_admin
@@ -962,9 +964,6 @@ class CRUDAdmin:
             password_transformer=password_transformer,
             write_dependencies=write_dependencies,
         )
-
-        if self.track_events and self.event_integration:
-            admin_view.event_integration = self.event_integration
 
         self._mount_protected(
             admin_view.router, prefix=f"/{model_key}", superuser=is_admin_user

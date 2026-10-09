@@ -6,12 +6,13 @@ from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from crudadmin import CRUDAdmin
+from crudadmin.event import EventStatus, EventType
 
 CREDENTIALS = {"username": "root", "password": "correct-horse-battery"}
 
 
 @pytest.fixture
-def client(tmp_path):
+def admin_and_client(tmp_path):
     engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path}/app.db")
     session_maker = async_sessionmaker(engine, expire_on_commit=False)
 
@@ -33,7 +34,12 @@ def client(tmp_path):
         assert client.portal is not None
         client.portal.call(admin.initialize)
         assert client.post("/admin/login", data=CREDENTIALS).status_code == 303
-        yield client
+        yield admin, client
+
+
+@pytest.fixture
+def client(admin_and_client):
+    return admin_and_client[1]
 
 
 def test_the_health_page_reports_the_database_and_the_session_store(client):
@@ -78,3 +84,39 @@ def test_the_event_log_filters(client, query, shows_login):
 
     assert content.status_code == 200
     assert ("127.0.0.1" in content.text) is shows_login
+
+
+def test_details_stored_before_redaction_are_redacted_on_the_page(admin_and_client):
+    admin, client = admin_and_client
+    password_hash = "$2b$12$" + "z" * 53
+    event_model = admin.db_config.AdminEventLog
+
+    async def store_an_event_written_by_an_older_version():
+        async with admin.db_config.admin_session_maker() as db:
+            db.add(
+                event_model(
+                    event_type=EventType.UPDATE,
+                    status=EventStatus.SUCCESS,
+                    user_id=1,
+                    session_id="old",
+                    ip_address="10.9.9.9",
+                    user_agent="old",
+                    resource_type="AdminUser",
+                    resource_id="1",
+                    details={
+                        "resource_details": {
+                            "changes": {"new_state": {"hashed_password": password_hash}}
+                        }
+                    },
+                )
+            )
+            await db.commit()
+
+    assert client.portal is not None
+    client.portal.call(store_an_event_written_by_an_older_version)
+
+    content = client.get("/admin/management/events/content")
+
+    assert "10.9.9.9" in content.text
+    assert password_hash not in content.text
+    assert "[redacted]" in content.text

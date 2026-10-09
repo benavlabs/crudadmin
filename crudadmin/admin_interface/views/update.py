@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...admin_user.schemas import AdminUserUpdateInternal
-from ...event import EventType, log_admin_action
+from ...event import EventType
 from ..admin_accounts import end_sessions_after_admin_change, last_superuser_guard
 from ..helper import _get_form_fields_from_schema
 from ..typing import EndpointCallable
@@ -32,27 +32,33 @@ def update_endpoint(view: "ModelView") -> EndpointCallable:
         FastAPI route handler for update form submission
 
     Notes:
-        - Uses @log_admin_action decorator for event tracking
+        - Records the update, or its refusal, in the event log
         - Only updates provided fields
         - Handles password hashing for AdminUser model
         - Supports automatic updated_at timestamp
     """
 
-    @log_admin_action(EventType.UPDATE, model=view.model, db_config=view.db_config)
     async def form_update_endpoint_inner(
         request: Request,
         db: AsyncSession = Depends(view.session),
         admin_db: AsyncSession = Depends(view.db_config.get_admin_db),
-        current_user: dict = Depends(
-            cast(Any, view.admin_site).admin_authentication.get_current_user()
-        ),
-        event_integration=Depends(lambda: view.event_integration),
         id: Optional[Union[int, str]] = None,
     ) -> Response:
         """Handle POST form submission to update an existing record."""
         assert view.admin_site is not None
 
+        async def record_refusal(record_id: Any = None) -> None:
+            await view.events.record(
+                request,
+                admin_db,
+                EventType.UPDATE,
+                view.model,
+                record_id=record_id,
+                succeeded=False,
+            )
+
         if id is None:
+            await record_refusal()
             return JSONResponse(
                 status_code=422, content={"message": "No id parameter provided"}
             )
@@ -65,9 +71,11 @@ def update_endpoint(view: "ModelView") -> EndpointCallable:
             **view._pk_filter(converted_id),
         )
         if not item:
+            await record_refusal(id)
             return JSONResponse(
                 status_code=404, content={"message": f"Item with id {id} not found"}
             )
+        before = await view._snapshot(db, converted_id)
 
         form_fields = _get_form_fields_from_schema(view.update_schema)
         field_values: Dict[str, Any] = {}
@@ -85,8 +93,18 @@ def update_endpoint(view: "ModelView") -> EndpointCallable:
                 lambda: _update_record(view, db, request, converted_id, submitted.data),
             )
             if refusal is None:
+                await view.events.record(
+                    request,
+                    admin_db,
+                    EventType.UPDATE,
+                    view.model,
+                    record_id=converted_id,
+                    before=before,
+                    after=await view._snapshot(db, converted_id),
+                )
                 model_list_url = f"{view._model_list_url()}?success=updated"
                 return RedirectResponse(url=model_list_url, status_code=303)
+        await record_refusal(converted_id)
 
         for form_field in form_fields:
             field_name = form_field["name"]

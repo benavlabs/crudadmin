@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.db import DatabaseConfig
 from ..event import EventStatus, EventType
+from ..event.service import redact_secrets
 from .admin_site import AdminSite
 from .auth import AdminAuthentication
 from .typing import RouteResponse
@@ -189,25 +190,9 @@ class ManagementPages:
                             )
                             if isinstance(user, dict):
                                 event_data["username"] = user.get("username", "Unknown")
-
-                            if event.get("resource_type") and event.get("resource_id"):
-                                if not self.db_config.AdminAuditLog:
-                                    raise ValueError("AdminAuditLog is not configured")
-
-                                crud_audits: FastCRUD = FastCRUD(
-                                    self.db_config.AdminAuditLog
-                                )
-                                audit = await crud_audits.get(
-                                    db=admin_db, event_id=event.get("id")
-                                )
-                                if audit and isinstance(audit, dict):
-                                    event_data["details"] = {
-                                        "resource_details": {
-                                            "model": event.get("resource_type"),
-                                            "id": event.get("resource_id"),
-                                            "changes": audit.get("new_state"),
-                                        }
-                                    }
+                            event_data["details"] = redact_secrets(
+                                event.get("details") or {}
+                            )
 
                             enriched_events.append(event_data)
 
