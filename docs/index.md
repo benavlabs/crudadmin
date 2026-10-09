@@ -213,20 +213,24 @@ app.mount("/admin", admin.app)
 ### Production Configuration with Security
 
 ```python
-from crudadmin import CRUDAdmin, RedisConfig
+from crudadmin import AccessConfig, CRUDAdmin, RedisConfig, SessionConfig
 
 admin = CRUDAdmin(
     session=get_session,
     SECRET_KEY=os.environ["ADMIN_SECRET_KEY"],
-    session_backend="redis",
-    redis_config=RedisConfig(url="redis://localhost:6379"),
-    max_sessions_per_user=3,
-    session_timeout_minutes=15,
-    allowed_ips=["10.0.0.1"],
-    allowed_networks=["192.168.1.0/24"],
-    trusted_proxy_hops=1,
-    secure_cookies=True,
-    enforce_https=True,
+    sessions=SessionConfig(
+        backend="redis",
+        redis=RedisConfig(url="redis://localhost:6379"),
+        max_per_admin=3,
+        timeout_minutes=15,
+        secure_cookies=True,
+    ),
+    access=AccessConfig(
+        allowed_ips=["10.0.0.1"],
+        allowed_networks=["192.168.1.0/24"],
+        trusted_proxy_hops=1,
+        enforce_https=True,
+    ),
     track_events=True,
     admin_db_url="postgresql+asyncpg://user:pass@localhost/admin",
 )
@@ -267,21 +271,23 @@ admin.add_view(
 Sessions, CSRF tokens and login-lockout counters live in one of three backends:
 
 ```python
-from crudadmin import CRUDAdmin, RedisConfig
+from crudadmin import CRUDAdmin, RedisConfig, SessionConfig
 
 admin = CRUDAdmin(session=get_session, SECRET_KEY=SECRET_KEY)
 
 admin = CRUDAdmin(
     session=get_session,
     SECRET_KEY=SECRET_KEY,
-    session_backend="redis",
-    redis_config=RedisConfig(host="localhost", port=6379, password="redis-password"),
+    sessions=SessionConfig(
+        backend="redis",
+        redis=RedisConfig(host="localhost", port=6379, password="redis-password"),
+    ),
 )
 
 admin = CRUDAdmin(
     session=get_session,
     SECRET_KEY=SECRET_KEY,
-    session_backend="database",
+    sessions=SessionConfig(backend="database"),
 )
 ```
 

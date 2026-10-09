@@ -1,6 +1,6 @@
 # Session Backends
 
-CRUDAdmin keeps admin sessions with [crudauth](https://benavlabs.github.io/crudauth). The session backend decides where sessions, CSRF tokens and login lockout counters are stored. This guide covers the three backends, how to pick one, and the settings that shape sessions and logins.
+CRUDAdmin keeps admin sessions with [crudauth](https://benavlabs.github.io/crudauth). The session backend decides where sessions, CSRF tokens and login lockout counters are stored. This guide covers the three backends, how to pick one, and the settings that shape sessions and logins. Session settings go in a `SessionConfig`, passed as `sessions=`; login protection settings in an `AccessConfig`, passed as `access=`.
 
 ## Prerequisites
 
@@ -17,7 +17,7 @@ CRUDAdmin keeps admin sessions with [crudauth](https://benavlabs.github.io/cruda
 
 The backend holds more than sessions: login lockout counters live in the same place. With several workers on the `memory` backend, an admin who logs in on one worker is unknown to the next, and each worker counts failed logins on its own, so lockout is several times weaker. Any deployment that runs more than one worker process (for example `gunicorn -w 4` or `uvicorn --workers 4`) needs `redis` or `database`.
 
-The value is case-insensitive.
+Pass it as `SessionConfig(backend=...)`; the value is case-insensitive.
 
 ## Memory
 
@@ -33,25 +33,27 @@ admin = CRUDAdmin(
 ## Redis
 
 ```python
-from crudadmin import CRUDAdmin, RedisConfig
+from crudadmin import CRUDAdmin, RedisConfig, SessionConfig
 
 admin = CRUDAdmin(
     session=get_session,
     SECRET_KEY=SECRET_KEY,
-    session_backend="redis",
-    redis_config=RedisConfig(
-        host="redis.internal",
-        port=6379,
-        db=0,
-        username="crudadmin",
-        password=REDIS_PASSWORD,
-        pool_size=10,
-        connect_timeout=5,
+    sessions=SessionConfig(
+        backend="redis",
+        redis=RedisConfig(
+            host="redis.internal",
+            port=6379,
+            db=0,
+            username="crudadmin",
+            password=REDIS_PASSWORD,
+            pool_size=10,
+            connect_timeout=5,
+        ),
     ),
 )
 ```
 
-`redis_config` takes a `RedisConfig` or a plain dict with the same keys. Without it, CRUDAdmin connects to `localhost:6379`, database `0`.
+`redis` takes a `RedisConfig` or a plain dict with the same keys. Without it, CRUDAdmin connects to `localhost:6379`, database `0`.
 
 A connection URL works too:
 
@@ -59,8 +61,10 @@ A connection URL works too:
 admin = CRUDAdmin(
     session=get_session,
     SECRET_KEY=SECRET_KEY,
-    session_backend="redis",
-    redis_config=RedisConfig(url="rediss://crudadmin:secret@redis.example.com:6380/1"),
+    sessions=SessionConfig(
+        backend="redis",
+        redis=RedisConfig(url="rediss://crudadmin:secret@redis.example.com:6380/1"),
+    ),
 )
 ```
 
@@ -82,7 +86,7 @@ Changing `SECRET_KEY` or the mount path changes the prefix, so it signs every ad
 admin = CRUDAdmin(
     session=get_session,
     SECRET_KEY=SECRET_KEY,
-    session_backend="database",
+    sessions=SessionConfig(backend="database"),
 )
 ```
 
@@ -95,7 +99,7 @@ admin = CRUDAdmin(
     session=get_session,
     SECRET_KEY=SECRET_KEY,
     admin_db_url="postgresql+asyncpg://user:password@db.internal/admin",
-    session_backend="database",
+    sessions=SessionConfig(backend="database"),
 )
 ```
 
@@ -129,8 +133,8 @@ app.mount("/admin", admin.app)
 Sessions are created at login and kept by crudauth:
 
 - The browser gets two cookies, `crudadmin_session` and `crudadmin_csrf`. The names are namespaced, so the admin and an application on the same domain don't overwrite each other's cookies.
-- `crudadmin_session` is `HttpOnly`. Both cookies are `SameSite=Strict`, scoped to the admin's mount path, and `Secure` unless you pass `secure_cookies=False` (only do that for local development over plain HTTP).
-- The cookies have no fixed lifetime. A session ends when the admin is idle for `session_timeout_minutes`; every request moves that deadline forward.
+- `crudadmin_session` is `HttpOnly`. Both cookies are `SameSite=Strict`, scoped to the admin's mount path, and `Secure` unless you pass `SessionConfig(secure_cookies=False)` (only do that for local development over plain HTTP).
+- The cookies have no fixed lifetime. A session ends when the admin is idle for `timeout_minutes`; every request moves that deadline forward.
 - The store keeps an HMAC of each session id and CSRF token, keyed with `SECRET_KEY`, never the raw values. Read access to Redis or to the tables doesn't yield a working session. Changing `SECRET_KEY` signs every admin out.
 - Logging in again from the same browser ends the session it presented.
 
@@ -138,17 +142,21 @@ Sessions are created at login and kept by crudauth:
 admin = CRUDAdmin(
     session=get_session,
     SECRET_KEY=SECRET_KEY,
-    session_backend="redis",
-    session_timeout_minutes=60,
-    max_sessions_per_user=3,
-    cleanup_interval_minutes=15,
+    sessions=SessionConfig(
+        backend="redis",
+        timeout_minutes=60,
+        max_per_admin=3,
+        cleanup_interval_minutes=15,
+    ),
 )
 ```
 
-| Setting | Default | Meaning |
+| `SessionConfig` field | Default | Meaning |
 |---------|---------|---------|
-| `session_timeout_minutes` | `30` | Idle time after which a session ends |
-| `max_sessions_per_user` | `5` | Sessions one admin may hold at once; a login over the limit ends the least recently active one |
+| `backend` | `"memory"` | `"memory"`, `"redis"` or `"database"` |
+| `redis` | `None` | The Redis server for the `redis` backend |
+| `timeout_minutes` | `30` | Idle time after which a session ends |
+| `max_per_admin` | `5` | Sessions one admin may hold at once; a login over the limit ends the least recently active one |
 | `cleanup_interval_minutes` | `15` | Minimum time between sweeps of idle sessions; each store also expires idle sessions on its own |
 | `secure_cookies` | `True` | Send the cookies over HTTPS only |
 
@@ -166,24 +174,28 @@ If you call admin endpoints from your own scripts, read the `crudadmin_csrf` coo
 
 Failed logins are counted per username and per IP address. With CRUDAdmin's defaults, five failures lock the login for a minute; repeated lockouts double the duration, up to five minutes. A successful login clears the counters.
 
-Anyone who knows an admin's username can trigger that lockout, so the cap is deliberately short. To keep strangers away from the login page altogether, restrict it with `allowed_ips` or `allowed_networks`.
+Anyone who knows an admin's username can trigger that lockout, so the cap is deliberately short. To keep strangers away from the login page altogether, restrict it with `AccessConfig(allowed_ips=...)` or `allowed_networks`.
 
-Pass a crudauth `LockoutConfig` to change the defaults:
+Pass a crudauth `LockoutConfig` as `AccessConfig(lockout=...)` to change the defaults:
 
 ```python
 from crudauth.ratelimit import LockoutConfig
 
+from crudadmin import AccessConfig, CRUDAdmin, SessionConfig
+
 admin = CRUDAdmin(
     session=get_session,
     SECRET_KEY=SECRET_KEY,
-    session_backend="redis",
-    lockout=LockoutConfig(max_attempts=10, lockout_max_seconds=900),
+    sessions=SessionConfig(backend="redis"),
+    access=AccessConfig(
+        lockout=LockoutConfig(max_attempts=10, lockout_max_seconds=900),
+    ),
 )
 ```
 
 ### Client IP behind a proxy
 
-`trusted_proxy_hops` tells CRUDAdmin how many reverse proxies sit in front of the application. It decides which address is used for lockout and recorded on sessions.
+`AccessConfig(trusted_proxy_hops=...)` tells CRUDAdmin how many reverse proxies sit in front of the application. It decides which address is used for lockout and recorded on sessions.
 
 - `0` (the default) ignores `X-Forwarded-For` and uses the connecting address. Use it when clients connect to the application directly.
 - `N` reads the `N`-th entry of `X-Forwarded-For` counted from the right, the address your outermost trusted proxy saw. Values a client adds on the left are never read.
@@ -192,8 +204,8 @@ admin = CRUDAdmin(
 admin = CRUDAdmin(
     session=get_session,
     SECRET_KEY=SECRET_KEY,
-    session_backend="redis",
-    trusted_proxy_hops=1,
+    sessions=SessionConfig(backend="redis"),
+    access=AccessConfig(trusted_proxy_hops=1),
 )
 ```
 
@@ -218,11 +230,13 @@ Logins, logouts, failed logins and lockouts are recorded in the event log when `
 
 ## Removed and deprecated options
 
-| Option | In 0.6 |
+| Option | Status |
 |--------|--------|
-| `session_backend="memcached"`, `memcached_config` | Raises `ValueError` at startup naming the replacements, `redis` and `database`. `MemcachedConfig` can still be imported, so existing imports don't break. |
-| `session_backend="hybrid"` | Deprecated: runs on `redis` and emits a `DeprecationWarning`. It will be removed in a later release. |
-| `track_sessions_in_db=True` | Deprecated: emits a `DeprecationWarning`. With the `memory` backend it switches to `database`, so deployments that relied on it keep a shared store; with `redis` it changes nothing. Use `session_backend="database"` instead. |
+| `session_backend`, `redis_config`, `session_timeout_minutes`, `max_sessions_per_user`, `cleanup_interval_minutes`, `secure_cookies` | Deprecated in 0.7: they still work, with a `DeprecationWarning`. Pass `sessions=SessionConfig(backend=..., redis=..., timeout_minutes=..., max_per_admin=..., cleanup_interval_minutes=..., secure_cookies=...)` instead. Passing both raises. |
+| `allowed_ips`, `allowed_networks`, `enforce_https`, `https_port`, `trusted_proxy_hops`, `lockout` | Deprecated in 0.7 the same way; pass `access=AccessConfig(...)` with the same names. |
+| `backend="memcached"`, `memcached_config` | Raises `ValueError` at startup naming the replacements, `redis` and `database`. `MemcachedConfig` can still be imported, so existing imports don't break. |
+| `backend="hybrid"` | Deprecated: runs on `redis` and emits a `DeprecationWarning`. It will be removed in a later release. |
+| `track_sessions_in_db=True` | Deprecated: emits a `DeprecationWarning`. With the `memory` backend it switches to `database`, so deployments that relied on it keep a shared store; with `redis` it changes nothing. Use `SessionConfig(backend="database")` instead. |
 
 Sessions are no longer stored in an `admin_session` table. A database upgraded from an earlier version keeps that table unused; you can drop it once every worker runs 0.6.
 

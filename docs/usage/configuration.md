@@ -64,8 +64,8 @@ Every parameter except `session` and `SECRET_KEY` has a default. `mount_path` de
 
     - Use a strong, randomly generated `SECRET_KEY` from the environment, and keep it stable.
     - With more than one worker, use the `redis` or `database` session backend (see [Session Backends](session-backends.md)).
-    - Behind a reverse proxy, set `trusted_proxy_hops`.
-    - Restrict access with `allowed_ips` / `allowed_networks`, and serve the admin over HTTPS.
+    - Behind a reverse proxy, set `AccessConfig(trusted_proxy_hops=...)`.
+    - Restrict access with `AccessConfig(allowed_ips=...)` or `allowed_networks`, and serve the admin over HTTPS.
 
 ---
 
@@ -117,7 +117,7 @@ app.mount("/dashboard", admin.app)
 
 ### `admin_db_path` / `admin_db_url`
 
-Where the admin database lives: admin users, the event log and, with `session_backend="database"`, sessions and lockout counters. By default it's SQLite at `./crudadmin_data/admin.db`. Use `admin_db_path` for another SQLite file, or `admin_db_url` for any async SQLAlchemy URL:
+Where the admin database lives: admin users, the event log and, with `SessionConfig(backend="database")`, sessions and lockout counters. By default it's SQLite at `./crudadmin_data/admin.db`. Use `admin_db_path` for another SQLite file, or `admin_db_url` for any async SQLAlchemy URL:
 
 ```python
 admin = CRUDAdmin(
@@ -131,27 +131,45 @@ admin = CRUDAdmin(
 
 Creates a superuser during `admin.initialize()` if no admin exists yet. See [Managing Admin Users](admin-users.md).
 
-### Sessions
+### `sessions` (SessionConfig)
 
-| Parameter | Default | Meaning |
+How sessions are kept. See [Session Backends](session-backends.md).
+
+```python
+from crudadmin import SessionConfig
+
+sessions = SessionConfig(backend="database", timeout_minutes=60)
+```
+
+| Field | Default | Meaning |
 |---|---|---|
-| `session_backend` | `"memory"` | `"memory"`, `"redis"` or `"database"`; see [Session Backends](session-backends.md) |
-| `redis_config` | `None` | `RedisConfig` or dict for the `redis` backend |
-| `session_timeout_minutes` | `30` | Idle time after which a session ends |
-| `max_sessions_per_user` | `5` | Sessions an admin may hold at once; the oldest ends past this |
+| `backend` | `"memory"` | `"memory"`, `"redis"` or `"database"` |
+| `redis` | `None` | `RedisConfig` or dict for the `redis` backend |
+| `timeout_minutes` | `30` | Idle time after which a session ends |
+| `max_per_admin` | `5` | Sessions an admin may hold at once; the oldest ends past this |
 | `cleanup_interval_minutes` | `15` | How often idle sessions are swept |
 | `secure_cookies` | `True` | Send session cookies over HTTPS only |
 
-### Security
+### `access` (AccessConfig)
 
-| Parameter | Default | Meaning |
+Who may reach the admin, and the login lockout.
+
+```python
+from crudadmin import AccessConfig
+
+access = AccessConfig(allowed_networks=["10.0.0.0/8"], enforce_https=True)
+```
+
+| Field | Default | Meaning |
 |---|---|---|
-| `allowed_ips` / `allowed_networks` | `None` | Only these addresses reach the admin, login page included |
+| `allowed_ips` / `allowed_networks` | `[]` | Only these addresses reach the admin, login page included |
 | `enforce_https` / `https_port` | `False` / `443` | Redirect HTTP requests to HTTPS |
 | `trusted_proxy_hops` | `0` | Reverse proxies in front of the app; with `0`, `X-Forwarded-For` is ignored |
 | `lockout` | crudadmin's | A `crudauth.ratelimit.LockoutConfig` for the login lockout |
 
 Login lockout defaults to 5 failures, a first lock of one minute, and at most five minutes. A successful login clears the counters. Anyone who knows an admin's username can trigger a lockout, which is why the cap is short and why `allowed_ips` is worth setting.
+
+Before 0.7 each of these fields was a `CRUDAdmin` argument of its own (`session_backend`, `redis_config`, `session_timeout_minutes`, `max_sessions_per_user`, `cleanup_interval_minutes`, `secure_cookies`, `allowed_ips`, `allowed_networks`, `enforce_https`, `https_port`, `trusted_proxy_hops`, `lockout`). They still work, with a `DeprecationWarning`; passing one together with the config object it belongs to raises.
 
 Requests that change data need the session's CSRF token in an `X-CSRF-Token` header. The interface's bundled `admin.js` sends it for forms, htmx requests and `fetch` calls, and logging out is a POST.
 
@@ -196,7 +214,7 @@ app.mount("/admin", admin.app)
 admin = CRUDAdmin(
     session=get_session,
     SECRET_KEY="dev-key-change-in-production",
-    secure_cookies=False,
+    sessions=SessionConfig(secure_cookies=False),
     initial_admin={
         "username": "admin",
         "password": "admin123",
@@ -204,7 +222,7 @@ admin = CRUDAdmin(
 )
 ```
 
-`secure_cookies=False` lets the session cookie work over plain HTTP. Chrome and Firefox already accept secure cookies on `http://localhost`; other hosts, and Safari, need this in development.
+`SessionConfig(secure_cookies=False)` lets the session cookie work over plain HTTP. Chrome and Firefox already accept secure cookies on `http://localhost`; other hosts, and Safari, need this in development.
 
 ### Production
 
@@ -212,10 +230,12 @@ admin = CRUDAdmin(
 admin = CRUDAdmin(
     session=get_session,
     SECRET_KEY=os.environ["ADMIN_SECRET_KEY"],
-    session_backend="database",
-    trusted_proxy_hops=1,
-    allowed_networks=["10.0.0.0/8"],
-    enforce_https=True,
+    sessions=SessionConfig(backend="database"),
+    access=AccessConfig(
+        trusted_proxy_hops=1,
+        allowed_networks=["10.0.0.0/8"],
+        enforce_https=True,
+    ),
     track_events=True,
 )
 ```

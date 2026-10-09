@@ -195,9 +195,9 @@ Now that you have a basic admin interface running, you might want to:
     The example above uses a simple password and secret key for demonstration. In production:
     
     - Use a strong, randomly generated `SECRET_KEY` from the environment, and keep it stable
-    - With more than one worker, keep sessions in Redis (`session_backend="redis"`, `uv add "crudadmin[redis]"`) or the admin database (`session_backend="database"`); see [Session Backends](usage/session-backends.md)
-    - Behind a reverse proxy, set `trusted_proxy_hops` so lockouts and the IP allowlist see the real client IP
-    - Restrict the admin to known networks with `allowed_ips` / `allowed_networks`
+    - With more than one worker, keep sessions in Redis (`sessions=SessionConfig(backend="redis")`, `uv add "crudadmin[redis]"`) or the admin database (`SessionConfig(backend="database")`); see [Session Backends](usage/session-backends.md)
+    - Behind a reverse proxy, set `AccessConfig(trusted_proxy_hops=...)` so lockouts and the IP allowlist see the real client IP
+    - Restrict the admin to known networks with `AccessConfig(allowed_ips=..., allowed_networks=...)`
     - Serve the admin over HTTPS; session cookies are `Secure` by default
 
 For production deployment and advanced configurations, see the **[Advanced Topics](advanced/overview.md)** section.

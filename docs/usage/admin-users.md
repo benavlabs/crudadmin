@@ -132,14 +132,14 @@ Each login creates a session, stored in the configured [session backend](session
 admin = CRUDAdmin(
     session=get_session,
     SECRET_KEY=key,
-    max_sessions_per_user=3,
-    session_timeout_minutes=30,
-    cleanup_interval_minutes=15,
+    sessions=SessionConfig(
+        max_per_admin=3, timeout_minutes=30, cleanup_interval_minutes=15
+    ),
 )
 ```
 
-- A session ends after `session_timeout_minutes` without activity. The cookie lasts until the browser closes.
-- Past `max_sessions_per_user`, the oldest session is ended.
+- A session ends after `timeout_minutes` without activity. The cookie lasts until the browser closes.
+- Past `max_per_admin`, the oldest session is ended.
 - Logging in again from the same browser ends the session it had.
 
 The **Sessions** page (`/admin/management/sessions`) lists sessions with their browser, IP address, sign-in time and last activity, and a **Sign out** button for each. Admins see their own sessions; superusers see everyone's. Session ids are never shown.
@@ -162,20 +162,24 @@ Logins are protected by crudauth's lockout. crudadmin's defaults:
 - the first lock lasts one minute, doubling on repeated lockouts up to five minutes;
 - a successful login clears the failure counters (`on_login_success="clear_all"`).
 
-Anyone who knows an admin's username can lock it out by failing on purpose, which is why the cap is short. Keep strangers away from the login page with `allowed_ips` or `allowed_networks`. To tune the lockout:
+Anyone who knows an admin's username can lock it out by failing on purpose, which is why the cap is short. Keep strangers away from the login page with `AccessConfig(allowed_ips=...)` or `allowed_networks`. To tune the lockout:
 
 ```python
 from crudauth.ratelimit import LockoutConfig
 
+from crudadmin import AccessConfig, CRUDAdmin
+
 admin = CRUDAdmin(
     session=get_session,
     SECRET_KEY=key,
-    lockout=LockoutConfig(max_attempts=10, lockout_max_seconds=600),
-    allowed_networks=["10.0.0.0/8"],
+    access=AccessConfig(
+        lockout=LockoutConfig(max_attempts=10, lockout_max_seconds=600),
+        allowed_networks=["10.0.0.0/8"],
+    ),
 )
 ```
 
-Behind a reverse proxy, set `trusted_proxy_hops` to the number of proxies so lockouts count the real client IP; with the default `0`, `X-Forwarded-For` is ignored.
+Behind a reverse proxy, set `AccessConfig(trusted_proxy_hops=...)` to the number of proxies so lockouts count the real client IP; with the default `0`, `X-Forwarded-For` is ignored.
 
 Logged-in requests that change data (POST, PUT, PATCH, DELETE), including logout, need the session's CSRF token in an `X-CSRF-Token` header. The bundled `admin.js` sends it for the interface's forms, htmx requests and `fetch` calls.
 
